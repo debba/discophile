@@ -1,5 +1,5 @@
-//! Library search: debounced `search3`, podcast title and episode matches, a local fallback over
-//! downloads, and the on-demand Apple Podcasts directory search.
+//! Library search: debounced `search3`, podcast title and episode matches from an index loaded in
+//! parallel, a local fallback over downloads, and the on-demand Apple Podcasts directory search.
 
 use discophile_core::client::SearchLimits;
 use discophile_core::listening_history::fold;
@@ -88,6 +88,9 @@ impl SearchState {
 
 /// Called every frame by the Search page: debounces typing and starts searches.
 pub fn drive(app: &mut App) {
+    if app.nav.changed {
+        prefetch_podcast_index(app);
+    }
     let term = app.nav.search_text.trim().to_string();
     let key = format!("{}\n{}\n{}", app.session.generation, app.settings.downloaded_only, term);
     let now = app.ctx().input(|i| i.time);
@@ -129,34 +132,23 @@ pub fn drive(app: &mut App) {
 fn start(app: &mut App, term: String) {
     let sequence = app.library.search.sequence;
     let generation = app.session.generation;
-    let supports_podcasts = super::supports_podcasts(app);
 
     if app.settings.downloaded_only {
         let results = local_search(app, &term);
-        let podcasts = if supports_podcasts { downloaded_podcast_search(app, &term) } else { PodcastSearchResults::default() };
+        let podcasts = if super::supports_podcasts(app) { downloaded_podcast_search(app, &term) } else { PodcastSearchResults::default() };
         return finish(app, term, results, podcasts, None);
     }
     let Some(client) = app.client() else { return };
-    let cached_index = if supports_podcasts { super::cached_podcast_index(app) } else { Some(Vec::new()) };
+    // Runs alongside search3; podcast matches join the results whenever the index is ready.
+    prefetch_podcast_index(app);
     let fallback = local_search(app, &term);
     app.tasks.spawn(async move {
         let result = client.search(&term, SearchLimits::default()).await;
-        // Podcast matches are optional: servers without podcasts still show music results.
-        let index = match cached_index {
-            Some(channels) => Some((channels, false)),
-            None => client.podcasts(None, Some(true)).await.ok().map(|channels| (channels, true)),
-        };
         update(move |app: &mut App| {
             if app.session.generation != generation || app.library.search.sequence != sequence {
                 return;
             }
-            let podcasts = match &index {
-                Some((channels, _)) => podcast_directory::search_subscriptions(&term, channels, EPISODE_SEARCH_LIMIT),
-                None => PodcastSearchResults::default(),
-            };
-            if let Some((channels, true)) = index {
-                app.library.podcast_index = Some((channels, discophile_core::now_millis()));
-            }
+            let podcasts = podcast_matches(app, &term);
             match result {
                 Ok(results) => finish(app, term, results, podcasts, None),
                 Err(_) if !fallback.is_empty() => finish(app, term, fallback, podcasts, None),
@@ -164,6 +156,47 @@ fn start(app: &mut App, term: String) {
             }
         })
     });
+}
+
+/// Loads subscribed channels with their episodes in the background, so searching only filters
+/// them. Called when the Search page opens and when a search starts; a failure is retried then.
+pub fn prefetch_podcast_index(app: &mut App) {
+    if !super::supports_podcasts(app) || app.settings.downloaded_only || app.library.podcast_index_loading || super::podcast_index_is_fresh(app) {
+        return;
+    }
+    let Some(client) = app.client() else { return };
+    app.library.podcast_index_loading = true;
+    let (generation, epoch) = (app.session.generation, app.library.podcast_index_epoch);
+    app.tasks.spawn(async move {
+        let result = client.podcasts(None, Some(true)).await;
+        update(move |app: &mut App| {
+            if app.session.generation != generation || app.library.podcast_index_epoch != epoch {
+                return;
+            }
+            app.library.podcast_index_loading = false;
+            // Podcast matches are optional: servers without podcasts still show music results.
+            if let Ok(channels) = result {
+                app.library.podcast_index = Some((channels, discophile_core::now_millis()));
+                let search = &app.library.search;
+                if !search.term.is_empty() && !search.searching && !app.settings.downloaded_only {
+                    let term = search.term.clone();
+                    app.library.search.podcasts = podcast_matches(app, &term);
+                }
+            }
+        })
+    });
+}
+
+/// Podcast matches still on their way: the index is loading and the shown results lack them.
+pub fn podcasts_pending(app: &App) -> bool {
+    app.library.podcast_index_loading && !app.settings.downloaded_only && app.library.search.scope.includes_podcasts()
+}
+
+fn podcast_matches(app: &App, term: &str) -> PodcastSearchResults {
+    match &app.library.podcast_index {
+        Some((channels, _)) => podcast_directory::search_subscriptions(term, channels, EPISODE_SEARCH_LIMIT),
+        None => PodcastSearchResults::default(),
+    }
 }
 
 fn finish(app: &mut App, term: String, results: SearchResults, podcasts: PodcastSearchResults, error: Option<String>) {

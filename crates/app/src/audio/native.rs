@@ -89,10 +89,11 @@ impl NativeOutput {
         let (commands, receiver) = mpsc::channel();
         let shared = Arc::new(Shared { published: Mutex::default(), events: Mutex::default(), ctx: ctx.clone() });
         let control = Arc::new(Control { volume: AtomicU32::new(1.0f32.to_bits()), paused: AtomicBool::new(true) });
-        let engine = Engine::new(receiver, shared.clone(), control.clone());
+        // Built on the audio thread: `cpal::Stream` is not `Send` on macOS.
+        let (engine_shared, engine_control) = (shared.clone(), control.clone());
         let thread = std::thread::Builder::new()
             .name("discophile-audio".into())
-            .spawn(move || engine.run())
+            .spawn(move || Engine::new(receiver, engine_shared, engine_control).run())
             .map_err(|e| format!("could not start the audio thread: {e}"))?;
         Ok(Self { commands, shared, control, sent: 0, optimistic: OutputStatus::default(), thread: Some(thread) })
     }

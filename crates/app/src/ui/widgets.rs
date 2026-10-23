@@ -253,12 +253,15 @@ pub fn search_field_with_id(ui: &mut Ui, id: Option<egui::Id>, text: &mut String
         Stroke::new(1.0, if focused { palette.accent } else { palette.separator }),
         egui::StrokeKind::Inside,
     );
+    // Explicit gaps only: the default item spacing would push the text far from the magnifier.
+    ui.spacing_mut().item_spacing.x = 0.0;
     ui.add_space(space::M);
     let icon_rect = ui.allocate_exact_size(vec2(16.0, CONTROL), Sense::hover()).0;
     paint_icon(ui.painter(), icon_rect.center(), icons::MAGNIFYING_GLASS, FontId::proportional(15.0), palette.secondary);
     ui.add_space(space::S);
-    let clear_width = if text.is_empty() { 0.0 } else { CONTROL };
-    let field_width = (ui.available_width() - clear_width - space::S).max(40.0);
+    // The clear button's hover circle supplies its own padding.
+    let trailing = if text.is_empty() { space::M } else { 32.0 + space::XS };
+    let field_width = (ui.available_width() - trailing).max(40.0);
     let response = ui.add_sized(
         vec2(field_width, CONTROL),
         egui::TextEdit::singleline(text)
@@ -315,6 +318,11 @@ pub fn artwork_with(ui: &mut Ui, seed: &str, texture: Option<egui::TextureHandle
 }
 
 pub fn paint_artwork(ui: &Ui, rect: Rect, seed: &str, texture: Option<&egui::TextureHandle>, radius: f32) {
+    paint_artwork_or(ui, rect, seed, texture, radius, icons::MUSIC_NOTE);
+}
+
+/// Like [`paint_artwork`], with `placeholder` drawn on the gradient when there is no image.
+pub fn paint_artwork_or(ui: &Ui, rect: Rect, seed: &str, texture: Option<&egui::TextureHandle>, radius: f32, placeholder: &str) {
     let corner = CornerRadius::same(radius.round().clamp(0.0, 255.0) as u8);
     if let Some(texture) = texture {
         egui::Image::new(texture).corner_radius(corner).paint_at(ui, rect);
@@ -322,24 +330,51 @@ pub fn paint_artwork(ui: &Ui, rect: Rect, seed: &str, texture: Option<&egui::Tex
     }
     let [top, bottom] = theme::ARTWORK_PALETTES[theme::artwork_seed(seed)];
     paint_gradient(ui, rect, theme::hex(top), theme::hex(bottom), corner);
-    paint_icon(ui.painter(), rect.center(), icons::MUSIC_NOTE, FontId::proportional(rect.width() * 0.34), Color32::from_white_alpha(217));
+    paint_icon(ui.painter(), rect.center(), placeholder, FontId::proportional(rect.width() * 0.34), Color32::from_white_alpha(217));
 }
 
-/// A diagonal two-color gradient in a rounded rectangle.
+/// Round artist artwork; without a photo, a person on the gradient.
+pub fn artist_artwork(ui: &mut Ui, app: &mut App, seed: &str, cover: Option<&str>, size: f32) -> Response {
+    let texture = cover.and_then(|cover| app.artwork_texture(cover));
+    let (rect, response) = ui.allocate_exact_size(Vec2::splat(size), Sense::CLICK);
+    paint_artwork_or(ui, rect, seed, texture.as_ref(), size / 2.0, icons::USER);
+    response
+}
+
+/// A diagonal two-color gradient filling a rounded rectangle, circles included.
 pub fn paint_gradient(ui: &Ui, rect: Rect, start: Color32, end: Color32, corner: CornerRadius) {
-    // egui meshes have no clipping to rounded corners, so draw the rounded base then a gradient
-    // mesh inset by the radius; at artwork sizes the result matches the iOS diagonal gradient.
+    // Meshes are not antialiased: the rounded base draws the smooth edge, then a gradient fan over the
+    // same outline, one physical pixel inside, fills it.
     ui.painter().rect_filled(rect, corner, start.lerp_to_gamma(end, 0.5));
-    let inset = corner.average() * 0.3;
+    let inset = 1.0 / ui.ctx().pixels_per_point();
     let inner = rect.shrink(inset);
+    let max_radius = inner.width().min(inner.height()) / 2.0;
+    let radius = |r: u8| (f32::from(r) - inset).clamp(0.0, max_radius);
+    let corners = [
+        (Pos2::new(inner.right(), inner.top()), radius(corner.ne), vec2(-1.0, 1.0), -90.0f32),
+        (Pos2::new(inner.right(), inner.bottom()), radius(corner.se), vec2(-1.0, -1.0), 0.0),
+        (Pos2::new(inner.left(), inner.bottom()), radius(corner.sw), vec2(1.0, -1.0), 90.0),
+        (Pos2::new(inner.left(), inner.top()), radius(corner.nw), vec2(1.0, 1.0), 180.0),
+    ];
+    let mix = |p: Pos2| {
+        let t = ((p.x - inner.left()) + (p.y - inner.top())) / (inner.width() + inner.height()).max(1.0);
+        start.lerp_to_gamma(end, t.clamp(0.0, 1.0))
+    };
     let mut mesh = egui::Mesh::default();
-    let mix = |t: f32| start.lerp_to_gamma(end, t.clamp(0.0, 1.0));
-    mesh.colored_vertex(inner.left_top(), mix(0.0));
-    mesh.colored_vertex(inner.right_top(), mix(0.5));
-    mesh.colored_vertex(inner.right_bottom(), mix(1.0));
-    mesh.colored_vertex(inner.left_bottom(), mix(0.5));
-    mesh.add_triangle(0, 1, 2);
-    mesh.add_triangle(0, 2, 3);
+    mesh.colored_vertex(inner.center(), mix(inner.center()));
+    const STEPS: usize = 12;
+    for (point, r, toward_center, start_angle) in corners {
+        let center = point + toward_center * r;
+        for step in 0..=STEPS {
+            let angle = (start_angle + 90.0 * step as f32 / STEPS as f32).to_radians();
+            let p = center + r * vec2(angle.cos(), angle.sin());
+            mesh.colored_vertex(p, mix(p));
+        }
+    }
+    let outline = (mesh.vertices.len() - 1) as u32;
+    for i in 0..outline {
+        mesh.add_triangle(0, 1 + i, 1 + (i + 1) % outline);
+    }
     ui.painter().add(egui::Shape::mesh(mesh));
 }
 

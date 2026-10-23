@@ -294,7 +294,7 @@ pub const ARTIST_ROW: f32 = 60.0;
 /// An artist with round artwork; opens the artist page.
 pub fn artist_row(app: &mut App, ui: &mut Ui, artist: &Artist) {
     let response = row(ui, ARTIST_ROW, |ui| {
-        widgets::artwork(ui, app, &artist.id, artist.cover_art.as_deref(), 44.0, 22.0);
+        widgets::artist_artwork(ui, app, &artist.id, artist.cover_art.as_deref(), 44.0);
         ui.add_space(4.0);
         ui.vertical(|ui| {
             ui.add_space(6.0);
@@ -489,7 +489,9 @@ fn header_artwork(app: &mut App, ui: &mut Ui, header: &Header, size: f32, radius
     let corner = CornerRadius::same(radius.round().clamp(0.0, 255.0) as u8);
     ui.painter().add(shadow.as_shape(rect, corner));
     let texture = header.cover.as_deref().and_then(|cover| app.artwork_texture(cover));
-    widgets::paint_artwork(ui, rect, &header.seed, texture.as_ref(), radius);
+    // Only artists use round artwork.
+    let placeholder = if header.round { icons::USER } else { icons::MUSIC_NOTE };
+    widgets::paint_artwork_or(ui, rect, &header.seed, texture.as_ref(), radius, placeholder);
 }
 
 /// Play and Shuffle pills followed by an ellipsis menu.

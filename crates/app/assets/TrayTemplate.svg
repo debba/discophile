@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="-37 -14 1078 1078">
+<defs>
+<mask id="arm-gap" maskUnits="userSpaceOnUse" x="-37" y="-14" width="1078" height="1078">
+<rect x="-37" y="-14" width="1078" height="1078" fill="#fff"/>
+<path fill="none" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="150" d="M874 152L856 470 786 664.5"/>
+<rect x="698" y="602.5" width="176" height="124" rx="46" transform="rotate(117.8 786 664.5)"/>
+<circle cx="874" cy="152" r="118"/>
+</mask>
+</defs>
+<g mask="url(#arm-gap)">
+<circle cx="502" cy="526" r="400" fill="none" stroke="#000" stroke-width="80"/>
+<circle cx="502" cy="526" r="250" fill="none" stroke="#000" stroke-width="44"/>
+<circle cx="502" cy="526" r="110"/>
+</g>
+<path fill="none" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="60" d="M874 152L856 470 786 664.5"/>
+<rect x="728" y="633.5" width="116" height="62" rx="16" transform="rotate(117.8 786 664.5)"/>
+<circle cx="874" cy="152" r="68"/>
+</svg>

@@ -3,6 +3,12 @@
 #[cfg(not(target_arch = "wasm32"))]
 fn main() -> eframe::Result {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info,wgpu=warn,naga=warn")).init();
+    // The Dock expects the rounded-square macOS grid. eframe hands these pixels to NSBitmapImageRep,
+    // which reads them as premultiplied, as resvg renders them.
+    #[cfg(target_os = "macos")]
+    let icon = discophile::artwork::render_svg(include_bytes!("../assets/AppIcon-macOS.svg"), 512)
+        .map(|image| egui::IconData { rgba: image.as_raw().to_vec(), width: 512, height: 512 });
+    #[cfg(not(target_os = "macos"))]
     let icon = eframe::icon_data::from_png_bytes(include_bytes!("../assets/AppIcon.png")).ok();
     let mut viewport = egui::ViewportBuilder::default()
         .with_title("Discophile")

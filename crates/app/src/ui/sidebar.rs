@@ -19,13 +19,16 @@ struct Entry {
 pub fn show(app: &mut App, ui: &mut Ui) {
     let collapsed = app.settings.sidebar_collapsed;
 
-    ui.horizontal(|ui| {
-        let icon = crate::artwork::app_icon(ui.ctx(), 96);
-        ui.add(egui::Image::new(&icon).fit_to_exact_size(vec2(32.0, 32.0)).corner_radius(CornerRadius::same(9)));
-        if !collapsed {
+    let icon = crate::artwork::app_icon(ui.ctx(), 96);
+    let logo = egui::Image::new(&icon).fit_to_exact_size(vec2(32.0, 32.0)).corner_radius(CornerRadius::same(9));
+    if collapsed {
+        ui.vertical_centered(|ui| ui.add(logo));
+    } else {
+        ui.horizontal(|ui| {
+            ui.add(logo);
             ui.label(theme::text("Discophile", Font::Title3));
-        }
-    });
+        });
+    }
     ui.add_space(22.0);
 
     if app.session.has_library() && !collapsed {
@@ -82,26 +85,29 @@ pub fn show(app: &mut App, ui: &mut Ui) {
         }
     });
 
-    ui.with_layout(Layout::bottom_up(Align::Min), |ui| {
-        ui.horizontal(|ui| {
-            let collapse_icon = if collapsed { icons::SIDEBAR_SIMPLE } else { icons::CARET_LEFT };
-            let label = if collapsed { t("Show sidebar") } else { t("Hide sidebar") };
-            if widgets::icon_button(ui, collapse_icon, &label, 16.0).clicked() {
-                app.settings.sidebar_collapsed = !collapsed;
+    // Collapsed, every control sits on the same centre line as the nav icons.
+    ui.with_layout(Layout::bottom_up(if collapsed { Align::Center } else { Align::Min }), |ui| {
+        if collapsed {
+            if widgets::icon_button(ui, icons::SIDEBAR_SIMPLE, &t("Show sidebar"), 16.0).clicked() {
+                app.settings.sidebar_collapsed = false;
                 app.settings.save();
             }
-            if !collapsed {
+            if widgets::icon_button(ui, icons::GEAR_SIX, &t("Settings"), 17.0).clicked() {
+                app.nav.push(Route::Settings(SettingsPage::General));
+            }
+        } else {
+            ui.horizontal(|ui| {
+                if widgets::icon_button(ui, icons::CARET_LEFT, &t("Hide sidebar"), 16.0).clicked() {
+                    app.settings.sidebar_collapsed = true;
+                    app.settings.save();
+                }
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                     if ui.add(egui::Button::new(theme::secondary(ui, format!("{}  {}", icons::GEAR_SIX, t("Settings")), Font::Callout)).frame(false)).clicked() {
                         app.nav.push(Route::Settings(SettingsPage::General));
                     }
                 });
-            }
-        });
-        if collapsed
-            && widgets::icon_button(ui, icons::GEAR_SIX, &t("Settings"), 17.0).clicked() {
-                app.nav.push(Route::Settings(SettingsPage::General));
-            }
+            });
+        }
         if app.session.has_library() {
             downloaded_only_toggle(app, ui, collapsed);
         }
@@ -174,36 +180,43 @@ fn downloaded_only_toggle(app: &mut App, ui: &mut Ui, collapsed: bool) {
     }
 }
 
+const TOOLBAR_HEIGHT: f32 = 52.0;
+
 /// Back/forward on the left; assistant and the library menu on the right.
 pub fn toolbar(app: &mut App, ui: &mut Ui) {
-    ui.add_space(8.0);
-    ui.horizontal(|ui| {
-        ui.add_space(widgets::PAGE_MARGIN - 8.0);
-        ui.add_enabled_ui(app.nav.can_go_back(), |ui| {
-            if widgets::icon_button(ui, icons::CARET_LEFT, &t("Back"), 17.0).clicked() {
-                app.nav.back();
-            }
-        });
-        ui.add_enabled_ui(app.nav.can_go_forward(), |ui| {
-            if widgets::icon_button(ui, icons::CARET_RIGHT, &t("Forward"), 17.0).clicked() {
-                app.nav.forward();
-            }
-        });
-        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            ui.add_space(widgets::PAGE_MARGIN - 8.0);
-            account_menu(app, ui);
-            if app.session.has_library() {
-                let unread = assistant::unread_count(app);
-                let response = widgets::icon_button_tinted(ui, icons::SPARKLE, &t("Music assistant"), 19.0, Some(Palette::of_ui(ui).accent));
-                widgets::count_badge(ui, response.rect, unread);
-                if response.clicked() {
-                    app.nav.toggle_panel(SidePanel::Assistant);
-                }
-            }
-        });
+    // A fixed-height bar with its controls centred, so the space above and below them is equal.
+    let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), TOOLBAR_HEIGHT), Sense::hover());
+    let separator = ui.visuals().widgets.noninteractive.bg_stroke;
+    ui.painter().hline(rect.x_range(), rect.bottom() - separator.width / 2.0, separator);
+    let ui = &mut ui.new_child(egui::UiBuilder::new().max_rect(rect).layout(Layout::left_to_right(Align::Center)));
+    // Explicit gaps only, so both ends line up with the page content margins.
+    ui.spacing_mut().item_spacing.x = 0.0;
+    // The chevron, not its hover circle, sits on the content edge.
+    ui.add_space(widgets::PAGE_MARGIN - 12.0);
+    ui.add_enabled_ui(app.nav.can_go_back(), |ui| {
+        if widgets::icon_button(ui, icons::CARET_LEFT, &t("Back"), 17.0).clicked() {
+            app.nav.back();
+        }
     });
-    ui.add_space(8.0);
-    ui.separator();
+    ui.add_space(widgets::space::XS);
+    ui.add_enabled_ui(app.nav.can_go_forward(), |ui| {
+        if widgets::icon_button(ui, icons::CARET_RIGHT, &t("Forward"), 17.0).clicked() {
+            app.nav.forward();
+        }
+    });
+    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+        ui.add_space(widgets::PAGE_MARGIN);
+        account_menu(app, ui);
+        ui.add_space(widgets::space::S);
+        if app.session.has_library() {
+            let unread = assistant::unread_count(app);
+            let response = widgets::icon_button_tinted(ui, icons::SPARKLE, &t("Music assistant"), 19.0, Some(Palette::of_ui(ui).accent));
+            widgets::count_badge(ui, response.rect, unread);
+            if response.clicked() {
+                app.nav.toggle_panel(SidePanel::Assistant);
+            }
+        }
+    });
 }
 
 fn account_menu(app: &mut App, ui: &mut Ui) {

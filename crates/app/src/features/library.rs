@@ -212,6 +212,9 @@ pub struct LibraryState {
     pub opened_playlists: HashMap<String, Playlist>,
     /// Subscribed channels with episodes and the time they were fetched, for search.
     podcast_index: Option<(Vec<PodcastChannel>, i64)>,
+    /// A podcast index request is in flight; bumping the epoch discards its result.
+    podcast_index_loading: bool,
+    podcast_index_epoch: u64,
     /// Downloaded songs and albums by downloads revision.
     downloaded: Option<(u64, Vec<Song>)>,
     downloaded_albums: Option<(u64, Vec<Album>)>,
@@ -974,7 +977,7 @@ pub fn add_podcast(app: &mut App, feed: url::Url, done: impl FnOnce(&mut App, Mu
                 return;
             }
             app.library.changing_podcasts = false;
-            app.library.podcast_index = None;
+            invalidate_podcast_index(app);
             if let Some(Ok(channels)) = channels {
                 app.library.snapshot.podcasts = channels;
                 save(app, Part::Podcasts);
@@ -1003,7 +1006,7 @@ pub fn delete_podcast(app: &mut App, id: &str, done: impl FnOnce(&mut App, Music
             if result.is_ok() {
                 app.library.snapshot.podcasts.retain(|c| c.id != id);
                 app.library.episodes.remove(&id);
-                app.library.podcast_index = None;
+                invalidate_podcast_index(app);
                 save(app, Part::Podcasts);
                 let album = format!("podcast:{id}");
                 downloads::remove_matching(app, |song| song.album_id.as_deref() == Some(album.as_str()));
@@ -1013,9 +1016,15 @@ pub fn delete_podcast(app: &mut App, id: &str, done: impl FnOnce(&mut App, Music
     });
 }
 
-/// Subscribed channels with episodes, cached for five minutes so typing a search does not
-/// refetch every feed.
-fn cached_podcast_index(app: &App) -> Option<Vec<PodcastChannel>> {
-    let (channels, loaded) = app.library.podcast_index.as_ref()?;
-    (discophile_core::now_millis() - loaded < PODCAST_INDEX_MS).then(|| channels.clone())
+/// Whether the subscribed channels with episodes were fetched less than five minutes ago, so typing
+/// a search does not refetch every feed.
+fn podcast_index_is_fresh(app: &App) -> bool {
+    app.library.podcast_index.as_ref().is_some_and(|(_, loaded)| discophile_core::now_millis() - loaded < PODCAST_INDEX_MS)
+}
+
+/// Drops the podcast index after subscriptions change, including any request still in flight.
+fn invalidate_podcast_index(app: &mut App) {
+    app.library.podcast_index = None;
+    app.library.podcast_index_loading = false;
+    app.library.podcast_index_epoch += 1;
 }

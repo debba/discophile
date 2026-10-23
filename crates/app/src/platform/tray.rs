@@ -65,14 +65,14 @@ impl Tray {
         let quit = MenuItem::with_id("quit", t("Quit Discophile"), true, None);
         let menu = Menu::new();
         menu.append_items(&[&show, &PredefinedMenuItem::separator(), &toggle, &previous, &next, &PredefinedMenuItem::separator(), &quit])?;
-        let image = image::load_from_memory(include_bytes!("../../assets/AppIcon.png"))?
-            .resize(32, 32, image::imageops::FilterType::Lanczos3)
-            .into_rgba8();
-        let icon = Icon::from_rgba(image.into_raw(), 32, 32)?;
-        let icon = TrayIconBuilder::new()
-            .with_id("discophile")
-            .with_tooltip("Discophile")
-            .with_icon(icon)
+        let builder = TrayIconBuilder::new().with_id("discophile").with_tooltip("Discophile");
+        // The macOS menu bar expects a monochrome template that the system tints for light, dark and
+        // highlighted states; other desktops show the full-colour app icon.
+        #[cfg(target_os = "macos")]
+        let builder = builder.with_icon_templated(template_icon()?);
+        #[cfg(not(target_os = "macos"))]
+        let builder = builder.with_icon(app_icon()?);
+        let icon = builder
             .with_menu(Box::new(menu))
             .with_menu_on_left_click(false)
             .build()?;
@@ -171,6 +171,23 @@ impl Drop for Tray {
         MenuEvent::set_event_handler(None::<fn(MenuEvent)>);
         TrayIconEvent::set_event_handler(None::<fn(TrayIconEvent)>);
     }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn app_icon() -> Result<Icon, Box<dyn std::error::Error>> {
+    let image = image::load_from_memory(include_bytes!("../../assets/AppIcon.png"))?
+        .resize(32, 32, image::imageops::FilterType::Lanczos3)
+        .into_rgba8();
+    Ok(Icon::from_rgba(image.into_raw(), 32, 32)?)
+}
+
+/// 44 px is the 22 pt menu bar height at 2x; only the alpha channel is drawn.
+#[cfg(target_os = "macos")]
+fn template_icon() -> Result<Icon, Box<dyn std::error::Error>> {
+    const SIZE: u32 = 44;
+    let image = crate::artwork::render_svg(include_bytes!("../../assets/TrayTemplate.svg"), SIZE)
+        .ok_or("could not render the tray template")?;
+    Ok(Icon::from_rgba(image.as_raw().to_vec(), SIZE, SIZE)?)
 }
 
 pub fn show_window(ctx: &egui::Context) {

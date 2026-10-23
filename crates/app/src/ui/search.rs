@@ -139,7 +139,13 @@ fn results(app: &mut App, ui: &mut Ui) {
         widgets::section_heading(ui, &l10n::t("Episodes"), None);
         parts::track_list(app, ui, &podcasts.episodes, &TrackList { artwork: true, album: true, ..Default::default() });
     }
-    if !has_results && error.is_none() {
+    if search::podcasts_pending(app) {
+        ui.add_space(12.0);
+        ui.horizontal(|ui| {
+            ui.spinner();
+            ui.label(theme::secondary(ui, l10n::t("Searching…"), Font::Callout));
+        });
+    } else if !has_results && error.is_none() {
         widgets::empty_state(ui, icons::MAGNIFYING_GLASS, &l10n::t("No matches yet"), &l10n::t("Try another title or artist."));
     }
     if scope.includes_podcasts() && library::supports_podcasts(app) && !app.settings.downloaded_only {
