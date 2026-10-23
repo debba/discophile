@@ -51,6 +51,27 @@ queue, lyrics and the assistant, and modal windows instead of sheets.
   keychain, file dialogs and the native audio engine exist only on desktop; the web build hides those
   controls and explains why where the iOS app offered them.
 
+## Layout and accessibility rules
+
+- **Spacing**: use `widgets::space::{XS, S, M, L, XL, XXL}` (4–32) and the control heights `CONTROL_SMALL` (30),
+  `CONTROL` (36) and `CONTROL_LARGE` (44). Pages get `PAGE_MARGIN` through `widgets::page`.
+- **Dialogs**: open them with `widgets::modal(ctx, id)`, never `egui::Modal::new`. Its frame has sheet padding
+  (24) and corners (18); egui's default popup frame uses menu margins.
+- **Icons**: paint glyphs with `widgets::paint_icon`, which centers the drawn shape, not the font box.
+  Phosphor glyphs are not centered in their advance width.
+- **Text fields**: single-line `TextEdit`s use `.align(egui::Align2::LEFT_CENTER)`. Border, padding and focus
+  outline come from `theme::FieldStyle`, registered as the `TextEdit` style provider. Use
+  `widgets::search_field` for search.
+- **Keyboard**: every custom clickable control calls `widgets::focus_ring`. The ring shows only while
+  navigating with Tab. Tiles made of artwork plus text are a single stop: build them with
+  `widgets::tile_target`, which also sets the accessible name. Artwork itself is pointer-clickable but not
+  focusable.
+- **Screen readers**: give every icon-only control a label (`icon_button` does: tooltip and AccessKit name).
+- **Contrast**: text and accents meet WCAG AA in both appearances. Field borders (`Palette::field_border`)
+  and separators are opaque colors with at least 3:1 against their surface.
+- **Scaling**: Settings > General > Text size and Ctrl + / Ctrl − change `Settings::interface_scale`
+  (egui zoom). Layouts must reflow at 150%.
+
 ## Discophile Connect (planned)
 
 `discophile_core::connect` defines the device handoff protocol (Spotify Connect style). Devices

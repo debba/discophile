@@ -100,13 +100,7 @@ fn page_list(app: &mut App, ui: &mut Ui, current: SettingsPage) {
                 ui.painter().rect_filled(rect, CornerRadius::same(9), palette.hover);
             }
             let color = if selected { palette.accent } else { palette.text };
-            ui.painter().text(
-                rect.left_center() + vec2(16.0, 0.0),
-                egui::Align2::CENTER_CENTER,
-                icon,
-                egui::FontId::new(17.0, theme::icon_fill()),
-                color,
-            );
+            crate::ui::widgets::paint_icon(ui.painter(), rect.left_center() + vec2(16.0, 0.0), icon, egui::FontId::new(17.0, theme::icon_fill()), color);
             let font = if selected { Font::Headline.id() } else { Font::Body.id() };
             let galley = ui.painter().layout(label.clone(), font, color, rect.width() - 40.0);
             ui.painter().galley(pos2(rect.left() + 34.0, rect.center().y - galley.size().y / 2.0), galley, color);
@@ -274,6 +268,17 @@ fn general(app: &mut App, ui: &mut Ui) {
         app.settings.save();
     }
 
+    widgets::section_heading(ui, &t("Text size"), None);
+    let scales = crate::settings::Settings::SCALES;
+    let labels: Vec<String> = scales.iter().map(|s| format!("{}%", (s * 100.0).round() as i32)).collect();
+    let current = scales.iter().position(|s| (s - app.settings.interface_scale).abs() < 0.01).unwrap_or(usize::MAX);
+    if let Some(index) = segmented(ui, &labels, current) {
+        app.settings.interface_scale = scales[index];
+        app.settings.save();
+        ui.ctx().set_zoom_factor(scales[index]);
+    }
+    footer(ui, &t("Scales text and controls. You can also press Ctrl + and Ctrl − (Cmd on macOS), and Ctrl 0 to reset."));
+
     widgets::section_heading(ui, &t("Window"), None);
     group(ui, |ui| {
         let mut collapsed = app.settings.sidebar_collapsed;
@@ -303,14 +308,19 @@ fn general(app: &mut App, ui: &mut Ui) {
             if toggle_row(
                 ui,
                 &mut app.settings.minimize_on_close,
-                &t("The Close button should minimize Discophile"),
-                Some(&t("Playback continues. Use Quit Discophile to exit the app.")),
+                &t("Keep Discophile in the system tray when closing"),
+                Some(&t("Playback continues. Open the tray menu to restore the window or quit Discophile.")),
             ) {
                 app.settings.save();
             }
+            if !app.tray.as_ref().is_some_and(|tray| tray.available()) {
+                footer(ui, &t("The system tray is unavailable. Closing will minimize the window instead."));
+            } else if !app.can_hide_window {
+                footer(ui, &t("This window system cannot hide the window. Closing will minimize it; the tray controls remain available."));
+            }
             ui.separator();
             if labeled_button(ui, icons::POWER, &t("Quit Discophile"), Look::Plain).clicked() {
-                ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
+                app.request_quit();
             }
         });
     }

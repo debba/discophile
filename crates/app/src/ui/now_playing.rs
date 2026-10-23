@@ -110,7 +110,7 @@ pub fn show(app: &mut App, ui: &mut Ui) {
 }
 
 /// Space the controls under the artwork need.
-const CONTROLS_HEIGHT: f32 = 340.0;
+const CONTROLS_HEIGHT: f32 = 420.0;
 
 fn player_column(app: &mut App, ui: &mut Ui, replace: Option<Inline>, wide: bool) {
     let width = ui.available_width();
@@ -171,13 +171,7 @@ fn artwork(app: &mut App, ui: &mut Ui, size: f32) {
     {
         let center = rect.right_bottom() - vec2(22.0, 22.0);
         ui.painter().circle_filled(center, 15.0, egui::Color32::from_black_alpha(165));
-        ui.painter().text(
-            center,
-            egui::Align2::CENTER_CENTER,
-            icons::ARROW_CIRCLE_DOWN,
-            egui::FontId::new(20.0, theme::icon_fill()),
-            egui::Color32::WHITE,
-        );
+        crate::ui::widgets::paint_icon(ui.painter(), center, icons::ARROW_CIRCLE_DOWN, egui::FontId::new(20.0, theme::icon_fill()), egui::Color32::WHITE);
         ui.interact(Rect::from_center_size(center, vec2(30.0, 30.0)), Id::unique("np-downloaded"), Sense::hover())
             .on_hover_text(t("Playing from downloads"));
     }
@@ -318,7 +312,7 @@ fn big_icon(ui: &mut Ui, glyph: &str, label: &str, enabled: bool) -> egui::Respo
     }
     let color = if enabled { palette.text } else { palette.secondary.gamma_multiply(0.5) };
     let scale = if response.is_pointer_button_down_on() { 0.92 } else { 1.0 };
-    ui.painter().text(rect.center(), egui::Align2::CENTER_CENTER, glyph, egui::FontId::new(32.0 * scale, theme::icon_fill()), color);
+    crate::ui::widgets::paint_icon(ui.painter(), rect.center(), glyph, egui::FontId::new(32.0 * scale, theme::icon_fill()), color);
     response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, enabled, label));
     response.on_hover_text(label)
 }

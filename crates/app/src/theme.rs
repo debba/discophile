@@ -31,6 +31,8 @@ pub struct Palette {
     pub text: Color32,
     pub hover: Color32,
     pub danger: Color32,
+    /// Text field outline with at least 3:1 contrast against `surface` and `background`.
+    pub field_border: Color32,
 }
 
 impl Palette {
@@ -45,10 +47,11 @@ impl Palette {
             surface: hex(0x1D1D23),
             surface_raised: hex(0x292930),
             sidebar: hex(0x101014),
-            separator: Color32::from_white_alpha(22),
+            separator: hex(0x2E2933),
             text: hex(0xF6F2F7),
             hover: Color32::from_white_alpha(14),
             danger: hex(0xFF8A80),
+            field_border: hex(0x77707C),
         }
     }
     pub fn light() -> Self {
@@ -62,10 +65,11 @@ impl Palette {
             surface: Color32::WHITE,
             surface_raised: hex(0xEDEDF2),
             sidebar: hex(0xEFEFF4),
-            separator: Color32::from_black_alpha(22),
+            separator: hex(0xE2DDE4),
             text: hex(0x1C1A1E),
             hover: Color32::from_black_alpha(12),
             danger: hex(0xB3261E),
+            field_border: hex(0x8E8692),
         }
     }
     pub fn of(ctx: &egui::Context) -> Self {
@@ -156,7 +160,9 @@ pub fn apply(ctx: &egui::Context, dark: bool) {
     visuals.menu_corner_radius = egui::CornerRadius::same(12);
     visuals.window_stroke.color = palette.separator;
     visuals.slider_trailing_fill = true;
+    visuals.text_edit_bg_color = Some(if dark { hex(0x17141A) } else { Color32::WHITE });
     ctx.set_visuals(visuals);
+    ctx.replace_widget_theme(FieldStyle);
 
     ctx.all_styles_mut(|style| {
         use FontFamily::Proportional;
@@ -169,12 +175,49 @@ pub fn apply(ctx: &egui::Context, dark: bool) {
         ]
         .into();
         style.spacing.item_spacing = egui::vec2(10.0, 8.0);
-        style.spacing.button_padding = egui::vec2(12.0, 6.0);
-        style.spacing.interact_size.y = 30.0;
+        style.spacing.button_padding = egui::vec2(14.0, 7.0);
+        style.spacing.interact_size.y = 34.0;
+        // Dialogs and popovers breathe like iOS sheets; menus keep compact rows.
+        style.spacing.window_margin = egui::Margin::same(24);
+        style.spacing.menu_margin = egui::Margin::same(6);
+        style.spacing.menu_spacing = 4.0;
+        // Larger checkboxes and radio buttons: easier to hit and to see.
+        style.spacing.icon_width = 18.0;
+        style.spacing.icon_width_inner = 10.0;
+        style.spacing.icon_spacing = 8.0;
+        style.spacing.combo_height = 320.0;
+        style.spacing.tooltip_width = 360.0;
         style.spacing.slider_rail_height = 4.0;
         style.spacing.scroll.floating = true;
         style.spacing.scroll.bar_width = 8.0;
     });
+}
+
+/// Text fields: a visible 1-point border (≥ 3:1 against the surrounding surface, as WCAG asks of
+/// input boundaries), the accent outline while focused, and the standard control padding.
+struct FieldStyle;
+
+impl egui::theme::StyleProvider<egui::widget_style::TextEditStyle> for FieldStyle {
+    fn style(&mut self, args: &egui::widget_style::StyleArgs<'_>) -> egui::widget_style::TextEditStyle {
+        use egui::class::HasClasses as _;
+        use egui::widget_style::WidgetState;
+        let mut style = egui::theme::DefaultStyle.style(args);
+        let read_only = args.classes.has_class(&egui::TextEdit::CLASS_READ_ONLY);
+        if read_only {
+            return style;
+        }
+        let palette = if args.style.visuals.dark_mode { Palette::dark() } else { Palette::light() };
+        let stroke = match args.state {
+            WidgetState::Active => egui::Stroke::new(1.5, palette.accent),
+            WidgetState::Hovered => egui::Stroke::new(1.0, palette.secondary),
+            _ => egui::Stroke::new(1.0, palette.field_border),
+        };
+        let frame = &mut style.atom_layout.frame;
+        frame.inner_margin = egui::Margin::symmetric(10, 6);
+        frame.stroke = stroke;
+        frame.corner_radius = egui::CornerRadius::same(9);
+        style
+    }
 }
 
 /// Type scale mirroring SwiftUI's text styles, scaled for desktop reading distance.

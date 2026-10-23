@@ -112,25 +112,16 @@ fn lines(app: &mut App, ui: &mut Ui, lyrics: &SongLyrics, size: f32) {
             let line_id = id.with(index);
             let hovered = synced && ui.ctx().read_response(line_id).is_some_and(|r| r.hovered());
             let text = if line.text.trim().is_empty() && synced { "•••".to_string() } else { line.text.clone() };
+            // Like iOS: the current verse is bright, the rest recede; no box that could read as focus.
             let color = if selected {
                 palette.accent
             } else if synced {
-                palette.secondary
+                palette.secondary.gamma_multiply(0.75)
             } else {
                 palette.text
             };
-            let fill = if selected {
-                palette.surface
-            } else if hovered {
-                palette.hover
-            } else {
-                egui::Color32::TRANSPARENT
-            };
-            let frame = egui::Frame::new()
-                .inner_margin(Margin::symmetric(12, 8))
-                .corner_radius(CornerRadius::same(12))
-                .fill(fill)
-                .stroke(if selected { Stroke::new(2.0, palette.accent) } else { Stroke::NONE });
+            let fill = if hovered && !selected { palette.hover } else { egui::Color32::TRANSPARENT };
+            let frame = egui::Frame::new().inner_margin(Margin::symmetric(12, 8)).corner_radius(CornerRadius::same(12)).fill(fill);
             let inner = frame.show(ui, |ui| {
                 ui.set_width(ui.available_width());
                 let font = FontId::new(if synced { size } else { size * 0.8 }, if synced { theme::bold() } else { theme::semibold() });
@@ -141,6 +132,7 @@ fn lines(app: &mut App, ui: &mut Ui, lyrics: &SongLyrics, size: f32) {
                 let response = ui.interact(rect, line_id, Sense::click());
                 let label = if line.text.trim().is_empty() { t("Instrumental") } else { line.text.clone() };
                 response.widget_info(|| egui::WidgetInfo::selected(egui::Role::Button, true, selected, &label));
+                crate::ui::widgets::focus_ring(ui, &response, 12);
                 if response.on_hover_text(t("Play from this line")).on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
                     seek = Some(start);
                 }

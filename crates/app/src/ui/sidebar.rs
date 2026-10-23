@@ -112,25 +112,8 @@ pub fn show(app: &mut App, ui: &mut Ui) {
 }
 
 fn search_box(ui: &mut Ui, text: &mut String) -> egui::Response {
-    let palette = Palette::of_ui(ui);
-    egui::Frame::new()
-        .fill(palette.surface_raised)
-        .corner_radius(CornerRadius::same(10))
-        .inner_margin(egui::Margin::symmetric(10, 6))
-        .show(ui, |ui| {
-            ui.horizontal(|ui| {
-                ui.label(theme::icon(icons::MAGNIFYING_GLASS, 14.0).color(palette.secondary));
-                ui.add(
-                    egui::TextEdit::singleline(text)
-                        .id(egui::Id::unique("search-field"))
-                        .hint_text(t("Artists, albums, songs"))
-                        .frame(egui::Frame::NONE)
-                        .desired_width(f32::INFINITY),
-                )
-            })
-            .inner
-        })
-        .inner
+    let width = ui.available_width();
+    widgets::search_field_with_id(ui, Some(egui::Id::unique("search-field")), text, &t("Artists, albums, songs"), width)
 }
 
 fn nav_item(app: &mut App, ui: &mut Ui, entry: &Entry, selected: &Route, collapsed: bool) {
@@ -149,11 +132,12 @@ fn nav_item(app: &mut App, ui: &mut Ui, entry: &Entry, selected: &Route, collaps
     }
     let color = if is_selected { palette.accent } else { palette.secondary };
     let icon_x = if collapsed { rect.center().x } else { rect.left() + 18.0 };
-    ui.painter().text(egui::pos2(icon_x, rect.center().y), egui::Align2::CENTER_CENTER, entry.icon, egui::FontId::proportional(18.0), color);
+    widgets::paint_icon(ui.painter(), egui::pos2(icon_x, rect.center().y), entry.icon, egui::FontId::proportional(18.0), color);
     if !collapsed {
         let font = if is_selected { Font::Headline.id() } else { Font::Body.id() };
         ui.painter().text(egui::pos2(rect.left() + 38.0, rect.center().y), egui::Align2::LEFT_CENTER, &entry.label, font, color);
     }
+    widgets::focus_ring(ui, &response, 9);
     let response = if collapsed { response.on_hover_text(&entry.label) } else { response };
     response.widget_info(|| egui::WidgetInfo::selected(egui::Role::Tab, true, is_selected, &entry.label));
     if response.clicked() {

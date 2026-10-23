@@ -179,7 +179,7 @@ fn account_card(
                 ui.add_space(6.0);
                 crate::ui::accounts::field_label(ui, &t("Alias (optional)"));
                 let suggested = connection_alias::suggested(provider.alias_title(), Some(&account.credentials.server), true);
-                let field = ui.add(egui::TextEdit::singleline(&mut state.alias).hint_text(suggested.clone()).desired_width(f32::INFINITY));
+                let field = ui.add(egui::TextEdit::singleline(&mut state.alias).align(egui::Align2::LEFT_CENTER).hint_text(suggested.clone()).desired_width(f32::INFINITY));
                 let hint = format!("{}. {} {suggested}", t("Alias (optional)"), t("Leave empty to use the suggested name."));
                 field.widget_info(|| egui::WidgetInfo::labeled(egui::Role::TextInput, true, &hint));
                 let enter = field.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
@@ -244,7 +244,7 @@ fn account_card(
 
 /// Returns `Some(true)` to remove, `Some(false)` to cancel, `None` while open.
 fn remove_confirmation(ctx: &egui::Context, name: &str) -> Option<bool> {
-    let modal = egui::Modal::new(egui::Id::unique("remove-server")).show(ctx, |ui| {
+    let modal = crate::ui::widgets::modal(ctx, egui::Id::unique("remove-server")).show(ctx, |ui| {
         ui.set_width(400.0);
         let palette = Palette::of_ui(ui);
         ui.label(theme::text(t("Remove this server?"), Font::Title3));

@@ -52,7 +52,7 @@ fn now_playing_item(app: &mut App, ui: &mut Ui) {
             let (rect, response) = ui.allocate_exact_size(vec2(56.0, 56.0), Sense::click());
             ui.painter().rect_filled(rect, egui::CornerRadius::same(8), palette.surface_raised);
             let glyph = if app.player.mode == Mode::Audiobook { icons::BOOK_OPEN } else { icons::MUSIC_NOTE };
-            ui.painter().text(rect.center(), egui::Align2::CENTER_CENTER, glyph, egui::FontId::proportional(24.0), palette.secondary);
+            crate::ui::widgets::paint_icon(ui.painter(), rect.center(), glyph, egui::FontId::proportional(24.0), palette.secondary);
             response
         }
     };
@@ -86,13 +86,7 @@ fn now_playing_item(app: &mut App, ui: &mut Ui) {
             if response.hovered() {
                 ui.painter().circle_filled(rect.center(), 16.0, palette.hover);
             }
-            ui.painter().text(
-                rect.center(),
-                egui::Align2::CENTER_CENTER,
-                icons::HEART,
-                egui::FontId::new(18.0, theme::icon_fill()),
-                palette.accent,
-            );
+            crate::ui::widgets::paint_icon(ui.painter(), rect.center(), icons::HEART, egui::FontId::new(18.0, theme::icon_fill()), palette.accent);
             response.widget_info(|| egui::WidgetInfo::selected(egui::Role::Button, true, true, &label));
             response.on_hover_text(&label)
         } else {

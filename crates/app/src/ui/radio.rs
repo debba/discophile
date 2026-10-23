@@ -24,13 +24,7 @@ fn station_art(ui: &mut Ui, station: &InternetRadioStation, size: f32) -> egui::
     let seed = station.id.to_string();
     let [top, bottom] = theme::ARTWORK_PALETTES[theme::artwork_seed(&seed)];
     widgets::paint_gradient(ui, rect, theme::hex(top), theme::hex(bottom), CornerRadius::same(12));
-    ui.painter().text(
-        rect.center(),
-        egui::Align2::CENTER_CENTER,
-        icons::RADIO,
-        egui::FontId::proportional(size * 0.4),
-        Color32::from_white_alpha(225),
-    );
+    crate::ui::widgets::paint_icon(ui.painter(), rect.center(), icons::RADIO, egui::FontId::proportional(size * 0.4), Color32::from_white_alpha(225));
     response
 }
 
@@ -129,13 +123,16 @@ pub fn show(app: &mut App, ui: &mut Ui) {
                 if widgets::action_button(ui, t("Add station"), false).clicked() {
                     app.radio.editor = Some(StationForm::default());
                 }
+                ui.add_space(widgets::space::L);
+                ui.set_max_width(520.0);
+                ui.add(egui::Label::new(theme::secondary(ui, radio::format_note(), Font::Footnote)).wrap().halign(egui::Align::Center));
             });
         } else {
             ui.add_space(8.0);
             widgets::tile_grid(ui, &stations, 320.0, |ui, station, _| station_card(app, ui, station));
+            ui.add_space(widgets::space::M);
+            ui.label(theme::secondary(ui, radio::format_note(), Font::Footnote));
         }
-        ui.add_space(12.0);
-        ui.label(theme::secondary(ui, radio::format_note(), Font::Footnote));
     });
 }
 
@@ -144,11 +141,11 @@ fn form_fields(ui: &mut Ui, form: &mut StationForm) -> bool {
     let width = ui.available_width().min(460.0);
     let suggested = discophile_core::connection_alias::suggested("Radio", url::Url::parse(form.stream.trim()).ok().as_ref(), false);
     ui.label(theme::secondary(ui, t("Alias (optional)"), Font::Subheadline));
-    ui.add(egui::TextEdit::singleline(&mut form.name).hint_text(suggested).desired_width(width))
+    ui.add(egui::TextEdit::singleline(&mut form.name).align(egui::Align2::LEFT_CENTER).hint_text(suggested).desired_width(width))
         .on_hover_text(t("Leave empty to use the suggested name."));
     ui.label(theme::secondary(ui, t("Stream URL"), Font::Subheadline));
     let response =
-        ui.add(egui::TextEdit::singleline(&mut form.stream).hint_text("https://stream.example.com/live.mp3").desired_width(width));
+        ui.add(egui::TextEdit::singleline(&mut form.stream).align(egui::Align2::LEFT_CENTER).hint_text("https://stream.example.com/live.mp3").desired_width(width));
     let mut submit = response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
     if form.is_http() {
         ui.checkbox(&mut form.allow_http, t("Allow HTTP for this station"));
@@ -161,7 +158,7 @@ fn form_fields(ui: &mut Ui, form: &mut StationForm) -> bool {
             let message = if crate::platform::IS_WEB {
                 t("This looks like a playlist or HLS address. Your browser may not play it; use the direct stream URL listed inside the playlist instead.")
             } else {
-                t("This looks like a playlist or HLS address, which is not supported on this computer. Use the direct stream URL listed inside the playlist instead.")
+                t("This looks like an HLS address, which is not supported on this computer. Use the station's direct MP3, AAC or Ogg stream instead.")
             };
             ui.add(egui::Label::new(theme::text(message, Font::Footnote).color(palette.danger)).wrap());
         });
@@ -233,7 +230,7 @@ pub fn windows(app: &mut App, ctx: &egui::Context) {
         let title = if form.id.is_some() { t("Edit station") } else { t("Add station") };
         let mut saved = false;
         let mut close = false;
-        let modal = egui::Modal::new(egui::Id::unique("radio-editor")).show(ctx, |ui| {
+        let modal = crate::ui::widgets::modal(ctx, egui::Id::unique("radio-editor")).show(ctx, |ui| {
             ui.set_width(440.0);
             ui.horizontal(|ui| {
                 ui.label(theme::text(title, Font::Title3));
@@ -260,7 +257,7 @@ pub fn windows(app: &mut App, ctx: &egui::Context) {
         };
         let mut confirmed = false;
         let mut cancelled = false;
-        let modal = egui::Modal::new(egui::Id::unique("radio-remove")).show(ctx, |ui| {
+        let modal = crate::ui::widgets::modal(ctx, egui::Id::unique("radio-remove")).show(ctx, |ui| {
             ui.set_width(380.0);
             ui.label(theme::text(t("Remove station?"), Font::Title3));
             ui.add_space(4.0);

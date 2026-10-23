@@ -107,7 +107,7 @@ fn custom_timer_id() -> Id {
 pub fn custom_timer_window(app: &mut App, ctx: &egui::Context) {
     let Some(mut minutes) = ctx.data(|d| d.get_temp::<Option<u32>>(custom_timer_id())).flatten() else { return };
     let mut close = false;
-    let modal = egui::Modal::new(Id::unique("custom-timer-modal")).show(ctx, |ui| {
+    let modal = crate::ui::widgets::modal(ctx, Id::unique("custom-timer-modal")).show(ctx, |ui| {
         ui.set_width(340.0);
         ui.label(crate::theme::text(t("Custom timer"), crate::theme::Font::Title3));
         ui.add_space(8.0);

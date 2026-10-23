@@ -194,7 +194,7 @@ fn local_section(app: &mut App, ui: &mut Ui) {
     group(ui, |ui| {
         ui.label(theme::text(t("Server address"), Font::Headline));
         let response =
-            ui.add(egui::TextEdit::singleline(&mut base).hint_text(DEFAULT_BASE_URL).desired_width(f32::INFINITY).margin(vec2(10.0, 8.0)));
+            ui.add(egui::TextEdit::singleline(&mut base).align(egui::Align2::LEFT_CENTER).hint_text(DEFAULT_BASE_URL).desired_width(f32::INFINITY).margin(vec2(10.0, 8.0)));
         if response.changed() {
             app.assistant.config.local.base_url = base.clone();
             app.assistant.local.status = None;
@@ -206,7 +206,7 @@ fn local_section(app: &mut App, ui: &mut Ui) {
         ui.label(theme::text(t("Model"), Font::Headline));
         ui.horizontal(|ui| {
             let response =
-                ui.add(egui::TextEdit::singleline(&mut model).hint_text("llama3.2").desired_width(240.0).margin(vec2(10.0, 8.0)));
+                ui.add(egui::TextEdit::singleline(&mut model).align(egui::Align2::LEFT_CENTER).hint_text("llama3.2").desired_width(240.0).margin(vec2(10.0, 8.0)));
             if response.lost_focus() && model.trim() != app.assistant.config.local.model {
                 feature::set_local_model(app, &model);
             }
@@ -225,7 +225,7 @@ fn local_section(app: &mut App, ui: &mut Ui) {
         ui.horizontal(|ui| {
             let mut key = app.assistant.local.api_key.clone();
             let response = ui.add(
-                egui::TextEdit::singleline(&mut key)
+                egui::TextEdit::singleline(&mut key).align(egui::Align2::LEFT_CENTER)
                     .password(true)
                     .hint_text(t("Only if your server requires one"))
                     .desired_width(240.0)

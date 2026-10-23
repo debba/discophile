@@ -29,7 +29,10 @@ pub struct Settings {
     pub keep_album_gapless: bool,
     /// Prevents the system from sleeping while music plays (desktop "Keep screen awake").
     pub keep_awake: bool,
+    /// Close to the tray, or minimize when the desktop has no tray host.
     pub minimize_on_close: bool,
+    /// Interface and text scale (egui zoom), also changed with Ctrl + and Ctrl −.
+    pub interface_scale: f32,
 }
 
 impl Default for Settings {
@@ -51,12 +54,14 @@ impl Default for Settings {
             keep_album_gapless: true,
             keep_awake: false,
             minimize_on_close: false,
+            interface_scale: 1.0,
         }
     }
 }
 
 impl Settings {
     const KEY: &'static str = "settings";
+    pub const SCALES: [f32; 5] = [0.9, 1.0, 1.15, 1.3, 1.5];
 
     pub fn load() -> Self {
         storage::load(Self::KEY).unwrap_or_default()

@@ -64,7 +64,10 @@ fn tiles(ui: &mut Ui, summary: &ListeningSummary) {
     if summary.streak > 1 {
         items.push((l10n::t("Current streak"), l10n::count("%lld days in a row", summary.streak as i64)));
     }
-    widgets::tile_grid(ui, &items, 150.0, |ui, (title, value), _| {
+    // Fill the row when the totals fit on one line instead of leaving a gap at the end.
+    let gap = 20.0;
+    let min_tile = ((ui.available_width() + gap) / items.len() as f32 - gap).max(150.0);
+    widgets::tile_grid(ui, &items, min_tile.floor(), |ui, (title, value), _| {
         let response = widgets::card(ui, |ui| {
             ui.spacing_mut().item_spacing.y = 4.0;
             ui.label(theme::text(value, Font::Title2));
@@ -431,7 +434,7 @@ pub fn windows(app: &mut App, ctx: &egui::Context) {
     let palette = Palette::of(ctx);
     let mut clear = false;
     let mut cancel = false;
-    let modal = egui::Modal::new(egui::Id::unique("clear-listening-history")).show(ctx, |ui| {
+    let modal = crate::ui::widgets::modal(ctx, egui::Id::unique("clear-listening-history")).show(ctx, |ui| {
         ui.set_width(400.0);
         ui.label(theme::text(l10n::t("Clear listening history?"), Font::Title3));
         ui.add_space(6.0);

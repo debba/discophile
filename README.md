@@ -51,6 +51,12 @@ keeps credentials in the site's local storage, and needs CORS enabled on your se
 On Linux, playback prefers PipeWire, then PulseAudio, so it follows the output selected in the desktop
 sound settings. Plain ALSA is the fallback when neither sound server is available.
 
+The desktop tray menu provides Open, Play/Pause, Previous, Next and Quit. In Settings > General > Window
+behavior, enable closing to the tray to keep listening with the window hidden. If no tray is available,
+the window is minimized instead so it can still be reopened.
+On Linux, X11/XWayland is preferred when available because the window backend cannot hide native Wayland
+windows. Native Wayland keeps the tray controls and minimizes on close.
+
 ## Privacy
 
 - **LRCLIB**: when online lyrics are enabled, opening lyrics sends the title, artist, album and duration

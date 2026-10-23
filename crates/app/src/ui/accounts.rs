@@ -73,7 +73,7 @@ pub fn add_account_window(app: &mut App, ctx: &egui::Context) {
 
     let mut action = Action::None;
     let max_height = ctx.content_rect().height() - 80.0;
-    let modal = egui::Modal::new(egui::Id::unique("add-account")).show(ctx, |ui| {
+    let modal = crate::ui::widgets::modal(ctx, egui::Id::unique("add-account")).show(ctx, |ui| {
         ui.set_width(480.0f32.min(ctx.content_rect().width() - 48.0));
         egui::ScrollArea::vertical()
             .id_salt("add-account-scroll")
@@ -215,21 +215,9 @@ fn provider_row(ui: &mut Ui, icon: &str, label: &str) -> egui::Response {
     let (rect, response) = ui.allocate_exact_size(vec2(ui.available_width(), 44.0), Sense::click());
     let fill = if response.hovered() || response.has_focus() { palette.surface_raised } else { palette.background };
     ui.painter().rect_filled(rect, CornerRadius::same(12), fill);
-    ui.painter().text(
-        rect.left_center() + vec2(22.0, 0.0),
-        egui::Align2::CENTER_CENTER,
-        icon,
-        egui::FontId::new(19.0, theme::icon_fill()),
-        palette.accent,
-    );
+    crate::ui::widgets::paint_icon(ui.painter(), rect.left_center() + vec2(22.0, 0.0), icon, egui::FontId::new(19.0, theme::icon_fill()), palette.accent);
     ui.painter().text(rect.left_center() + vec2(44.0, 0.0), egui::Align2::LEFT_CENTER, label, Font::Body.id(), palette.text);
-    ui.painter().text(
-        rect.right_center() - vec2(16.0, 0.0),
-        egui::Align2::CENTER_CENTER,
-        icons::CARET_RIGHT,
-        egui::FontId::new(14.0, theme::icon_fill()),
-        palette.secondary,
-    );
+    crate::ui::widgets::paint_icon(ui.painter(), rect.right_center() - vec2(16.0, 0.0), icons::CARET_RIGHT, egui::FontId::new(14.0, theme::icon_fill()), palette.secondary);
     response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, label));
     response.on_hover_cursor(egui::CursorIcon::PointingHand)
 }
@@ -261,17 +249,17 @@ fn music_form(ui: &mut Ui, form: &mut Form, provider: MusicProvider) -> Action {
     ui.add_enabled_ui(!form.busy, |ui| {
         let suggested = connection_alias::suggested(provider.alias_title(), validate_server(&form.server, true).ok().as_ref(), true);
         field_label(ui, &t("Alias (optional)"));
-        let alias = ui.add(egui::TextEdit::singleline(&mut form.alias).hint_text(suggested.clone()).desired_width(f32::INFINITY));
+        let alias = ui.add(egui::TextEdit::singleline(&mut form.alias).align(egui::Align2::LEFT_CENTER).hint_text(suggested.clone()).desired_width(f32::INFINITY));
         let hint = format!("{} {suggested}", t("Leave empty to use the suggested name."));
         alias.widget_info(|| egui::WidgetInfo::labeled(egui::Role::TextInput, true, format!("{}. {hint}", t("Alias (optional)"))));
 
         field_label(ui, &t("Server URL"));
         let server =
-            ui.add(egui::TextEdit::singleline(&mut form.server).hint_text("https://music.example.com").desired_width(f32::INFINITY));
+            ui.add(egui::TextEdit::singleline(&mut form.server).align(egui::Align2::LEFT_CENTER).hint_text("https://music.example.com").desired_width(f32::INFINITY));
         server.widget_info(|| egui::WidgetInfo::labeled(egui::Role::TextInput, true, t("Server URL")));
 
         field_label(ui, &t("Username"));
-        let user = ui.add(egui::TextEdit::singleline(&mut form.username).desired_width(f32::INFINITY));
+        let user = ui.add(egui::TextEdit::singleline(&mut form.username).align(egui::Align2::LEFT_CENTER).desired_width(f32::INFINITY));
         user.widget_info(|| egui::WidgetInfo::labeled(egui::Role::TextInput, true, t("Username")));
 
         let password_label = if provider == MusicProvider::Jellyfin { t("Password") } else { t("Password or API key") };
@@ -326,7 +314,7 @@ pub(crate) fn field_label(ui: &mut Ui, text: &str) {
 pub(crate) fn password_field(ui: &mut Ui, text: &mut String, visible: &mut bool, label: &str) -> (egui::Response, egui::Response) {
     ui.horizontal(|ui| {
         let width = ui.available_width() - 40.0;
-        let field = ui.add(egui::TextEdit::singleline(text).password(!*visible).desired_width(width));
+        let field = ui.add(egui::TextEdit::singleline(text).align(egui::Align2::LEFT_CENTER).password(!*visible).desired_width(width));
         field.widget_info(|| egui::WidgetInfo::labeled(egui::Role::PasswordInput, true, label));
         let (icon, toggle_label) = if *visible { (icons::EYE_SLASH, t("Hide password")) } else { (icons::EYE, t("Show password")) };
         let toggle = glyph_button(ui, icon, &toggle_label, 17.0);
@@ -382,14 +370,5 @@ pub(crate) fn labeled(ui: &Ui, icon: &str, label: &str, look: Look) -> egui::But
 
 /// A borderless round icon button (see `widgets::icon_button`) drawn with the filled Phosphor face.
 pub(crate) fn glyph_button(ui: &mut Ui, icon: &str, label: &str, size: f32) -> egui::Response {
-    let side = (size + 14.0).max(32.0);
-    let (rect, response) = ui.allocate_exact_size(egui::Vec2::splat(side), Sense::click());
-    let palette = Palette::of_ui(ui);
-    if response.hovered() || response.has_focus() {
-        ui.painter().circle_filled(rect.center(), side / 2.0, palette.hover);
-    }
-    let color = if ui.is_enabled() { palette.text } else { palette.secondary.gamma_multiply(0.5) };
-    ui.painter().text(rect.center(), egui::Align2::CENTER_CENTER, icon, egui::FontId::new(size, theme::icon_fill()), color);
-    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, ui.is_enabled(), label));
-    response.on_hover_text(label).on_hover_cursor(egui::CursorIcon::PointingHand)
+    crate::ui::widgets::icon_button(ui, icon, label, size)
 }

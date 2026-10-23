@@ -45,7 +45,7 @@ fn search_box(app: &mut App, ui: &mut Ui) {
                 ui.label(theme::icon(icons::MAGNIFYING_GLASS, 19.0).color(palette.secondary));
                 let width = ui.available_width() - if text.is_empty() { 0.0 } else { 40.0 };
                 let response = ui.add(
-                    egui::TextEdit::singleline(&mut text)
+                    egui::TextEdit::singleline(&mut text).align(egui::Align2::LEFT_CENTER)
                         .id(id)
                         .hint_text(l10n::t("Songs, artists, albums, podcasts"))
                         .font(Font::Title3.id())

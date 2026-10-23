@@ -7,6 +7,8 @@ pub mod secrets;
 pub mod storage;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod window;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod tray;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub trait MaybeSend: Send {}

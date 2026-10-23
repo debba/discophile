@@ -237,7 +237,7 @@ fn skip_button(ui: &mut Ui, forward: bool, seconds: u32) -> egui::Response {
         ui.painter().circle_filled(rect.center(), side / 2.0, palette.hover);
     }
     let glyph = if forward { icons::ARROW_CLOCKWISE } else { icons::ARROW_COUNTER_CLOCKWISE };
-    ui.painter().text(rect.center(), egui::Align2::CENTER_CENTER, glyph, egui::FontId::proportional(46.0), palette.accent);
+    crate::ui::widgets::paint_icon(ui.painter(), rect.center(), glyph, egui::FontId::proportional(46.0), palette.accent);
     ui.painter().text(
         rect.center() + vec2(0.0, 1.0),
         egui::Align2::CENTER_CENTER,
@@ -434,7 +434,7 @@ fn bookmarks(app: &mut App, ui: &mut Ui, account: &str, book: &str, actions: &mu
         if let Some(mut title) = editing {
             ui.horizontal(|ui| {
                 let response = ui.add(
-                    egui::TextEdit::singleline(&mut title).hint_text(t("Name")).desired_width(ui.available_width() - 160.0).char_limit(200),
+                    egui::TextEdit::singleline(&mut title).align(egui::Align2::LEFT_CENTER).hint_text(t("Name")).desired_width(ui.available_width() - 160.0).char_limit(200),
                 );
                 let enter = response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
                 if ui.button(t("Save")).clicked() || enter {
@@ -510,7 +510,7 @@ pub fn windows(app: &mut App, ctx: &egui::Context) {
         let duration = app.audiobooks.playback.as_ref().map(|p| p.duration().clamp(0.0, 315_360_000.0)).unwrap_or(0.0);
         let mut close = false;
         let mut jump = None;
-        let modal = egui::Modal::new(egui::Id::unique("abs-jump")).show(ctx, |ui| {
+        let modal = crate::ui::widgets::modal(ctx, egui::Id::unique("abs-jump")).show(ctx, |ui| {
             ui.set_width(360.0);
             ui.label(theme::text(t("Go to time"), Font::Title3));
             ui.label(theme::secondary(ui, t("Book position"), Font::Subheadline));
@@ -556,7 +556,7 @@ pub fn windows(app: &mut App, ctx: &egui::Context) {
     if let Some(mut minutes) = app.audiobooks.player_ui.custom_timer {
         let mut close = false;
         let mut start = false;
-        let modal = egui::Modal::new(egui::Id::unique("abs-custom-timer")).show(ctx, |ui| {
+        let modal = crate::ui::widgets::modal(ctx, egui::Id::unique("abs-custom-timer")).show(ctx, |ui| {
             ui.set_width(320.0);
             ui.label(theme::text(t("Custom timer"), Font::Title3));
             ui.add_space(6.0);

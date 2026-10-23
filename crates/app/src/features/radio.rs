@@ -36,9 +36,12 @@ impl StationForm {
     }
 
     /// Playlist files and HLS streams, which the players here cannot open directly.
+    /// Addresses the player cannot open: HLS everywhere, and playlist files in browsers.
+    /// The desktop engine follows M3U and PLS playlists itself.
     pub fn looks_like_playlist(&self) -> bool {
         let path = url::Url::parse(self.stream.trim()).map(|u| u.path().to_ascii_lowercase()).unwrap_or_default();
-        [".m3u", ".m3u8", ".pls", ".asx", ".xspf"].iter().any(|ext| path.ends_with(ext))
+        let unsupported: &[&str] = if crate::platform::IS_WEB { &[".m3u", ".m3u8", ".pls", ".asx", ".xspf"] } else { &[".m3u8", ".asx", ".xspf"] };
+        unsupported.iter().any(|ext| path.ends_with(ext))
     }
 }
 
@@ -131,7 +134,7 @@ pub fn format_note() -> String {
         t("Use a direct audio stream URL, not a website or a playlist file. Available formats depend on your browser.")
     } else {
         t(
-            "Use a direct audio stream URL (MP3, AAC, Ogg or FLAC), not a website. HLS streams and M3U or PLS playlist files are not supported on this computer.",
+            "Use a direct audio stream URL (MP3, AAC, Ogg or FLAC) or an M3U or PLS playlist, not a website. HLS streams are not supported on this computer.",
         )
     }
 }

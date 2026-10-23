@@ -17,6 +17,8 @@ pub enum MediaCommand {
     /// Relative seek in seconds.
     SeekBy(f64),
     SetPosition(f64),
+    #[cfg(not(target_arch = "wasm32"))]
+    Quit,
 }
 
 /// Seconds for "seek forward/backward" without an amount.
@@ -121,6 +123,8 @@ pub fn apply(app: &mut App, command: MediaCommand) {
             player::seek(app, position)
         }
         MediaCommand::SetPosition(position) => player::seek(app, position),
+        #[cfg(not(target_arch = "wasm32"))]
+        MediaCommand::Quit => app.request_quit(),
     }
 }
 
@@ -223,13 +227,11 @@ mod backend {
                         MediaControlEvent::SetPosition(MediaPosition(position)) => Some(MediaCommand::SetPosition(position.as_secs_f64())),
                         MediaControlEvent::Raise => {
                             ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
+                            ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(false));
                             ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
                             None
                         }
-                        MediaControlEvent::Quit => {
-                            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-                            None
-                        }
+                        MediaControlEvent::Quit => Some(MediaCommand::Quit),
                         MediaControlEvent::SetVolume(_) | MediaControlEvent::OpenUri(_) => None,
                     };
                     if let Some(command) = command {

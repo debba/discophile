@@ -25,7 +25,7 @@ rand.workspace = true
 getrandom.workspace = true
 futures.workspace = true
 log.workspace = true
-egui = "0.37"
+egui = { version = "0.37", features = ["experimental"] }
 egui_extras = { version = "0.37", default-features = false }
 eframe = { version = "0.37", default-features = false, features = ["accesskit", "default_fonts", "glow", "wayland", "x11", "clipboard", "links"] }
 

@@ -36,13 +36,7 @@ pub fn play_button(ui: &mut Ui, app: &App, diameter: f32) -> Response {
     ui.painter().circle_filled(center, diameter / 2.0 * scale, fill);
     let glyph = if active { icons::PAUSE } else { icons::PLAY };
     let offset = if active { 0.0 } else { diameter * 0.03 };
-    ui.painter().text(
-        center + vec2(offset, 0.0),
-        Align2::CENTER_CENTER,
-        glyph,
-        FontId::new(diameter * 0.44 * scale, theme::icon_fill()),
-        Color32::WHITE,
-    );
+    crate::ui::widgets::paint_icon(ui.painter(), center + vec2(offset, 0.0), glyph, FontId::new(diameter * 0.44 * scale, theme::icon_fill()), Color32::WHITE);
     if buffering {
         let time = ui.input(|i| i.time) as f32;
         let start = (time / 0.9).fract() * TAU;
@@ -107,14 +101,14 @@ pub fn tool_button_with(ui: &mut Ui, glyph: &str, label: &str, active: bool, cap
     };
     let glyph_center = if caption.is_some() { center - vec2(0.0, 5.0) } else { center };
     let font = if active { FontId::new(20.0, theme::icon_fill()) } else { FontId::proportional(20.0) };
-    ui.painter().text(glyph_center, Align2::CENTER_CENTER, glyph, font, color);
+    crate::ui::widgets::paint_icon(ui.painter(), glyph_center, glyph, font, color);
     if let Some(caption) = caption {
         ui.painter().text(center + vec2(0.0, 11.0), Align2::CENTER_CENTER, caption, FontId::new(9.5, theme::semibold()), color);
     }
     if active {
         let badge = center + vec2(diameter / 2.0 - 5.0, -diameter / 2.0 + 5.0);
         ui.painter().circle_filled(badge, 7.0, palette.surface);
-        ui.painter().text(badge, Align2::CENTER_CENTER, icons::CHECK_CIRCLE, FontId::new(13.0, theme::icon_fill()), palette.accent);
+        crate::ui::widgets::paint_icon(ui.painter(), badge, icons::CHECK_CIRCLE, FontId::new(13.0, theme::icon_fill()), palette.accent);
     }
     response.widget_info(|| egui::WidgetInfo::selected(egui::Role::Button, enabled, active, label));
     let response = response.on_hover_text(label);

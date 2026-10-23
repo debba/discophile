@@ -209,28 +209,33 @@ pub fn playlist_grid(app: &mut App, ui: &mut Ui, playlists: &[Playlist]) {
 pub fn album_card(app: &mut App, ui: &mut Ui, album: &Album, width: f32) {
     ui.spacing_mut().item_spacing.y = 4.0;
     let art = widgets::artwork(ui, app, &album.id, album.cover_art.as_deref(), width, 12.0);
-    let hovered = ui.rect_contains_pointer(art.rect);
-    let mut play = false;
-    if hovered {
-        ui.painter().rect_filled(art.rect, CornerRadius::same(12), Color32::from_black_alpha(40));
-        let size = 44.0;
-        let button = Rect::from_min_size(art.rect.right_bottom() - vec2(size + 10.0, size + 10.0), vec2(size, size));
-        play = ui.put(button, |ui: &mut Ui| widgets::round_play_button(ui, false, &l10n::t("Play"), size)).clicked();
-    }
-    let title = ui.add(egui::Label::new(theme::text(&album.name, Font::Headline)).truncate().sense(Sense::click()));
+    ui.add(egui::Label::new(theme::text(&album.name, Font::Headline)).truncate().selectable(false));
     let artist = album.artist.clone().unwrap_or_else(|| l10n::t("Unknown artist"));
     let subtitle = match album.year {
         Some(year) if year > 0 => format!("{artist} · {year}"),
         _ => artist,
     };
-    let sub = ui.add(egui::Label::new(theme::secondary(ui, subtitle, Font::Subheadline)).truncate().sense(Sense::click()));
-    let response = art.union(title).union(sub).on_hover_cursor(egui::CursorIcon::PointingHand);
+    ui.add(egui::Label::new(theme::secondary(ui, subtitle.clone(), Font::Subheadline)).truncate().selectable(false));
+    let rect = art.rect.union(ui.min_rect());
+    let response = widgets::tile_target(ui, rect, ("album-card", &album.id), &format!("{}, {subtitle}", album.name));
+    let play = hover_play_button(ui, art.rect, response.hovered() || ui.rect_contains_pointer(art.rect));
     if play {
         library::with_album_songs(app, &album.id, |app, songs| library::play(app, songs, 0, false));
     } else if response.clicked() {
         app.nav.push(Route::Album(album.id.clone()));
     }
     response.context_menu(|ui| album_menu(app, ui, album));
+}
+
+/// The round play button over artwork while the pointer is on the tile. Returns true when pressed.
+fn hover_play_button(ui: &mut Ui, art: Rect, hovered: bool) -> bool {
+    if !hovered {
+        return false;
+    }
+    ui.painter().rect_filled(art, CornerRadius::same(12), Color32::from_black_alpha(40));
+    let size = 44.0;
+    let button = Rect::from_min_size(art.right_bottom() - vec2(size + 10.0, size + 10.0), vec2(size, size));
+    ui.put(button, |ui: &mut Ui| widgets::round_play_button(ui, false, &l10n::t("Play"), size)).clicked()
 }
 
 /// Album actions; the tracks are fetched first when the album was never opened.
@@ -310,21 +315,12 @@ pub fn artist_row(app: &mut App, ui: &mut Ui, artist: &Artist) {
 pub fn playlist_card(app: &mut App, ui: &mut Ui, playlist: &Playlist, width: f32) {
     ui.spacing_mut().item_spacing.y = 4.0;
     let art = widgets::artwork(ui, app, &playlist.id, playlist.cover_art.as_deref(), width, 12.0);
-    let hovered = ui.rect_contains_pointer(art.rect);
-    let mut play = false;
-    if hovered {
-        ui.painter().rect_filled(art.rect, CornerRadius::same(12), Color32::from_black_alpha(40));
-        let size = 44.0;
-        let button = Rect::from_min_size(art.rect.right_bottom() - vec2(size + 10.0, size + 10.0), vec2(size, size));
-        play = ui.put(button, |ui: &mut Ui| widgets::round_play_button(ui, false, &l10n::t("Play"), size)).clicked();
-    }
-    let title = ui.add(egui::Label::new(theme::text(&playlist.name, Font::Headline)).truncate().sense(Sense::click()));
-    let sub = ui.add(
-        egui::Label::new(theme::secondary(ui, l10n::count("%lld songs", playlist.song_count.unwrap_or(0)), Font::Subheadline))
-            .truncate()
-            .sense(Sense::click()),
-    );
-    let response = art.union(title).union(sub).on_hover_cursor(egui::CursorIcon::PointingHand);
+    ui.add(egui::Label::new(theme::text(&playlist.name, Font::Headline)).truncate().selectable(false));
+    let songs = l10n::count("%lld songs", playlist.song_count.unwrap_or(0));
+    ui.add(egui::Label::new(theme::secondary(ui, songs.clone(), Font::Subheadline)).truncate().selectable(false));
+    let rect = art.rect.union(ui.min_rect());
+    let response = widgets::tile_target(ui, rect, ("playlist-card", &playlist.id), &format!("{}, {songs}", playlist.name));
+    let play = hover_play_button(ui, art.rect, response.hovered() || ui.rect_contains_pointer(art.rect));
     let id = playlist.id.clone();
     if play {
         library::with_playlist_songs(app, &id, |app, songs| library::play(app, songs, 0, false));

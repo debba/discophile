@@ -35,13 +35,7 @@ fn paint_cover(ui: &Ui, rect: Rect, seed: &str, texture: Option<&egui::TextureHa
     let corner = CornerRadius::same(radius.round().clamp(0.0, 255.0) as u8);
     let [top, bottom] = theme::ARTWORK_PALETTES[theme::artwork_seed(seed)];
     widgets::paint_gradient(ui, rect, theme::hex(top), theme::hex(bottom), corner);
-    ui.painter().text(
-        rect.center(),
-        egui::Align2::CENTER_CENTER,
-        icons::BOOK,
-        egui::FontId::proportional(rect.width() * 0.34),
-        Color32::from_white_alpha(217),
-    );
+    crate::ui::widgets::paint_icon(ui.painter(), rect.center(), icons::BOOK, egui::FontId::proportional(rect.width() * 0.34), Color32::from_white_alpha(217));
 }
 
 /// Server descriptions are HTML; show them as plain text without loading anything remote.
@@ -103,7 +97,7 @@ fn paint_progress(ui: &Ui, rect: Rect, fraction: f64) {
 fn small_badge(ui: &Ui, rect: Rect, icon: &str) {
     let center = rect.right_bottom() + vec2(-18.0, -18.0);
     ui.painter().circle_filled(center, 13.0, Color32::from_black_alpha(170));
-    ui.painter().text(center, egui::Align2::CENTER_CENTER, icon, egui::FontId::new(15.0, theme::icon_fill()), Color32::WHITE);
+    crate::ui::widgets::paint_icon(ui.painter(), center, icon, egui::FontId::new(15.0, theme::icon_fill()), Color32::WHITE);
 }
 
 /// A grid tile: cover, title, author and a status line. Clicking opens the book.
@@ -698,15 +692,15 @@ pub fn connect_form(app: &mut App, ui: &mut Ui) -> bool {
     let width = ui.available_width().min(460.0);
     ui.add_enabled_ui(!form.busy, |ui| {
         ui.label(theme::secondary(ui, t("Alias (optional)"), Font::Subheadline));
-        ui.add(egui::TextEdit::singleline(&mut form.name).hint_text(suggested).desired_width(width))
+        ui.add(egui::TextEdit::singleline(&mut form.name).align(egui::Align2::LEFT_CENTER).hint_text(suggested).desired_width(width))
             .on_hover_text(t("Leave empty to use the suggested name."));
         ui.label(theme::secondary(ui, t("Server URL"), Font::Subheadline));
-        ui.add(egui::TextEdit::singleline(&mut form.server).hint_text("https://audiobooks.example.com").desired_width(width));
+        ui.add(egui::TextEdit::singleline(&mut form.server).align(egui::Align2::LEFT_CENTER).hint_text("https://audiobooks.example.com").desired_width(width));
         ui.label(theme::secondary(ui, t("Username"), Font::Subheadline));
-        ui.add(egui::TextEdit::singleline(&mut form.username).desired_width(width));
+        ui.add(egui::TextEdit::singleline(&mut form.username).align(egui::Align2::LEFT_CENTER).desired_width(width));
         ui.label(theme::secondary(ui, t("Password"), Font::Subheadline));
         ui.horizontal(|ui| {
-            let response = ui.add(egui::TextEdit::singleline(&mut form.password).password(!form.show_password).desired_width(width - 46.0));
+            let response = ui.add(egui::TextEdit::singleline(&mut form.password).align(egui::Align2::LEFT_CENTER).password(!form.show_password).desired_width(width - 46.0));
             if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
                 submit = true;
             }
@@ -763,7 +757,7 @@ pub fn windows(app: &mut App, ctx: &egui::Context) {
     player::windows(app, ctx);
     let Some(dialog) = app.audiobooks.dialog.clone() else { return };
     if dialog == Dialog::Connect {
-        let modal = egui::Modal::new(egui::Id::unique("abs-connect")).show(ctx, |ui| {
+        let modal = crate::ui::widgets::modal(ctx, egui::Id::unique("abs-connect")).show(ctx, |ui| {
             ui.set_width(460.0);
             let close = ui
                 .horizontal(|ui| {
@@ -806,7 +800,7 @@ pub fn windows(app: &mut App, ctx: &egui::Context) {
     };
     let mut confirmed = false;
     let mut cancelled = false;
-    let modal = egui::Modal::new(egui::Id::unique("abs-confirm")).show(ctx, |ui| {
+    let modal = crate::ui::widgets::modal(ctx, egui::Id::unique("abs-confirm")).show(ctx, |ui| {
         ui.set_width(400.0);
         ui.label(theme::text(title, Font::Title3));
         ui.add_space(6.0);

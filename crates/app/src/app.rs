@@ -47,9 +47,16 @@ pub struct App {
     pub lyrics: lyrics::LyricsState,
     pub media_controls: Option<crate::platform::media_controls::MediaControls>,
     dark: Option<bool>,
+    scale_applied: bool,
     /// Holds a sleep inhibitor while music plays with "Keep the computer awake" on.
     #[cfg(not(target_arch = "wasm32"))]
     awake: Option<keepawake::KeepAwake>,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub tray: Option<crate::platform::tray::Tray>,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub can_hide_window: bool,
+    #[cfg(not(target_arch = "wasm32"))]
+    quitting: bool,
 }
 
 impl App {
@@ -83,8 +90,15 @@ impl App {
             lyrics: Default::default(),
             media_controls,
             dark: None,
+            scale_applied: false,
             #[cfg(not(target_arch = "wasm32"))]
             awake: None,
+            #[cfg(not(target_arch = "wasm32"))]
+            tray: crate::platform::tray::Tray::new(&ctx),
+            #[cfg(not(target_arch = "wasm32"))]
+            can_hide_window: crate::platform::window::can_hide(cc),
+            #[cfg(not(target_arch = "wasm32"))]
+            quitting: false,
         };
         app.player.output.set_transitions(app.settings.transitions());
         features::start(&mut app);
@@ -97,6 +111,13 @@ impl App {
 
     pub fn ctx(&self) -> &egui::Context {
         self.tasks.ctx()
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn request_quit(&mut self) {
+        self.quitting = true;
+        self.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
+        self.ctx().request_repaint();
     }
 
     /// A clone of the active music client, for background tasks.
@@ -202,6 +223,21 @@ impl App {
         }
     }
 
+    /// Applies the saved interface scale, and remembers changes made with Ctrl + / Ctrl −.
+    fn sync_interface_scale(&mut self, ctx: &egui::Context) {
+        let zoom = ctx.zoom_factor();
+        let saved = self.settings.interface_scale.clamp(0.75, 2.0);
+        if !self.scale_applied {
+            self.scale_applied = true;
+            if (zoom - saved).abs() > 0.001 {
+                ctx.set_zoom_factor(saved);
+            }
+        } else if (zoom - saved).abs() > 0.001 {
+            self.settings.interface_scale = zoom.clamp(0.75, 2.0);
+            self.settings.save();
+        }
+    }
+
     #[cfg(not(target_arch = "wasm32"))]
     fn update_keep_awake(&mut self) {
         let wanted = self.settings.keep_awake && self.player.status.playing;
@@ -232,6 +268,24 @@ impl App {
         self.media_controls = Some(controls);
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
+    fn sync_tray(&mut self) {
+        use crate::platform::tray::{Command, show_window};
+        let playing = self.player.is_playing();
+        let has_content = ui::player_bar::controls::has_content(self);
+        let can_skip = matches!(self.player.mode, player::Mode::Music | player::Mode::Audiobook);
+        let commands = self.tray.as_mut().map(|tray| tray.poll(playing, has_content, can_skip)).unwrap_or_default();
+        for command in commands {
+            match command {
+                Command::Show => show_window(self.ctx()),
+                Command::Toggle => player::toggle(self),
+                Command::Previous => player::previous(self),
+                Command::Next => player::next(self),
+                Command::Quit => self.request_quit(),
+            }
+        }
+    }
+
     fn content(&mut self, ui: &mut egui::Ui) {
         let route = self.nav.current.clone();
         match &route {
@@ -259,7 +313,7 @@ impl App {
                 self.alert = Some(error);
             }
         let Some(message) = self.alert.clone() else { return };
-        let modal = egui::Modal::new(egui::Id::unique("alert")).show(ctx, |ui| {
+        let modal = crate::ui::widgets::modal(ctx, egui::Id::unique("alert")).show(ctx, |ui| {
             ui.set_width(380.0);
             ui.label(theme::text(l10n::t("Something needs your attention"), Font::Title3));
             ui.add_space(6.0);
@@ -305,14 +359,22 @@ impl eframe::App for App {
         player::tick(self);
         features::tick(self);
         self.sync_media_controls();
+        #[cfg(not(target_arch = "wasm32"))]
+        self.sync_tray();
         self.update_keep_awake();
-        let _ = ctx;
+        self.sync_interface_scale(ctx);
     }
 
     fn ui(&mut self, root: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let ctx = root.ctx().clone();
         #[cfg(not(target_arch = "wasm32"))]
-        crate::platform::window::handle_close(&ctx, self.settings.minimize_on_close);
+        {
+            let tray_available = self.can_hide_window && self.tray.as_ref().is_some_and(|tray| tray.available());
+            if crate::platform::window::handle_close(&ctx, self.settings.minimize_on_close, tray_available, self.quitting)
+                && let Some(tray) = &mut self.tray {
+                    tray.hidden = true;
+                }
+        }
         self.apply_appearance(&ctx);
         self.shortcuts(&ctx);
         let palette = Palette::of(&ctx);

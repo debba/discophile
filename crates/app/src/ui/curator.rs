@@ -135,7 +135,7 @@ fn curator_card(app: &mut App, ui: &mut Ui) {
     ui.horizontal(|ui| {
         let prompt = &mut app.assistant.curator.prompt;
         let response = ui.add(
-            egui::TextEdit::singleline(prompt)
+            egui::TextEdit::singleline(prompt).align(egui::Align2::LEFT_CENTER)
                 .hint_text(t("Describe the music or change you want"))
                 .desired_width((ui.available_width() - 150.0).max(120.0))
                 .margin(vec2(10.0, 8.0)),
@@ -327,7 +327,7 @@ fn selection_page(app: &mut App, ui: &mut Ui, mix: &CuratedMix, edit: &mut Selec
         ui.add_enabled_ui(!busy, |ui| {
             ui.label(theme::secondary(ui, t("Selection name"), Font::Footnote));
             let response = ui.add(
-                egui::TextEdit::singleline(&mut edit.title).desired_width(f32::INFINITY).margin(vec2(10.0, 8.0)).font(Font::Title3.id()),
+                egui::TextEdit::singleline(&mut edit.title).align(egui::Align2::LEFT_CENTER).desired_width(f32::INFINITY).margin(vec2(10.0, 8.0)).font(Font::Title3.id()),
             );
             if response.changed() {
                 edit.notice = false;
@@ -469,7 +469,7 @@ fn delete_dialog(app: &mut App, ctx: &egui::Context, mix: &CuratedMix, edit: &mu
     }
     let mut close = false;
     let mut confirm = false;
-    let modal = egui::Modal::new(egui::Id::unique(("curated-selection-delete", mix.id))).show(ctx, |ui| {
+    let modal = crate::ui::widgets::modal(ctx, egui::Id::unique(("curated-selection-delete", mix.id))).show(ctx, |ui| {
         ui.set_width(380.0);
         ui.label(theme::text(t("Remove selection"), Font::Title3));
         ui.add_space(6.0);

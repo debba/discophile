@@ -415,7 +415,7 @@ fn explore_window(ctx: &egui::Context) {
         return;
     }
     let max_height = ctx.content_rect().height() * 0.8;
-    let modal = egui::Modal::new(egui::Id::unique("explore-design-modal")).show(ctx, |ui| {
+    let modal = crate::ui::widgets::modal(ctx, egui::Id::unique("explore-design-modal")).show(ctx, |ui| {
         ui.set_width(660.0f32.min(ctx.content_rect().width() - 60.0));
         let palette = Palette::of_ui(ui);
         let mut close = false;

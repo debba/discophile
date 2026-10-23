@@ -134,7 +134,7 @@ fn history(app: &mut App, ctx: &egui::Context) {
     let mut close = false;
     let mut open: Option<Uuid> = None;
     let mut new_chat = false;
-    let modal = egui::Modal::new(egui::Id::unique("assistant-history")).show(ctx, |ui| {
+    let modal = crate::ui::widgets::modal(ctx, egui::Id::unique("assistant-history")).show(ctx, |ui| {
         ui.set_width(480.0);
         ui.horizontal(|ui| {
             ui.label(theme::text(t("Chat history"), Font::Title3));
@@ -231,11 +231,11 @@ fn rename(app: &mut App, ctx: &egui::Context) {
     let Some((id, mut text)) = app.assistant.ui.rename.take() else { return };
     let mut close = false;
     let mut save = false;
-    let modal = egui::Modal::new(egui::Id::unique("assistant-rename")).show(ctx, |ui| {
+    let modal = crate::ui::widgets::modal(ctx, egui::Id::unique("assistant-rename")).show(ctx, |ui| {
         ui.set_width(380.0);
         title(ui, &t("Rename chat"));
         let response =
-            ui.add(egui::TextEdit::singleline(&mut text).hint_text(t("Chat title")).desired_width(f32::INFINITY).margin(vec2(10.0, 8.0)));
+            ui.add(egui::TextEdit::singleline(&mut text).align(egui::Align2::LEFT_CENTER).hint_text(t("Chat title")).desired_width(f32::INFINITY).margin(vec2(10.0, 8.0)));
         if !response.has_focus() && !response.lost_focus() {
             response.request_focus();
         }
@@ -263,7 +263,7 @@ fn delete(app: &mut App, ctx: &egui::Context) {
     let Some(id) = app.assistant.ui.delete else { return };
     let mut close = false;
     let mut confirm = false;
-    let modal = egui::Modal::new(egui::Id::unique("assistant-delete")).show(ctx, |ui| {
+    let modal = crate::ui::widgets::modal(ctx, egui::Id::unique("assistant-delete")).show(ctx, |ui| {
         ui.set_width(380.0);
         title(ui, &t("Delete this chat?"));
         ui.label(theme::text(t("This removes the conversation from this computer. Saved playlists are kept."), Font::Body));
@@ -310,7 +310,7 @@ fn review(app: &mut App, ctx: &egui::Context) {
     let blocked = busy || app.library.changing_playlist || (app.settings.downloaded_only && server);
     let mut close = false;
     let mut confirm = false;
-    let modal = egui::Modal::new(egui::Id::unique("assistant-review")).show(ctx, |ui| {
+    let modal = crate::ui::widgets::modal(ctx, egui::Id::unique("assistant-review")).show(ctx, |ui| {
         let palette = Palette::of_ui(ui);
         ui.set_width(520.0);
         title(ui, &t("Review changes"));
@@ -406,11 +406,11 @@ fn editor(app: &mut App, ctx: &egui::Context) {
     let mut close = false;
     let mut save = false;
     let mut add_existing = false;
-    let modal = egui::Modal::new(egui::Id::unique("assistant-playlist-editor")).show(ctx, |ui| {
+    let modal = crate::ui::widgets::modal(ctx, egui::Id::unique("assistant-playlist-editor")).show(ctx, |ui| {
         ui.set_width(560.0);
         title(ui, &t("Playlist preview"));
         ui.add_enabled_ui(!busy, |ui| {
-            ui.add(egui::TextEdit::singleline(&mut state.title).hint_text(t("Playlist name")).desired_width(f32::INFINITY).margin(vec2(10.0, 8.0)));
+            ui.add(egui::TextEdit::singleline(&mut state.title).align(egui::Align2::LEFT_CENTER).hint_text(t("Playlist name")).desired_width(f32::INFINITY).margin(vec2(10.0, 8.0)));
             ui.add_space(6.0);
             reorder_list(ui, &mut state.songs, "assistant-playlist-editor-list");
         });
@@ -529,7 +529,7 @@ fn privacy(app: &mut App, ctx: &egui::Context) {
         return;
     }
     let mut close = false;
-    let modal = egui::Modal::new(egui::Id::unique("assistant-privacy")).show(ctx, |ui| {
+    let modal = crate::ui::widgets::modal(ctx, egui::Id::unique("assistant-privacy")).show(ctx, |ui| {
         ui.set_width(520.0);
         title(ui, &t("About this assistant"));
         egui::ScrollArea::vertical().max_height(460.0).auto_shrink([false, true]).show(ui, |ui| {

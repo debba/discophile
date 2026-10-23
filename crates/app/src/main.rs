@@ -13,6 +13,18 @@ fn main() -> eframe::Result {
         viewport = viewport.with_icon(icon);
     }
     let options = eframe::NativeOptions { viewport, ..Default::default() };
+    #[cfg(target_os = "linux")]
+    let options = {
+        let mut options = options;
+        // Winit cannot hide Wayland windows; XWayland supports closing to the tray.
+        if std::env::var_os("DISPLAY").is_some() && std::env::var("WINIT_UNIX_BACKEND").as_deref() != Ok("wayland") {
+            options.event_loop_builder = Some(Box::new(|builder| {
+                use winit::platform::x11::EventLoopBuilderExtX11;
+                builder.with_x11();
+            }));
+        }
+        options
+    };
     eframe::run_native("Discophile", options, Box::new(|cc| Ok(Box::new(discophile::App::new(cc)))))
 }
 

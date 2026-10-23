@@ -211,7 +211,7 @@ pub fn windows(app: &mut App, ctx: &egui::Context) {
     }
     let mut confirmed = false;
     let mut cancelled = false;
-    let modal = egui::Modal::new(egui::Id::unique("remove-all-music-downloads")).show(ctx, |ui| {
+    let modal = crate::ui::widgets::modal(ctx, egui::Id::unique("remove-all-music-downloads")).show(ctx, |ui| {
         ui.set_width(400.0);
         ui.label(theme::text(t("Remove all music downloads?"), Font::Title3));
         ui.add_space(6.0);
@@ -436,7 +436,7 @@ mod native {
         widgets::section_heading(ui, &t("Manage downloads"), None);
         widgets::card(ui, |ui| {
             ui.add(
-                egui::TextEdit::singleline(&mut app.downloads.list_filter).hint_text(t("Filter downloads")).desired_width(f32::INFINITY),
+                egui::TextEdit::singleline(&mut app.downloads.list_filter).align(egui::Align2::LEFT_CENTER).hint_text(t("Filter downloads")).desired_width(f32::INFINITY),
             );
             let filter = discophile_core::listening_history::fold(app.downloads.list_filter.trim());
             let mut rows: Vec<(uuid::Uuid, discophile_core::Song, OfflineState, bool, i64)> = app

@@ -155,7 +155,7 @@ fn inline_error(ui: &mut Ui, error: &Option<String>) {
 }
 
 fn text_field(ui: &mut Ui, text: &mut String, hint: &str, focus: &mut bool) -> egui::Response {
-    let response = ui.add(egui::TextEdit::singleline(text).hint_text(hint).desired_width(f32::INFINITY).margin(vec2(10.0, 8.0)));
+    let response = ui.add(egui::TextEdit::singleline(text).align(egui::Align2::LEFT_CENTER).hint_text(hint).desired_width(f32::INFINITY).margin(vec2(10.0, 8.0)));
     if std::mem::take(focus) {
         response.request_focus();
     }
@@ -172,7 +172,7 @@ fn picker(app: &mut App, ctx: &egui::Context) {
     let mut close = false;
     let mut add_to: Option<String> = None;
     let mut create = false;
-    let modal = egui::Modal::new(egui::Id::unique("library-playlist-picker")).show(ctx, |ui| {
+    let modal = crate::ui::widgets::modal(ctx, egui::Id::unique("library-playlist-picker")).show(ctx, |ui| {
         ui.set_width(440.0);
         dialog_title(ui, &l10n::t("Add to playlist"));
         ui.label(theme::secondary(ui, l10n::count("%lld songs", state.songs.len() as i64), Font::Subheadline));
@@ -180,7 +180,7 @@ fn picker(app: &mut App, ctx: &egui::Context) {
         ui.add_enabled_ui(!busy, |ui| {
             ui.horizontal(|ui| {
                 let response = ui.add(
-                    egui::TextEdit::singleline(&mut state.new_name)
+                    egui::TextEdit::singleline(&mut state.new_name).align(egui::Align2::LEFT_CENTER)
                         .hint_text(l10n::t("New playlist"))
                         .desired_width(ui.available_width() - 150.0)
                         .margin(vec2(10.0, 8.0)),
@@ -281,7 +281,7 @@ fn name_dialog(app: &mut App, ctx: &egui::Context) {
     let mut close = false;
     let mut save = false;
     let title = if state.playlist.is_some() { l10n::t("Rename playlist") } else { l10n::t("New playlist") };
-    let modal = egui::Modal::new(egui::Id::unique("library-playlist-name")).show(ctx, |ui| {
+    let modal = crate::ui::widgets::modal(ctx, egui::Id::unique("library-playlist-name")).show(ctx, |ui| {
         ui.set_width(380.0);
         dialog_title(ui, &title);
         let response = text_field(ui, &mut state.text, &l10n::t("Playlist name"), &mut state.focus);
@@ -368,7 +368,7 @@ fn editor(app: &mut App, ctx: &egui::Context) {
     let mut close = false;
     let mut save = false;
     let mut reload = false;
-    let modal = egui::Modal::new(egui::Id::unique("library-playlist-editor")).show(ctx, |ui| {
+    let modal = crate::ui::widgets::modal(ctx, egui::Id::unique("library-playlist-editor")).show(ctx, |ui| {
         ui.set_width(600.0);
         dialog_title(ui, &l10n::t("Edit tracks"));
         if !state.name.is_empty() {
@@ -552,14 +552,14 @@ fn add_podcast(app: &mut App, ctx: &egui::Context) {
     let mut add: Option<PodcastCandidate> = None;
     let busy = state.adding.is_some();
     let previous_link = state.link.clone();
-    let modal = egui::Modal::new(egui::Id::unique("library-add-podcast")).show(ctx, |ui| {
+    let modal = crate::ui::widgets::modal(ctx, egui::Id::unique("library-add-podcast")).show(ctx, |ui| {
         ui.set_width(520.0);
         dialog_title(ui, &l10n::t("Add podcast"));
         ui.horizontal(|ui| {
             let mut focus = state.focus;
             ui.add_enabled_ui(!busy, |ui| {
                 let response = ui.add(
-                    egui::TextEdit::singleline(&mut state.link)
+                    egui::TextEdit::singleline(&mut state.link).align(egui::Align2::LEFT_CENTER)
                         .hint_text(l10n::t("Apple Podcasts, Spotify, or RSS link"))
                         .desired_width(ui.available_width() - 130.0)
                         .margin(vec2(10.0, 8.0)),
@@ -712,7 +712,7 @@ fn confirm(app: &mut App, ctx: &egui::Context) {
     };
     let mut close = false;
     let mut confirmed = false;
-    let modal = egui::Modal::new(egui::Id::unique("library-confirm")).show(ctx, |ui| {
+    let modal = crate::ui::widgets::modal(ctx, egui::Id::unique("library-confirm")).show(ctx, |ui| {
         ui.set_width(400.0);
         dialog_title(ui, &title);
         ui.label(theme::text(message, Font::Body));
