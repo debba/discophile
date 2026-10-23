@@ -1,0 +1,34 @@
+[workspace]
+resolver = "3"
+members = ["crates/core", "crates/app"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+authors = ["Andrea Debernardi"]
+repository = "https://github.com/debba/discophile"
+
+[workspace.dependencies]
+discophile-core = { path = "crates/core" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+url = { version = "2", features = ["serde"] }
+chrono = { version = "0.4", default-features = false, features = ["std", "clock", "serde", "wasmbind"] }
+uuid = { version = "1", features = ["v4", "serde", "js"] }
+rand = "0.9"
+getrandom = { version = "0.3", features = ["wasm_js"] }
+futures = "0.3"
+log = "0.4"
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 2
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 4

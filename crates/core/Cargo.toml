@@ -1,0 +1,37 @@
+[package]
+name = "discophile-core"
+description = "Portable Discophile logic: provider clients, models, queue, discovery, effects and assistant."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+url.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+rand.workspace = true
+getrandom.workspace = true
+futures.workspace = true
+log.workspace = true
+md-5 = "0.10"
+hex = "0.4"
+base64 = "0.22"
+sha2 = "0.10"
+percent-encoding = "2"
+# RS256 verification of ChatGPT identity tokens (assistant::chatgpt).
+rsa = { version = "0.9", default-features = false, features = ["std", "u64_digit", "sha2"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream", "gzip"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+reqwest = { version = "0.12", default-features = false, features = ["json", "stream"] }
+# rsa pulls getrandom 0.2, which needs its browser backend on wasm.
+getrandom02 = { package = "getrandom", version = "0.2", features = ["js"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "io-util", "time"] }

@@ -1,0 +1,20 @@
+{
+  "Artists, albums, songs": "Artisti, album, brani",
+  "Automatic downloads are turned off.": "I download automatici vengono disattivati.",
+  "Clear": "Cancella",
+  "Download failed": "Download non riuscito",
+  "Filter downloads": "Filtra i download",
+  "Filter this library to content saved on this computer": "Mostra solo i contenuti salvati su questo computer",
+  "Folder: %@": "Cartella: %@",
+  "Forward": "Avanti",
+  "Hide sidebar": "Nascondi barra laterale",
+  "Manage downloads": "Gestisci download",
+  "Mixes and selected playlists refresh when you open Discophile, when your library refreshes and every hour while Discophile is running. Transfers continue while Discophile is open.": "Mix e playlist selezionate si aggiornano quando apri Discophile, quando la libreria si aggiorna e ogni ora mentre Discophile è in esecuzione. I trasferimenti proseguono finché Discophile è aperto.",
+  "Offline listening requires the Discophile desktop app. The web player streams music from your server.": "L’ascolto offline richiede l’app desktop di Discophile. Il player web riproduce la musica in streaming dal tuo server.",
+  "Remove all music downloads": "Rimuovi tutti i download musicali",
+  "Remove all music downloads?": "Rimuovere tutti i download musicali?",
+  "Retry failed downloads": "Riprova i download non riusciti",
+  "Show sidebar": "Mostra barra laterale",
+  "This song could not be played. Check your connection or try another quality.": "Impossibile riprodurre questo brano. Controlla la connessione o prova un'altra qualità.",
+  "Use the download button beside a track or Download all in an album, playlist, or podcast. Turn on Downloaded only in your library to filter saved content. Downloads stay on this computer.": "Usa il pulsante di download accanto a un brano o Scarica tutto in un album, playlist o podcast. Attiva Solo scaricati nella libreria per filtrare i contenuti salvati. I download restano su questo computer."
+}

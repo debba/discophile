@@ -1,0 +1,14 @@
+{
+  "%lld albums": "%lld album",
+  "1 album": "1 album",
+  "Artist": "Artista",
+  "By artist": "Per artista",
+  "By title": "Per titolo",
+  "Disc %lld": "Disco %lld",
+  "Drag to reorder, or use the arrows. Remove a track with the minus button. Changes are saved only when you click Save.": "Trascina per riordinare oppure usa le frecce. Rimuovi un brano con il pulsante meno. Le modifiche vengono salvate solo quando fai clic su Salva.",
+  "Go to podcast": "Vai al podcast",
+  "Most played": "Più ascoltati",
+  "Random": "Casuale",
+  "Recently played": "Ascoltati di recente",
+  "This removes the podcast and its episodes from your server and deletes its downloads from this computer.": "Il podcast e i suoi episodi verranno rimossi dal server e i relativi download verranno eliminati da questo computer."
+}

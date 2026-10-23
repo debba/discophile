@@ -1,0 +1,5 @@
+{
+  "%lld minutes": { "en": { "one": "%lld minute", "other": "%lld minutes" }, "it": { "one": "%lld minuto", "other": "%lld minuti" } },
+  "%lld songs": { "en": { "one": "%lld song", "other": "%lld songs" }, "it": { "one": "%lld brano", "other": "%lld brani" } },
+  "%lld plays": { "en": { "one": "%lld play", "other": "%lld plays" }, "it": { "one": "%lld ascolto", "other": "%lld ascolti" } }
+}

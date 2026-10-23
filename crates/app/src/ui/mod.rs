@@ -1,0 +1,22 @@
+//! Screens. Each page module exposes `show`-style functions called by the app shell.
+
+pub mod widgets;
+
+pub mod accounts;
+pub mod assistant;
+pub mod audiobooks;
+pub mod curator;
+pub mod detail;
+pub mod library;
+pub mod listen_now;
+pub mod lyrics;
+pub mod now_playing;
+pub mod player_bar;
+pub mod queue;
+pub mod radio;
+pub mod search;
+pub mod settings;
+pub mod sidebar;
+pub mod sound;
+pub mod statistics;
+pub mod welcome;

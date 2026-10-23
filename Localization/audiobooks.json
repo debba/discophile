@@ -1,0 +1,22 @@
+{
+  "%lld chapters": "%lld capitoli",
+  "Bookmarks are saved on this computer and are available offline.": "I segnalibri vengono salvati su questo computer e sono disponibili offline.",
+  "Description": "Descrizione",
+  "Downloaded books play without a connection. Your position is saved on this computer and syncs when you reconnect. Music and audiobook download filters are separate.": "I libri scaricati si riproducono senza connessione. La posizione è salvata su questo computer e si sincronizza al ritorno della connessione. I filtri dei download di musica e audiolibri sono separati.",
+  "Downloading…": "Download in corso…",
+  "Downloads are available in the desktop app.": "I download sono disponibili nell’app desktop.",
+  "Downloads are available in the desktop app. In the browser, books stream from your server and your position syncs while you listen.": "I download sono disponibili nell’app desktop. Nel browser i libri vengono riprodotti in streaming dal server e la posizione si sincronizza durante l’ascolto.",
+  "On this computer": "Su questo computer",
+  "The audiobook position could not be saved on this computer. Keep the app open and try again.": "Impossibile salvare la posizione dell’audiolibro su questo computer. Mantieni l’app aperta e riprova.",
+  "This looks like a playlist or HLS address, which is not supported on this computer. Use the direct stream URL listed inside the playlist instead.": "Sembra l’indirizzo di una playlist o di un flusso HLS, non supportati su questo computer. Usa invece l’indirizzo del flusso diretto indicato nella playlist.",
+  "This looks like a playlist or HLS address. Your browser may not play it; use the direct stream URL listed inside the playlist instead.": "Sembra l’indirizzo di una playlist o di un flusso HLS. Il browser potrebbe non riprodurlo: usa invece l’indirizzo del flusso diretto indicato nella playlist.",
+  "This removes audiobook files from this computer. Your saved positions and server library are kept.": "Rimuove i file degli audiolibri da questo computer. Le posizioni salvate e la libreria sul server vengono mantenute.",
+  "This removes the audiobook connection and its downloaded books from this computer and stops audiobook playback. Your server and music connections are kept.": "Rimuove la connessione agli audiolibri e i suoi libri scaricati da questo computer e interrompe la riproduzione. Il server e le connessioni musicali vengono mantenuti.",
+  "Use a direct audio stream URL (MP3, AAC, Ogg or FLAC), not a website. HLS streams and M3U or PLS playlist files are not supported on this computer.": "Usa l’indirizzo di un flusso audio diretto (MP3, AAC, Ogg o FLAC), non di un sito. I flussi HLS e i file playlist M3U o PLS non sono supportati su questo computer.",
+  "Use a direct audio stream URL, not a website or a playlist file. Available formats depend on your browser.": "Usa l’indirizzo di un flusso audio diretto, non di un sito o di un file playlist. I formati disponibili dipendono dal browser.",
+  "Use your Audiobookshelf server address and local username and password. Tokens are kept in this browser's storage. OpenID sign-in is not available yet.": "Usa l’indirizzo del server Audiobookshelf e nome utente e password locali. I token vengono conservati nello spazio di archiviazione di questo browser. L’accesso OpenID non è ancora disponibile.",
+  "Use your Audiobookshelf server address and local username and password. Tokens are stored separately in this computer's keychain. Download books for offline listening from their detail page. OpenID sign-in is not available yet.": "Usa l’indirizzo del server Audiobookshelf e nome utente e password locali. I token vengono salvati separatamente nel portachiavi di questo computer. Scarica i libri dalla loro pagina per ascoltarli offline. L’accesso OpenID non è ancora disponibile.",
+  "Your audiobook bookmarks could not be read on this computer.": "Impossibile leggere i segnalibri degli audiolibri su questo computer.",
+  "Your audiobook position is saved on this computer. Server sync will retry when you reconnect.": "La posizione dell’audiolibro è salvata su questo computer. La sincronizzazione con il server verrà ritentata al ritorno della connessione.",
+  "Your saved audiobook positions could not be read on this computer.": "Impossibile leggere le posizioni salvate degli audiolibri su questo computer."
+}
