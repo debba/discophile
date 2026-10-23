@@ -192,6 +192,11 @@ pub fn more_menu(ui: &mut Ui, app: &mut App, song: Option<&Song>) {
     } else if app.player.mode != Mode::Idle && ui.button(format!("{}  {}", icons::WAVEFORM, t("Audio details"))).clicked() {
         app.effects.details = app.player.current().or_else(|| Some(Song::new("", t("Audiobook"))));
     }
+    if let Some(song) = song.filter(|_| app.player.mode == Mode::Music)
+        && ui.button(format!("{}  {}", icons::INFO, t("About"))).clicked()
+    {
+        crate::features::info::about_song(app, song);
+    }
     if ui.button(format!("{}  {}", icons::SPARKLE, t("Music assistant"))).clicked() {
         app.nav.now_playing = false;
         if app.nav.side_panel != SidePanel::Assistant {

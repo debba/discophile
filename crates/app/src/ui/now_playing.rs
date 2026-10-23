@@ -19,6 +19,8 @@ pub enum Inline {
     None,
     Lyrics,
     Queue,
+    /// About the current song (or what was last chosen), see `features::info`.
+    Info,
 }
 
 fn inline_id() -> Id {
@@ -38,6 +40,9 @@ fn current_inline(app: &App, wide: bool) -> Inline {
         return if wide && app.player.mode == Mode::Music { Inline::Queue } else { Inline::None };
     }
     if inline == Inline::Queue && app.player.mode != Mode::Music {
+        return Inline::None;
+    }
+    if inline == Inline::Info && app.info.view.is_none() {
         return Inline::None;
     }
     inline
@@ -384,6 +389,13 @@ fn inline_panel(app: &mut App, ui: &mut Ui, inline: Inline, wide: bool) {
         if app.player.mode == Mode::Music && widgets::chip(ui, inline == Inline::Queue, &t("Playing next")).clicked() {
             show_inline(app, Inline::Queue);
         }
+        let current = app.player.current().filter(|_| app.player.mode == Mode::Music);
+        if (current.is_some() || inline == Inline::Info) && widgets::chip(ui, inline == Inline::Info, &t("About")).clicked() {
+            match current {
+                Some(song) => crate::features::info::about_song(app, &song),
+                None => show_inline(app, Inline::Info),
+            }
+        }
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             if widgets::icon_button(ui, icons::X, &t("Close"), 15.0).clicked() {
                 show_inline(app, Inline::None);
@@ -398,6 +410,7 @@ fn inline_panel(app: &mut App, ui: &mut Ui, inline: Inline, wide: bool) {
         match inline {
             Inline::Lyrics => crate::ui::lyrics::view(app, ui, if wide { 28.0 } else { 24.0 }),
             Inline::Queue => crate::ui::queue::inline(app, ui),
+            Inline::Info => crate::ui::info::inline(app, ui),
             Inline::None => {}
         }
     });

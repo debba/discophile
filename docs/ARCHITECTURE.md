@@ -8,7 +8,8 @@ queue, lyrics and the assistant, and modal windows instead of sheets.
 ## Crates
 
 - `crates/core` (`discophile-core`): portable logic (providers, models, queue, discovery, lyrics,
-  podcasts, audio effects DSP, assistant, Connect protocol). No IO besides HTTP.
+  podcasts, audio effects DSP, assistant, music information (`music_info`), MCP protocol (`mcp`), Connect
+  protocol). No IO besides HTTP.
 - `crates/app` (`discophile`): egui/eframe interface and platform services, one codebase for desktop
   (glow renderer) and the web (WASM).
 
@@ -71,6 +72,17 @@ queue, lyrics and the assistant, and modal windows instead of sheets.
   and separators are opaque colors with at least 3:1 against their surface.
 - **Scaling**: Settings > General > Text size and Ctrl + / Ctrl − change `Settings::interface_scale`
   (egui zoom). Layouts must reflow at 150%.
+
+## About and agents
+
+- `features/info.rs` + `ui/info.rs`: the About side panel (`SidePanel::Info`). `info::about_song`,
+  `about_album`, `about_artist`, `about_podcast` open it from any menu. Sources come from
+  `music_info::MusicInfoClient::gather`; overviews and follow-ups from `music_info::describe` with the
+  assistant's default provider.
+- `features/mcp.rs` + `platform/http_server.rs` + `ui/agents.rs` (desktop only): the MCP server. Library tools
+  run on the tokio runtime with a clone of the active `MusicClient`; player tools and confirmations are sent
+  to the interface thread with `Tasks::send` and answered through a oneshot channel. `ToolCall::is_destructive`
+  calls wait for the dialog drawn by `ui::agents::confirmation`.
 
 ## Discophile Connect (planned)
 

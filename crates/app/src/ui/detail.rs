@@ -5,6 +5,7 @@ use discophile_core::{Song, l10n};
 use egui::Ui;
 
 use crate::app::App;
+use crate::features::info;
 use crate::features::library::{self, keys};
 use crate::nav::Route;
 use crate::theme::{Font, icons};
@@ -79,6 +80,11 @@ pub fn album(app: &mut App, ui: &mut Ui, id: &str) {
                 });
                 parts::collection_menu_items(app, ui, &tracks);
                 parts::download_all_item(app, ui, &tracks);
+                menu_separator(ui);
+                if ui.button(format!("{}  {}", icons::INFO, l10n::t("About"))).clicked() {
+                    about_album(app, &album_id, &tracks);
+                    ui.close();
+                }
                 if let Some(artist) = header.subtitle.as_ref().and_then(|(_, route)| route.clone()) {
                     menu_separator(ui);
                     if ui.button(format!("{}  {}", icons::MICROPHONE_STAGE, l10n::t("Go to artist"))).clicked() {
@@ -150,10 +156,16 @@ pub fn artist(app: &mut App, ui: &mut Ui, id: &str) {
             description: None,
         };
         let shuffle_albums = albums.clone();
+        let about = artist.clone().unwrap_or_else(|| discophile_core::Artist { id: id.to_string(), name: name.clone(), ..Default::default() });
         parts::header(app, ui, &header, |ui, app| {
             ui.add_enabled_ui(!shuffle_albums.is_empty(), |ui| {
                 if widgets::pill_button(ui, icons::SHUFFLE, l10n::t("Shuffle"), true).clicked() {
                     shuffle_artist(app, &shuffle_albums);
+                }
+            });
+            ui.add_enabled_ui(!about.name.is_empty(), |ui| {
+                if widgets::pill_button(ui, icons::INFO, l10n::t("About"), false).clicked() {
+                    info::about_artist(app, &about);
                 }
             });
         });
@@ -170,6 +182,19 @@ pub fn artist(app: &mut App, ui: &mut Ui, id: &str) {
         widgets::section_heading(ui, &l10n::t("Albums"), None);
         parts::album_grid(app, ui, &albums);
     });
+}
+
+/// About for an album page: the loaded album, or one built from its first track.
+fn about_album(app: &mut App, id: &str, tracks: &[Song]) {
+    let album = library::find_album(app, id).or_else(|| {
+        let first = tracks.first()?;
+        let mut album = discophile_core::Album::new(id, first.album.clone()?, first.artist.clone().unwrap_or_default());
+        album.year = first.album_original_year.or(first.year);
+        Some(album)
+    });
+    if let Some(album) = album {
+        info::about_album(app, &album);
+    }
 }
 
 /// Shuffles every album of the artist; albums never opened are fetched first.
@@ -257,6 +282,13 @@ pub fn podcast(app: &mut App, ui: &mut Ui, id: &str) {
             parts::play_buttons(app, ui, &episodes, |app, ui| {
                 parts::collection_menu_items(app, ui, &episodes);
                 parts::download_all_item(app, ui, &episodes);
+                if let Some(channel) = &channel {
+                    menu_separator(ui);
+                    if ui.button(format!("{}  {}", icons::INFO, l10n::t("About"))).clicked() {
+                        info::about_podcast(app, channel);
+                        ui.close();
+                    }
+                }
                 if app.session.has_library() {
                     menu_separator(ui);
                     ui.add_enabled_ui(!app.library.changing_podcasts, |ui| {

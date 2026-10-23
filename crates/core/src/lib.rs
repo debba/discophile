@@ -23,6 +23,8 @@ pub mod listening_statistics;
 pub mod lrclib;
 pub mod lyrics;
 pub mod lyrics_repository;
+pub mod mentions;
+pub mod music_info;
 pub mod offline_audiobook;
 pub mod offline_catalog;
 pub mod personal_radio;
@@ -36,6 +38,9 @@ pub mod assistant;
 
 // Device handoff
 pub mod connect;
+
+// External agents
+pub mod mcp;
 
 pub use error::{MusicError, MusicResult};
 pub use l10n::{count, t, tf};

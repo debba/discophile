@@ -290,6 +290,8 @@ pub fn candidate_ids(count: usize) -> Vec<String> {
 pub enum AssistantSchema {
     Plan,
     Selection { ids: Vec<String>, limit: usize },
+    /// An information note citing up to `sources` numbered sources (see `music_info`).
+    Info { sources: usize },
 }
 
 impl AssistantSchema {
@@ -342,6 +344,14 @@ impl AssistantSchema {
                     json!({"type": "array", "items": {"type": "string", "enum": ids}, "maxItems": limit}),
                 ),
             ]),
+            Self::Info { sources } => {
+                let numbers: Vec<String> = (1..=*sources).map(|n| n.to_string()).collect();
+                let items = if numbers.is_empty() { string.clone() } else { json!({"type": "string", "enum": numbers}) };
+                BTreeMap::from([
+                    ("answer", string.clone()),
+                    ("sources", json!({"type": "array", "items": items, "maxItems": sources})),
+                ])
+            }
         };
         let required: Vec<&str> = properties.keys().copied().collect();
         json!({"type": "object", "properties": properties, "required": required, "additionalProperties": false})

@@ -6,7 +6,7 @@ use std::sync::{
 };
 
 use discophile_core::l10n::t;
-use tray_icon::menu::{Menu, MenuEvent, MenuItem, PredefinedMenuItem};
+use tray_icon::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tray_icon::{Icon, MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -19,13 +19,13 @@ pub enum Command {
 }
 
 impl Command {
-    fn from_id(id: &str) -> Option<Self> {
+    pub fn from_id(id: &str) -> Option<Self> {
         match id {
-            "show" => Some(Self::Show),
-            "toggle" => Some(Self::Toggle),
-            "previous" => Some(Self::Previous),
-            "next" => Some(Self::Next),
-            "quit" => Some(Self::Quit),
+            "tray.show" => Some(Self::Show),
+            "tray.toggle" => Some(Self::Toggle),
+            "tray.previous" => Some(Self::Previous),
+            "tray.next" => Some(Self::Next),
+            "tray.quit" => Some(Self::Quit),
             _ => None,
         }
     }
@@ -58,11 +58,11 @@ impl Tray {
     }
 
     fn build(ctx: &egui::Context) -> Result<Self, Box<dyn std::error::Error>> {
-        let show = MenuItem::with_id("show", t("Open Discophile"), true, None);
-        let toggle = MenuItem::with_id("toggle", t("Play"), false, None);
-        let previous = MenuItem::with_id("previous", t("Previous track"), false, None);
-        let next = MenuItem::with_id("next", t("Next track"), false, None);
-        let quit = MenuItem::with_id("quit", t("Quit Discophile"), true, None);
+        let show = MenuItem::with_id("tray.show", t("Open Discophile"), true, None);
+        let toggle = MenuItem::with_id("tray.toggle", t("Play"), false, None);
+        let previous = MenuItem::with_id("tray.previous", t("Previous track"), false, None);
+        let next = MenuItem::with_id("tray.next", t("Next track"), false, None);
+        let quit = MenuItem::with_id("tray.quit", t("Quit Discophile"), true, None);
         let menu = Menu::new();
         menu.append_items(&[&show, &PredefinedMenuItem::separator(), &toggle, &previous, &next, &PredefinedMenuItem::separator(), &quit])?;
         let builder = TrayIconBuilder::new().with_id("discophile").with_tooltip("Discophile");
@@ -77,14 +77,9 @@ impl Tray {
             .with_menu_on_left_click(false)
             .build()?;
 
+        // Menu items arrive through `menu_events`; only icon clicks come through this channel.
+        super::menu_events::install(ctx);
         let (send, commands) = mpsc::channel();
-        let (menu_send, menu_ctx) = (send.clone(), ctx.clone());
-        MenuEvent::set_event_handler(Some(move |event: MenuEvent| {
-            if let Some(command) = Command::from_id(event.id.as_ref()) {
-                let _ = menu_send.send(command);
-                menu_ctx.request_repaint();
-            }
-        }));
         let icon_ctx = ctx.clone();
         TrayIconEvent::set_event_handler(Some(move |event| {
             if matches!(event, TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. }) {
@@ -135,7 +130,8 @@ impl Tray {
         }
     }
 
-    pub fn poll(&mut self, playing: bool, has_content: bool, can_skip: bool) -> Vec<Command> {
+    /// Updates the menu and returns the commands chosen in it (`menu` holds this frame's menu item IDs).
+    pub fn poll(&mut self, menu: &[String], playing: bool, has_content: bool, can_skip: bool) -> Vec<Command> {
         for (item, label) in [
             (&self.show, t("Open Discophile")),
             (&self.toggle, t(if playing { "Pause" } else { "Play" })),
@@ -153,6 +149,7 @@ impl Tray {
             }
         }
         let mut commands: Vec<_> = self.commands.try_iter().collect();
+        commands.extend(menu.iter().filter_map(|id| Command::from_id(id)));
         // A desktop extension can disappear while the window is hidden.
         if self.hidden && !self.available() {
             commands.push(Command::Show);
@@ -168,7 +165,6 @@ impl Drop for Tray {
     fn drop(&mut self) {
         #[cfg(target_os = "linux")]
         self.watcher.abort();
-        MenuEvent::set_event_handler(None::<fn(MenuEvent)>);
         TrayIconEvent::set_event_handler(None::<fn(TrayIconEvent)>);
     }
 }

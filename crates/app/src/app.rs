@@ -8,7 +8,7 @@ use discophile_core::l10n;
 use egui::{CornerRadius, Frame, Margin};
 
 use crate::artwork::ArtworkCache;
-use crate::features::{self, assistant, audiobooks, discovery, downloads, effects, library, lyrics, radio};
+use crate::features::{self, assistant, audiobooks, discovery, downloads, effects, info, library, lyrics, radio};
 use crate::nav::{Nav, Route, SettingsPage, SidePanel};
 use crate::player::{self, Player};
 use crate::session::Session;
@@ -45,6 +45,9 @@ pub struct App {
     pub assistant: assistant::AssistantState,
     pub effects: effects::EffectsState,
     pub lyrics: lyrics::LyricsState,
+    pub info: info::InfoState,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub mcp: features::mcp::McpState,
     pub media_controls: Option<crate::platform::media_controls::MediaControls>,
     dark: Option<bool>,
     scale_applied: bool,
@@ -53,6 +56,8 @@ pub struct App {
     awake: Option<keepawake::KeepAwake>,
     #[cfg(not(target_arch = "wasm32"))]
     pub tray: Option<crate::platform::tray::Tray>,
+    #[cfg(target_os = "macos")]
+    menu_bar: Option<crate::platform::menu_bar::MenuBar>,
     #[cfg(not(target_arch = "wasm32"))]
     pub can_hide_window: bool,
     #[cfg(not(target_arch = "wasm32"))]
@@ -88,6 +93,9 @@ impl App {
             assistant: Default::default(),
             effects: Default::default(),
             lyrics: Default::default(),
+            info: Default::default(),
+            #[cfg(not(target_arch = "wasm32"))]
+            mcp: Default::default(),
             media_controls,
             dark: None,
             scale_applied: false,
@@ -95,6 +103,12 @@ impl App {
             awake: None,
             #[cfg(not(target_arch = "wasm32"))]
             tray: crate::platform::tray::Tray::new(&ctx),
+            #[cfg(target_os = "macos")]
+            menu_bar: {
+                crate::platform::menu_events::install(&ctx);
+                crate::platform::menu_bar::install_reopen_handler(&ctx);
+                crate::platform::menu_bar::MenuBar::new(l10n::language())
+            },
             #[cfg(not(target_arch = "wasm32"))]
             can_hide_window: crate::platform::window::can_hide(cc),
             #[cfg(not(target_arch = "wasm32"))]
@@ -274,7 +288,10 @@ impl App {
         let playing = self.player.is_playing();
         let has_content = ui::player_bar::controls::has_content(self);
         let can_skip = matches!(self.player.mode, player::Mode::Music | player::Mode::Audiobook);
-        let commands = self.tray.as_mut().map(|tray| tray.poll(playing, has_content, can_skip)).unwrap_or_default();
+        let menu = crate::platform::menu_events::drain();
+        let commands = self.tray.as_mut().map(|tray| tray.poll(&menu, playing, has_content, can_skip)).unwrap_or_default();
+        #[cfg(target_os = "macos")]
+        self.sync_menu_bar(&menu, playing, has_content, can_skip);
         for command in commands {
             match command {
                 Command::Show => show_window(self.ctx()),
@@ -282,6 +299,87 @@ impl App {
                 Command::Previous => player::previous(self),
                 Command::Next => player::next(self),
                 Command::Quit => self.request_quit(),
+            }
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    fn sync_menu_bar(&mut self, menu: &[String], playing: bool, has_content: bool, can_skip: bool) {
+        use crate::platform::menu_bar::{self, MenuBar, MenuCommand, MenuState};
+        use crate::platform::tray::show_window;
+        if menu_bar::take_reopen() {
+            show_window(self.ctx());
+            if let Some(tray) = &mut self.tray {
+                tray.hidden = false;
+            }
+        }
+        let state = MenuState {
+            playing,
+            has_content,
+            can_skip,
+            music: self.player.mode == player::Mode::Music,
+            shuffled: self.player.shuffled,
+            repeat: player::repeat_mode(self),
+            has_library: self.session.has_library(),
+            has_audiobooks: audiobooks::has_account(self),
+            can_go_back: self.nav.can_go_back(),
+            can_go_forward: self.nav.can_go_forward(),
+        };
+        MenuBar::sync(&mut self.menu_bar, self.settings.effective_language(), &state);
+        for command in menu.iter().filter_map(|id| menu_bar::command(id)) {
+            let shows_window = matches!(
+                command,
+                MenuCommand::About | MenuCommand::Settings | MenuCommand::Search | MenuCommand::Go(_) | MenuCommand::NowPlaying
+                    | MenuCommand::Queue | MenuCommand::Lyrics | MenuCommand::Assistant
+            );
+            if shows_window {
+                show_window(self.ctx());
+                if let Some(tray) = &mut self.tray {
+                    tray.hidden = false;
+                }
+            }
+            match command {
+                MenuCommand::About => self.nav.push(Route::Settings(SettingsPage::About)),
+                MenuCommand::Settings => self.nav.push(Route::Settings(SettingsPage::General)),
+                MenuCommand::Search | MenuCommand::Go(Route::Search) => {
+                    self.nav.now_playing = false;
+                    self.nav.select(Route::Search);
+                    self.ctx().memory_mut(|m| m.request_focus(egui::Id::unique("search-field")));
+                }
+                MenuCommand::Go(route) => {
+                    self.nav.now_playing = false;
+                    self.nav.select(route);
+                }
+                MenuCommand::Quit => self.request_quit(),
+                MenuCommand::TogglePlayback => player::toggle(self),
+                MenuCommand::Next => player::next(self),
+                MenuCommand::Previous => player::previous(self),
+                MenuCommand::Shuffle => player::toggle_shuffle(self),
+                MenuCommand::Repeat(mode) => {
+                    for _ in 0..3 {
+                        if player::repeat_mode(self) == mode {
+                            break;
+                        }
+                        player::cycle_repeat(self);
+                    }
+                }
+                MenuCommand::VolumeUp => player::set_volume(self, (self.player.volume + 0.1).min(1.0)),
+                MenuCommand::VolumeDown => player::set_volume(self, (self.player.volume - 0.1).max(0.0)),
+                MenuCommand::NowPlaying => self.nav.now_playing = has_content && !self.nav.now_playing,
+                MenuCommand::Queue => {
+                    if self.nav.now_playing {
+                        ui::now_playing::show_inline(self, ui::now_playing::Inline::Queue);
+                    } else {
+                        self.nav.toggle_panel(SidePanel::Queue);
+                    }
+                }
+                MenuCommand::Lyrics => ui::player_bar::actions::open_lyrics(self),
+                MenuCommand::Assistant => assistant::open(self),
+                MenuCommand::Back => {
+                    if self.nav.now_playing { self.nav.now_playing = false } else { self.nav.back() }
+                }
+                MenuCommand::Forward => self.nav.forward(),
+                MenuCommand::Open(url) => self.ctx().open_url(egui::OpenUrl::new_tab(url)),
             }
         }
     }
@@ -404,6 +502,7 @@ impl eframe::App for App {
                         SidePanel::Queue => ui::queue::panel(self, ui),
                         SidePanel::Lyrics => ui::lyrics::panel(self, ui),
                         SidePanel::Assistant => ui::assistant::panel(self, ui),
+                        SidePanel::Info => ui::info::panel(self, ui),
                         SidePanel::None => {}
                     });
             }

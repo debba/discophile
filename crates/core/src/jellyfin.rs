@@ -12,8 +12,8 @@ use crate::assistant::edits::{AssistantEditOperation, AssistantEditProposal};
 use crate::error::{MusicError, MusicResult};
 use crate::lyrics::{LyricLine, SongLyrics};
 use crate::models::{
-    Album, Artist, Authentication, Credentials, MusicProvider, Playlist, PlaylistAdditionResult, PodcastChannel,
-    SearchResults, Song, StreamingQuality,
+    Album, Artist, Authentication, Credentials, MusicBrainzId, MusicProvider, Playlist, PlaylistAdditionResult,
+    PodcastChannel, SearchResults, ServerInfo, Song, StreamingQuality,
 };
 use crate::subsonic::{SearchLimits, occurrence_index};
 
@@ -172,6 +172,8 @@ pub(crate) struct Item {
     child_count: Option<i64>,
     #[serde(default)]
     overview: Option<String>,
+    #[serde(default)]
+    provider_ids: Option<HashMap<String, String>>,
 }
 
 impl Item {
@@ -250,6 +252,22 @@ impl Item {
             cover_art: self.cover(),
             album_count: self.child_count,
             album: albums,
+        }
+    }
+
+    fn server_info(&self) -> ServerInfo {
+        let id = |key: &str| {
+            self.provider_ids.as_ref()?.get(key).map(|v| v.trim().to_string()).filter(|v| !v.is_empty())
+        };
+        let musicbrainz = id("MusicBrainzArtist")
+            .filter(|_| self.kind.as_deref() == Some("MusicArtist"))
+            .map(MusicBrainzId::Artist)
+            .or_else(|| id("MusicBrainzReleaseGroup").map(MusicBrainzId::ReleaseGroup))
+            .or_else(|| id("MusicBrainzAlbum").map(MusicBrainzId::Release));
+        ServerInfo {
+            text: self.overview.as_ref().map(|t| t.trim().to_string()).filter(|t| !t.is_empty()),
+            musicbrainz,
+            link: None,
         }
     }
 
@@ -454,6 +472,14 @@ impl JellyfinClient {
 
     pub async fn song(&self, id: &str) -> MusicResult<Song> {
         Ok(self.item(id).await?.song())
+    }
+
+    pub async fn artist_info(&self, id: &str) -> MusicResult<ServerInfo> {
+        Ok(self.item(id).await?.server_info())
+    }
+
+    pub async fn album_info(&self, id: &str) -> MusicResult<ServerInfo> {
+        Ok(self.item(id).await?.server_info())
     }
 
     pub async fn search(&self, text: &str, limits: SearchLimits) -> MusicResult<SearchResults> {

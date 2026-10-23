@@ -37,6 +37,7 @@ pub enum SettingsPage {
     Offline,
     Rediscover,
     Assistant,
+    Agents,
     Advanced,
     About,
 }
@@ -49,6 +50,8 @@ pub enum SidePanel {
     Queue,
     Lyrics,
     Assistant,
+    /// About an artist, album, song, podcast or episode.
+    Info,
 }
 
 pub struct Nav {

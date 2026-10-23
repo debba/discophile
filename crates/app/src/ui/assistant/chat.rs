@@ -3,11 +3,11 @@
 
 use discophile_core::assistant::turn::MAX_REQUEST_CHARACTERS;
 use discophile_core::assistant::{
-    AssistantEditOperation, AssistantEditStatus, AssistantMessage, AssistantPrompts, AssistantProvider, AssistantRole,
+    AssistantEditOperation, AssistantEditStatus, AssistantMessage, AssistantPrompts, AssistantRole,
 };
 use discophile_core::l10n::{self, t};
 use discophile_core::{Song, assistant::AssistantChatStore};
-use egui::{Align, Color32, CornerRadius, Frame, Key, Layout, Margin, Modifiers, Sense, Stroke, Ui, UiBuilder, vec2};
+use egui::{Align, Color32, CornerRadius, Frame, Key, Layout, Margin, Sense, Stroke, Ui, UiBuilder, vec2};
 
 use crate::app::App;
 use crate::features::assistant as feature;
@@ -15,6 +15,7 @@ use crate::nav::{Route, SettingsPage, SidePanel};
 use crate::platform;
 use crate::player::{self, Mode};
 use crate::theme::{self, Font, Palette, icons};
+use crate::ui::chat_kit as kit;
 use crate::ui::widgets;
 
 /// The widest reading column on the full page, as on iOS.
@@ -80,48 +81,11 @@ fn header(app: &mut App, ui: &mut Ui, page: bool) {
 
 fn provider_menu(app: &mut App, ui: &mut Ui) {
     let Some((provider, model)) = app.assistant.store.selected().map(|c| (c.provider, c.model_id.clone())) else { return };
-    let name = feature::provider_name(app, provider, &model);
-    // The footer already names the provider: a local chat shows just its model when one is chosen.
-    let local_model = app.assistant.config.local.model.trim();
-    let short = if provider == AssistantProvider::Local && !local_model.is_empty() { local_model.to_string() } else { name.clone() };
-    let palette = Palette::of_ui(ui);
-    let label = theme::text(short, Font::Headline).color(palette.text);
-    let caret = theme::icon(icons::CARET_DOWN, 13.0).color(palette.text);
-    let button = egui::Button::new((label, caret)).frame(false).truncate();
-    let (response, _) = egui::containers::menu::MenuButton::from_button(button).ui(ui, |ui| {
-        ui.set_min_width(240.0);
-        let check = |selected: bool| if selected { icons::CHECK } else { " " };
-        let local = provider == AssistantProvider::Local;
-        if ui.button(format!("{}  {}", check(local), t("Local model"))).clicked() {
-            feature::set_provider(app, AssistantProvider::Local);
-            ui.close();
-        }
-        if !platform::IS_WEB && ui.button(format!("{}  ChatGPT", check(!local))).clicked() {
-            feature::set_provider(app, AssistantProvider::ChatGpt);
-            ui.close();
-        }
-        if !local && !platform::IS_WEB {
-            ui.separator();
-            ui.label(theme::secondary(ui, t("Model"), Font::Footnote));
-            let chosen = if model.is_empty() { app.assistant.config.chatgpt_model.clone() } else { model.clone() };
-            let models = app.assistant.chatgpt.models.clone();
-            if models.is_empty() && app.assistant.chatgpt.models_loading {
-                ui.spinner();
-            }
-            for item in models {
-                if ui.button(format!("{}  {}", check(item.slug == chosen), item.display_name)).clicked() {
-                    feature::set_model(app, &item.slug);
-                    ui.close();
-                }
-            }
-        }
-        ui.separator();
-        if ui.button(format!("{}  {}", icons::GEAR_SIX, t("Music assistant"))).clicked() {
-            app.nav.push(Route::Settings(SettingsPage::Assistant));
-            ui.close();
-        }
-    });
-    response.on_hover_text(format!("{}\n{name}", t("AI provider and model")));
+    match kit::model_menu(app, ui, provider, &model) {
+        Some(feature::ModelPick::Provider(provider)) => feature::set_provider(app, provider),
+        Some(feature::ModelPick::ChatGpt(model)) => feature::set_model(app, &model),
+        Some(feature::ModelPick::Local(_)) | None => {}
+    }
 }
 
 fn options_menu(app: &mut App, ui: &mut Ui, page: bool) {
@@ -327,42 +291,31 @@ fn suggestion(ui: &mut Ui, icon: &str, text: &str) -> egui::Response {
     response.on_hover_cursor(egui::CursorIcon::PointingHand)
 }
 
-fn bubble_frame(ui: &Ui) -> Frame {
-    let palette = Palette::of_ui(ui);
-    Frame::new().fill(palette.surface).corner_radius(CornerRadius::same(18)).inner_margin(Margin::symmetric(14, 10))
-}
-
 fn user_message(ui: &mut Ui, message: &AssistantMessage, draft: &mut Option<String>) {
-    ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
-        let width = (ui.available_width() * 0.85).max(120.0);
-        let response = bubble_frame(ui)
-            .show(ui, |ui| {
-                ui.set_max_width(width);
-                // The bubble sits on the right; its lines read from the left.
-                ui.with_layout(Layout::top_down(Align::Min), |ui| ui.add(egui::Label::new(theme::text(&message.text, Font::Body)).wrap())).inner
-            })
-            .inner;
-        response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Label, true, format!("{}: {}", t("You"), message.text)));
-        response.context_menu(|ui| {
-            if ui.button(t("Use this message")).clicked() {
-                *draft = Some(message.text.clone());
-                ui.close();
-            }
-            if ui.button(t("Copy")).clicked() {
-                ui.ctx().copy_text(message.text.clone());
-                ui.close();
-            }
-        });
+    let response = kit::question_bubble(ui, &message.text);
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Label, true, format!("{}: {}", t("You"), message.text)));
+    response.context_menu(|ui| {
+        if ui.button(t("Use this message")).clicked() {
+            *draft = Some(message.text.clone());
+            ui.close();
+        }
+        if ui.button(t("Copy")).clicked() {
+            ui.ctx().copy_text(message.text.clone());
+            ui.close();
+        }
     });
 }
 
 fn assistant_message(app: &mut App, ui: &mut Ui, conversation: uuid::Uuid, message: &AssistantMessage, blocked: bool) {
     let palette = Palette::of_ui(ui);
     let source = message.source.clone().unwrap_or_else(|| t("Music assistant"));
-    ui.label(theme::text(format!("{}  {source}", icons::SPARKLE), Font::Caption).color(palette.secondary));
+    kit::reply_label(ui, &source);
     if !message.text.is_empty() {
-        let color = if message.is_error { palette.accent } else { palette.text };
-        ui.add(egui::Label::new(theme::text(&message.text, Font::Body).color(color)).wrap());
+        if message.is_error {
+            ui.add(egui::Label::new(theme::text(&message.text, Font::Body).color(palette.accent)).wrap());
+        } else {
+            kit::linked_text(app, ui, &message.text, Font::Body, palette.text, None);
+        }
     }
     let deleted = message.collection_deleted == Some(true);
     // Icon-only secondary actions when the column is too narrow for their labels.
@@ -600,75 +553,24 @@ fn composer(app: &mut App, ui: &mut Ui, page: bool) {
     }
 
     let editor_id = egui::Id::unique(("assistant-composer-text", page));
-    let focused = ui.memory(|m| m.has_focus(editor_id));
     let trimmed_len = draft.trim().chars().count();
     let can_send = !busy && trimmed_len > 0 && trimmed_len <= MAX_REQUEST_CHARACTERS && unavailable.is_none() && has_library;
-    // Enter sends; Shift+Enter adds a line.
-    let enter = focused && can_send && ui.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
-    let mut send = false;
-    let mut stop = false;
-    Frame::new()
-        .fill(palette.surface)
-        .corner_radius(CornerRadius::same(22))
-        .stroke(Stroke::new(1.0, palette.separator))
-        .inner_margin(Margin { left: 16, right: 4, top: 4, bottom: 4 })
-        .show(ui, |ui| {
-            ui.set_width(ui.available_width());
-            // Laid out by hand: a horizontal row would cap the field at one control's height. The field
-            // grows up to 120 points, then scrolls; the button stays at the bottom right.
-            let button_side = 40.0;
-            let origin = ui.cursor().min;
-            let width = ui.available_width();
-            let field = egui::Rect::from_min_size(origin, vec2(width - button_side, 120.0));
-            let mut field_ui = ui.new_child(UiBuilder::new().max_rect(field).layout(Layout::top_down(Align::Min)));
-            let edit = egui::TextEdit::multiline(&mut draft)
-                .id(editor_id)
-                .hint_text(t("Message Discophile"))
-                // As tall as the send button, so a single line sits on its center.
-                .frame(Frame::NONE.inner_margin(Margin::symmetric(0, 11)))
-                .desired_rows(1)
-                .desired_width(field.width())
-                .font(Font::Body.id());
-            let response = egui::ScrollArea::vertical()
-                .id_salt(("assistant-composer-scroll", page))
-                .max_height(120.0)
-                .min_scrolled_height(0.0)
-                .show(&mut field_ui, |ui| ui.add(edit))
-                .inner;
-            response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::MultilineTextInput, true, t("Your request")));
-            if std::mem::take(&mut app.assistant.ui.focus_composer) {
-                response.request_focus();
-            }
-            if response.changed() {
-                feature::set_draft(app, draft.clone());
-            }
-            let row = egui::Rect::from_min_size(origin, vec2(width, field_ui.min_rect().height().max(button_side)));
-            let button = egui::Rect::from_min_size(row.right_bottom() - vec2(button_side, button_side), egui::Vec2::splat(button_side));
-            let mut button_ui = ui.new_child(UiBuilder::new().max_rect(button).layout(Layout::right_to_left(Align::Center)));
-            if answering == Some(id) {
-                if widgets::icon_button_tinted(&mut button_ui, icons::STOP_CIRCLE, &t("Stop response"), 24.0, Some(palette.accent)).clicked() {
-                    stop = true;
-                }
-            } else {
-                button_ui.add_enabled_ui(can_send, |ui| {
-                    let response = widgets::icon_button_tinted(ui, icons::ARROW_CIRCLE_UP, &t("Send request"), 24.0, Some(palette.accent));
-                    if response.on_hover_text(t("Enter sends, Shift+Enter adds a line.")).clicked() {
-                        send = true;
-                    }
-                });
-            }
-            ui.advance_cursor_after_rect(row);
-        });
-    if enter {
-        send = true;
+    let (event, response) = kit::composer(ui, &mut draft, editor_id, &t("Message Discophile"), can_send, answering == Some(id));
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::MultilineTextInput, true, t("Your request")));
+    if std::mem::take(&mut app.assistant.ui.focus_composer) {
+        response.request_focus();
     }
-    if stop {
-        feature::cancel(app);
+    if response.changed() {
+        feature::set_draft(app, draft.clone());
     }
-    if send {
-        let text = draft.trim().to_string();
-        feature::send(app, &text);
-        ui.memory_mut(|m| m.request_focus(editor_id));
+    match event {
+        kit::ComposerEvent::Stop => feature::cancel(app),
+        kit::ComposerEvent::Send => {
+            let text = draft.trim().to_string();
+            feature::send(app, &text);
+            ui.memory_mut(|m| m.request_focus(editor_id));
+        }
+        kit::ComposerEvent::None => {}
     }
     if let Some(running) = answering.filter(|running| *running != id) {
         ui.horizontal_wrapped(|ui| {
@@ -686,16 +588,7 @@ fn composer(app: &mut App, ui: &mut Ui, page: bool) {
     if trimmed_len > MAX_REQUEST_CHARACTERS {
         ui.label(theme::text(t("Keep your request within 1,000 characters."), Font::Caption).color(palette.accent));
     }
-    let disclosure = t(if provider == AssistantProvider::Local {
-        "Local model · AI can make mistakes"
-    } else {
-        "ChatGPT · Requests, recent chat and music metadata shared with OpenAI"
-    });
-    ui.vertical_centered(|ui| {
-        let response =
-            ui.add(egui::Label::new(theme::text(disclosure, Font::Caption).color(palette.secondary)).wrap().sense(Sense::click()));
-        if response.on_hover_text(t("About this assistant")).on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
-            app.assistant.ui.privacy = true;
-        }
-    });
+    if kit::disclosure(ui, provider).on_hover_text(t("About this assistant")).clicked() {
+        app.assistant.ui.privacy = true;
+    }
 }

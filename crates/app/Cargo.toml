@@ -48,6 +48,11 @@ notify-rust = "4"
 keepawake = "0.6"
 tray-icon = { version = "0.26", default-features = false, features = ["ksni"] }
 
+[target.'cfg(target_os = "macos")'.dependencies]
+# Reopening the window from the Dock (the application delegate); muda brings the same versions.
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSApplication", "NSResponder"] }
+
 [target.'cfg(target_os = "windows")'.dependencies]
 raw-window-handle = "0.6"
 

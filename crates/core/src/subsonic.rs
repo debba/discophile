@@ -11,8 +11,8 @@ use crate::error::{MusicError, MusicResult};
 use crate::lyrics::{SongLyrics, StructuredLyrics};
 use crate::md5_hex;
 use crate::models::{
-    Album, Artist, Authentication, Credentials, Playlist, PlaylistAdditionResult, PodcastChannel, SearchResults, Song,
-    StreamingQuality,
+    Album, Artist, Authentication, Credentials, MusicBrainzId, Playlist, PlaylistAdditionResult, PodcastChannel,
+    SearchResults, ServerInfo, Song, StreamingQuality,
 };
 
 pub const API_VERSION: &str = "1.16.1";
@@ -64,6 +64,35 @@ pub struct ApiResponse {
     pub lyrics_list: Option<LyricsList>,
     #[serde(default)]
     pub lyrics: Option<LegacyLyrics>,
+    #[serde(default, rename = "artistInfo2")]
+    pub artist_info2: Option<InfoPayload>,
+    #[serde(default, rename = "albumInfo")]
+    pub album_info: Option<InfoPayload>,
+}
+
+/// `artistInfo2` and `albumInfo` share their descriptive fields.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InfoPayload {
+    #[serde(default)]
+    pub biography: Option<String>,
+    #[serde(default)]
+    pub notes: Option<String>,
+    #[serde(default)]
+    pub music_brainz_id: Option<String>,
+    #[serde(default)]
+    pub last_fm_url: Option<String>,
+}
+
+impl InfoPayload {
+    fn server_info(self, musicbrainz: fn(String) -> MusicBrainzId) -> ServerInfo {
+        let present = |v: Option<String>| v.map(|v| v.trim().to_string()).filter(|v| !v.is_empty());
+        ServerInfo {
+            text: present(self.biography).or(present(self.notes)),
+            musicbrainz: present(self.music_brainz_id).map(musicbrainz),
+            link: present(self.last_fm_url),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -444,6 +473,17 @@ impl SubsonicClient {
 
     pub async fn favorites(&self) -> MusicResult<SearchResults> {
         Ok(self.request("getStarred2", &[]).await?.starred2.unwrap_or_default())
+    }
+
+    pub async fn artist_info(&self, id: &str) -> MusicResult<ServerInfo> {
+        let response = self.request("getArtistInfo2", &[("id", id.into()), ("count", "0".into())]).await?;
+        Ok(response.artist_info2.unwrap_or_default().server_info(MusicBrainzId::Artist))
+    }
+
+    /// `musicBrainzId` names a release, not a release group.
+    pub async fn album_info(&self, id: &str) -> MusicResult<ServerInfo> {
+        let response = self.request("getAlbumInfo2", &[("id", id.into())]).await?;
+        Ok(response.album_info.unwrap_or_default().server_info(MusicBrainzId::Release))
     }
 
     pub async fn similar_songs(&self, artist_id: &str, count: usize) -> MusicResult<Vec<Song>> {

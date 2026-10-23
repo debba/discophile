@@ -40,6 +40,17 @@ and to the optional public services described below.
 - **Music assistant**: a chat with history, song results, playlist proposals and confirmed edits to
   playlists and favorites. It can use ChatGPT (Sign in with ChatGPT, desktop only) or a local
   OpenAI-compatible model such as Ollama, which replaces Apple's on-device model.
+- **About**: on request, from the menus of artists, albums, songs, podcasts and episodes, a side panel with
+  an overview written by the music assistant and room for follow-up questions. It is grounded in your
+  server's biographies and album notes, feed descriptions and, if you enable Online music information,
+  MusicBrainz and Wikipedia (in your language, English as fallback). Sources are listed with links; without
+  an assistant they are shown on their own.
+- **Agents (MCP, desktop)**: an optional Model Context Protocol server on `http://127.0.0.1:47321/mcp`
+  (Settings > Agents) lets agents such as Claude search the library, read music information, create and edit
+  playlists, manage favorites and control playback. Requests need a bearer token kept in the keychain.
+  Discophile asks you before an agent removes songs from a playlist or deletes one. Settings shows ready-made
+  setups for Claude Code, Claude Desktop (via `mcp-remote`) and other Streamable HTTP clients, and the
+  recent agent activity.
 - **Settings**: language, appearance (system, light, dark), keep the computer awake while playing,
   streaming quality, scrobbling, an introduction and an About page with optional GitHub Sponsors support.
 
@@ -54,6 +65,9 @@ sound settings. Plain ALSA is the fallback when neither sound server is availabl
 The desktop tray menu provides Open, Play/Pause, Previous, Next and Quit. In Settings > General > Window
 behavior, enable closing to the tray to keep listening with the window hidden. If no tray is available,
 the window is minimized instead so it can still be reopened.
+On macOS, clicking the Dock icon reopens a window closed to the tray, and the menu bar offers Discophile,
+File, Controls, Go, Window and Help menus (playback, sections with ⌘1 to ⌘0, panels, back and forward with
+⌘[ and ⌘], Settings with ⌘,).
 On Linux, X11/XWayland is preferred when available because the window backend cannot hide native Wayland
 windows. Native Wayland keeps the tray controls and minimizes on close.
 
@@ -66,6 +80,11 @@ windows. Native Wayland keeps the tray controls and minimizes on close.
 - **ChatGPT**: sends your request, bounded recent conversation and limited song metadata (title, artist,
   album, genre, year for up to 200 candidates under temporary IDs). Requests use `store: false`.
 - **Local model**: stays on your machine apart from the address you configure.
+- **Online music information** (off by default): About sends the name, title and artist of the item to
+  MusicBrainz and Wikipedia/Wikidata. The assistant receives the item's public metadata and the source
+  excerpts, never server identifiers.
+- **Agents**: off by default and reachable only from this computer. A connected agent sees library metadata
+  and IDs, and what it sends to its own model provider follows that agent's policy.
 
 ## Discophile Connect (planned)
 

@@ -18,6 +18,9 @@ struct Entry {
 
 pub fn show(app: &mut App, ui: &mut Ui) {
     let collapsed = app.settings.sidebar_collapsed;
+    // The scroll area below narrows its content; collapsed icons use the sidebar's own centre line, like the
+    // logo and the bottom controls.
+    let center_x = ui.max_rect().center().x;
 
     let icon = crate::artwork::app_icon(ui.ctx(), 96);
     let logo = egui::Image::new(&icon).fit_to_exact_size(vec2(32.0, 32.0)).corner_radius(CornerRadius::same(9));
@@ -58,7 +61,7 @@ pub fn show(app: &mut App, ui: &mut Ui) {
 
     egui::ScrollArea::vertical().auto_shrink([false, false]).max_height(ui.available_height() - 96.0).show(ui, |ui| {
         for entry in &main {
-            nav_item(app, ui, entry, &selected, collapsed);
+            nav_item(app, ui, entry, &selected, collapsed, center_x);
         }
         if app.session.has_library() {
             ui.add_space(22.0);
@@ -80,7 +83,7 @@ pub fn show(app: &mut App, ui: &mut Ui) {
                 library.push(Entry { route: Route::Podcasts, icon: icons::MICROPHONE, label: t("Podcasts") });
             }
             for entry in &library {
-                nav_item(app, ui, entry, &selected, collapsed);
+                nav_item(app, ui, entry, &selected, collapsed, center_x);
             }
         }
     });
@@ -122,24 +125,26 @@ fn search_box(ui: &mut Ui, text: &mut String) -> egui::Response {
     widgets::search_field_with_id(ui, Some(egui::Id::unique("search-field")), text, &t("Artists, albums, songs"), width)
 }
 
-fn nav_item(app: &mut App, ui: &mut Ui, entry: &Entry, selected: &Route, collapsed: bool) {
+fn nav_item(app: &mut App, ui: &mut Ui, entry: &Entry, selected: &Route, collapsed: bool, center_x: f32) {
     let palette = Palette::of_ui(ui);
     let is_selected = &entry.route == selected && !app.nav.now_playing;
     let height = 38.0;
     let (rect, response) = ui.allocate_exact_size(vec2(ui.available_width(), height), Sense::click());
+    // Collapsed, the highlight is a square on the centre line instead of the full (narrowed) row.
+    let highlight = if collapsed { egui::Rect::from_center_size(egui::pos2(center_x, rect.center().y), vec2(height + 2.0, height)) } else { rect };
     if is_selected {
-        ui.painter().rect_filled(rect, CornerRadius::same(9), palette.accent.gamma_multiply(if palette.dark { 0.18 } else { 0.14 }));
+        ui.painter().rect_filled(highlight, CornerRadius::same(9), palette.accent.gamma_multiply(if palette.dark { 0.18 } else { 0.14 }));
     } else if response.hovered() {
-        ui.painter().rect_filled(rect, CornerRadius::same(9), palette.hover);
+        ui.painter().rect_filled(highlight, CornerRadius::same(9), palette.hover);
     }
     let color = if is_selected { palette.accent } else { palette.secondary };
-    let icon_x = if collapsed { rect.center().x } else { rect.left() + 18.0 };
+    let icon_x = if collapsed { center_x } else { rect.left() + 18.0 };
     widgets::paint_icon(ui.painter(), egui::pos2(icon_x, rect.center().y), entry.icon, egui::FontId::proportional(18.0), color);
     if !collapsed {
         let font = if is_selected { Font::Headline.id() } else { Font::Body.id() };
         ui.painter().text(egui::pos2(rect.left() + 38.0, rect.center().y), egui::Align2::LEFT_CENTER, &entry.label, font, color);
     }
-    widgets::focus_ring(ui, &response, 9);
+    widgets::focus_ring(ui, &response.clone().with_new_rect(highlight), 9);
     let response = if collapsed { response.on_hover_text(&entry.label) } else { response };
     response.widget_info(|| egui::WidgetInfo::selected(egui::Role::Tab, true, is_selected, &entry.label));
     if response.clicked() {

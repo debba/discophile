@@ -40,6 +40,7 @@ fn pages(app: &App) -> Vec<(SettingsPage, &'static str, &'static str)> {
         (SettingsPage::Offline, icons::ARROW_CIRCLE_DOWN, "Offline listening"),
         (SettingsPage::Rediscover, icons::CLOCK_COUNTER_CLOCKWISE, "Rediscover your music"),
         (SettingsPage::Assistant, icons::SPARKLE, "Music assistant"),
+        (SettingsPage::Agents, icons::ROBOT, "Agents"),
     ];
     if app.settings.advanced_unlocked {
         pages.push((SettingsPage::Advanced, icons::WRENCH, "Advanced settings"));
@@ -74,6 +75,7 @@ pub fn show(app: &mut App, ui: &mut Ui, page: crate::nav::SettingsPage) {
             SettingsPage::Offline => crate::features::downloads::settings_ui(app, ui),
             SettingsPage::Rediscover => crate::ui::statistics::rediscover_settings(app, ui),
             SettingsPage::Assistant => crate::ui::assistant::settings(app, ui),
+            SettingsPage::Agents => crate::ui::agents::settings(app, ui),
             SettingsPage::Advanced => advanced(app, ui),
             SettingsPage::About => about(app, ui),
         }

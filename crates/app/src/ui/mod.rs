@@ -3,10 +3,13 @@
 pub mod widgets;
 
 pub mod accounts;
+pub mod agents;
 pub mod assistant;
 pub mod audiobooks;
+pub mod chat_kit;
 pub mod curator;
 pub mod detail;
+pub mod info;
 pub mod library;
 pub mod listen_now;
 pub mod lyrics;

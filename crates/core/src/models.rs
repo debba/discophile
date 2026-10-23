@@ -362,6 +362,26 @@ impl Playlist {
     }
 }
 
+/// A MusicBrainz identifier and the entity it names.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", content = "id", rename_all = "camelCase")]
+pub enum MusicBrainzId {
+    Artist(String),
+    Release(String),
+    ReleaseGroup(String),
+}
+
+/// Descriptive metadata a server keeps for an artist or album: Subsonic `getArtistInfo2` and `getAlbumInfo2`
+/// (often a Last.fm biography), Jellyfin `Overview` and provider IDs.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct ServerInfo {
+    /// Biography or notes as the server sent them, possibly HTML.
+    pub text: Option<String>,
+    pub musicbrainz: Option<MusicBrainzId>,
+    /// Page the text comes from, such as Last.fm.
+    pub link: Option<String>,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct SearchResults {
     #[serde(default)]

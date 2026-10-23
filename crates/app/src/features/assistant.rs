@@ -30,12 +30,22 @@ use crate::tasks::update;
 #[cfg(not(target_arch = "wasm32"))]
 pub use providers::sign_in;
 pub use providers::{
-    AssistantConfig, ChatGptState, LocalState, cancel_sign_in, has_local_api_key, load_models, provider_name, save_config,
+    AssistantConfig, ChatGptState, LocalState, ResponderPlan, cancel_sign_in, has_local_api_key, load_models, plan_responder,
+    provider_name, save_config,
     save_local_api_key, set_default_model, set_local_base_url, set_local_model, sign_out, test_local, unavailable_reason,
 };
 pub use reply::{
     CuratorState, RunKind, answering, cancel, cancel_curator, cancel_edit, confirm_edit, curate, is_busy, save_playlist, send,
 };
+
+/// What the person picked in a chat header's model menu.
+pub enum ModelPick {
+    Provider(AssistantProvider),
+    /// A ChatGPT model slug.
+    ChatGpt(String),
+    /// A local model, already saved as the local model of every chat.
+    Local(String),
+}
 
 /// Debounce for draft saves, as on iOS.
 const DRAFT_SAVE_SECONDS: f64 = 0.4;

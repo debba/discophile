@@ -6,7 +6,7 @@ use discophile_core::{Album, Artist, Playlist, PodcastChannel, Song, l10n};
 use egui::{Align, Color32, CornerRadius, Layout, Rect, Response, Sense, Ui, UiBuilder, vec2};
 
 use crate::app::App;
-use crate::features::{discovery, downloads, library};
+use crate::features::{discovery, downloads, info, library};
 use crate::nav::Route;
 use crate::player;
 use crate::theme::{self, Font, Palette, icons};
@@ -139,6 +139,10 @@ pub fn track_menu(app: &mut App, ui: &mut Ui, songs: &[Song], index: usize, opti
         && menu_item(ui, icons::MICROPHONE, &l10n::t("Go to podcast")) {
             app.nav.push(Route::Podcast(channel.to_string()));
         }
+    ui.separator();
+    if menu_item(ui, icons::INFO, &l10n::t("About")) {
+        info::about_song(app, song);
+    }
     if let Some(playlist) = &options.playlist {
         ui.separator();
         ui.add_enabled_ui(!app.library.changing_playlist, |ui| {
@@ -265,6 +269,9 @@ pub fn album_menu(app: &mut App, ui: &mut Ui, album: &Album) {
         && menu_item(ui, icons::MICROPHONE_STAGE, &l10n::t("Go to artist")) {
             app.nav.push(Route::Artist(artist));
         }
+    if menu_item(ui, icons::INFO, &l10n::t("About")) {
+        info::about_album(app, album);
+    }
 }
 
 // MARK: Rows
@@ -385,6 +392,9 @@ pub fn podcast_row(app: &mut App, ui: &mut Ui, channel: &PodcastChannel) {
     }
     let id = channel.id.clone();
     response.context_menu(|ui| {
+        if menu_item(ui, icons::INFO, &l10n::t("About")) {
+            info::about_podcast(app, channel);
+        }
         ui.add_enabled_ui(!app.library.changing_podcasts, |ui| {
             if menu_item(ui, icons::TRASH, &l10n::t("Delete podcast")) {
                 library::confirm_delete_podcast(app, &id);

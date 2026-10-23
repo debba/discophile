@@ -1,1 +1,15 @@
-{}
+{
+  "Song": "Brano",
+  "Episode": "Episodio",
+  "Biography": "Biografia",
+  "Album notes": "Note dell’album",
+  "Podcast feed": "Feed del podcast",
+  "Type": "Tipo",
+  "From": "Origine",
+  "Area": "Paese",
+  "Born": "Nascita",
+  "Died": "Morte",
+  "Years active": "Anni di attività",
+  "Genres": "Generi",
+  "First released": "Prima uscita"
+}

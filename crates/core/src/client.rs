@@ -7,8 +7,8 @@ use crate::error::MusicResult;
 use crate::jellyfin::JellyfinClient;
 use crate::lyrics::SongLyrics;
 use crate::models::{
-    Album, Artist, Credentials, MusicProvider, Playlist, PlaylistAdditionResult, PodcastChannel, SearchResults, Song,
-    StreamingQuality,
+    Album, Artist, Credentials, MusicProvider, Playlist, PlaylistAdditionResult, PodcastChannel, SearchResults,
+    ServerInfo, Song, StreamingQuality,
 };
 pub use crate::subsonic::SearchLimits;
 use crate::subsonic::SubsonicClient;
@@ -176,6 +176,16 @@ impl MusicClient {
 
     pub async fn favorite(&self, id: &str, starred: bool) -> MusicResult<()> {
         dispatch!(self, c => c.favorite(id, starred).await)
+    }
+
+    /// Biography and identifiers the server keeps for an artist. Older servers answer `Unsupported`.
+    pub async fn artist_info(&self, id: &str) -> MusicResult<ServerInfo> {
+        dispatch!(self, c => c.artist_info(id).await)
+    }
+
+    /// Notes and identifiers the server keeps for an album. Older servers answer `Unsupported`.
+    pub async fn album_info(&self, id: &str) -> MusicResult<ServerInfo> {
+        dispatch!(self, c => c.album_info(id).await)
     }
 
     pub async fn scrobble(&self, id: &str, submission: bool) -> MusicResult<()> {

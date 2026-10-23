@@ -1352,6 +1352,8 @@ dependencies = [
  "keyring",
  "log",
  "notify-rust",
+ "objc2 0.6.5",
+ "objc2-app-kit 0.3.2",
  "rand 0.9.5",
  "raw-window-handle",
  "reqwest",

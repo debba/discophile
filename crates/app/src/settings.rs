@@ -17,6 +17,8 @@ pub struct Settings {
     pub streaming_quality: StreamingQuality,
     pub scrobble: bool,
     pub online_lyrics: bool,
+    /// MusicBrainz and Wikipedia lookups for About.
+    pub online_music_info: bool,
     /// Music "Downloaded only" filter (desktop).
     pub downloaded_only: bool,
     pub volume: f32,
@@ -33,6 +35,9 @@ pub struct Settings {
     pub minimize_on_close: bool,
     /// Interface and text scale (egui zoom), also changed with Ctrl + and Ctrl −.
     pub interface_scale: f32,
+    /// Settings > Agents: the MCP server on the loopback interface (desktop).
+    pub mcp_enabled: bool,
+    pub mcp_port: u16,
 }
 
 impl Default for Settings {
@@ -44,6 +49,7 @@ impl Default for Settings {
             streaming_quality: StreamingQuality::High,
             scrobble: false,
             online_lyrics: false,
+            online_music_info: false,
             downloaded_only: false,
             volume: 1.0,
             sidebar_collapsed: false,
@@ -55,6 +61,8 @@ impl Default for Settings {
             keep_awake: false,
             minimize_on_close: false,
             interface_scale: 1.0,
+            mcp_enabled: false,
+            mcp_port: 47_321,
         }
     }
 }

@@ -9,6 +9,12 @@ pub mod storage;
 pub mod window;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod tray;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod http_server;
+#[cfg(target_os = "macos")]
+pub mod menu_bar;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod menu_events;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub trait MaybeSend: Send {}

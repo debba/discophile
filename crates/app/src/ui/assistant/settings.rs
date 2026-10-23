@@ -17,7 +17,23 @@ pub fn show(app: &mut App, ui: &mut Ui) {
     provider_section(app, ui);
     chatgpt_section(app, ui);
     local_section(app, ui);
+    music_info_section(app, ui);
     privacy_section(ui);
+}
+
+/// About: what the assistant reads, and the optional public lookups.
+fn music_info_section(app: &mut App, ui: &mut Ui) {
+    widgets::section_heading(ui, &t("Music information"), None);
+    group(ui, |ui| {
+        let mut online = app.settings.online_music_info;
+        if crate::ui::settings::toggle_row(ui, &mut online, &t("Online music information (Wikipedia and MusicBrainz)"), None) {
+            crate::features::info::set_online(app, online);
+        }
+    });
+    footer(
+        ui,
+        &t("About, in the menus of artists, albums, songs and podcasts, shows your server's notes and an overview written by the assistant. When enabled, it also looks up MusicBrainz and Wikipedia, sending the name, title and artist of the item. Off by default."),
+    );
 }
 
 fn provider_section(app: &mut App, ui: &mut Ui) {

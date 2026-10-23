@@ -6,8 +6,12 @@ pub mod audiobooks;
 pub mod discovery;
 pub mod downloads;
 pub mod effects;
+pub mod info;
 pub mod library;
 pub mod lyrics;
+pub mod mentions;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod mcp;
 pub mod radio;
 
 use discophile_core::Song;
@@ -24,6 +28,9 @@ pub fn start(app: &mut App) {
     assistant::start(app);
     effects::start(app);
     lyrics::start(app);
+    info::start(app);
+    #[cfg(not(target_arch = "wasm32"))]
+    mcp::start(app);
 }
 
 /// Every frame, before drawing.
@@ -35,6 +42,8 @@ pub fn tick(app: &mut App) {
     assistant::tick(app);
     lyrics::tick(app);
     effects::tick(app);
+    #[cfg(not(target_arch = "wasm32"))]
+    mcp::tick(app);
 }
 
 /// Modal windows and sheets, drawn after the main layout.
@@ -46,6 +55,8 @@ pub fn windows(app: &mut App, ctx: &egui::Context) {
     radio::windows(app, ctx);
     assistant::windows(app, ctx);
     effects::windows(app, ctx);
+    #[cfg(not(target_arch = "wasm32"))]
+    crate::ui::agents::confirmation(app, ctx);
 }
 
 /// The active music library changed (or was removed). Playback has already stopped.
@@ -55,6 +66,9 @@ pub fn on_library_changed(app: &mut App) {
     discovery::on_library_changed(app);
     assistant::on_library_changed(app);
     lyrics::on_library_changed(app);
+    info::on_library_changed(app);
+    #[cfg(not(target_arch = "wasm32"))]
+    mcp::on_library_changed(app);
 }
 
 /// A music or podcast item started (including gapless and crossfade advances).
