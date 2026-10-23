@@ -192,38 +192,35 @@ pub fn thin_slider(
     SliderOutput { response, shown, changed }
 }
 
-/// A labeled on/off switch filling the row: the label on the left and the switch on the right.
-pub fn switch_row(ui: &mut Ui, on: &mut bool, label: &str) -> Response {
-    let mut response = ui
-        .horizontal(|ui| {
-            ui.label(theme::text(label, Font::Body));
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| switch(ui, on, label)).inner
-        })
-        .inner;
-    if response.clicked() {
-        response.mark_changed();
-    }
-    response
-}
-
-/// An iOS-style switch.
-pub fn switch(ui: &mut Ui, on: &mut bool, label: &str) -> Response {
-    let size = vec2(40.0, 24.0);
-    let (rect, mut response) = ui.allocate_exact_size(size, Sense::click());
-    if response.clicked() {
-        *on = !*on;
-        response.mark_changed();
-    }
+/// A settings slider: the label and the live value above, the rail below with its thumb always shown
+/// (the player's sliders reveal it only on hover).
+pub fn labeled_slider(
+    ui: &mut Ui,
+    label: &str,
+    value: f64,
+    range: std::ops::RangeInclusive<f64>,
+    live: bool,
+    step: f64,
+    format: impl Fn(f64) -> String,
+) -> SliderOutput {
+    let width = ui.available_width();
+    let (row, _) = ui.allocate_exact_size(vec2(width, 20.0), Sense::hover());
+    let output = thin_slider(ui, value, range.clone(), width, live, step, label);
     let palette = Palette::of_ui(ui);
-    let progress = ui.ctx().animate_bool_responsive(response.id, *on);
-    let off = if palette.dark { Color32::from_white_alpha(45) } else { Color32::from_black_alpha(35) };
-    let fill = off.lerp_to_gamma(palette.action, progress);
-    ui.painter().rect_filled(rect, CornerRadius::same(12), fill);
-    let x = egui::lerp((rect.left() + 12.0)..=(rect.right() - 12.0), progress);
-    ui.painter().circle_filled(pos2(x, rect.center().y), 9.5, Color32::WHITE);
-    let value = *on;
-    response.widget_info(|| egui::WidgetInfo::selected(egui::Role::CheckBox, ui.is_enabled(), value, label));
-    response.on_hover_cursor(egui::CursorIcon::PointingHand)
+    let painter = ui.painter();
+    painter.text(row.left_center(), egui::Align2::LEFT_CENTER, label, Font::Body.id(), palette.text);
+    painter.text(row.right_center(), egui::Align2::RIGHT_CENTER, format(output.shown), Font::Body.id(), palette.secondary);
+    let active = output.response.hovered() || output.response.dragged() || output.response.has_focus();
+    if ui.is_enabled() && !active {
+        // Same geometry as `thin_slider`'s rail.
+        let rect = output.response.rect;
+        let (low, high) = (*range.start(), *range.end());
+        let fraction = ((output.shown - low) / (high - low).max(f64::EPSILON)).clamp(0.0, 1.0) as f32;
+        let thumb = pos2(rect.left() + 4.0 + (rect.width() - 8.0) * fraction, rect.center().y);
+        painter.circle_filled(thumb, 6.5, palette.surface);
+        painter.circle_stroke(thumb, 6.5, Stroke::new(2.0, palette.text.gamma_multiply(0.75)));
+    }
+    output
 }
 
 /// A label with its value at the trailing edge, like SwiftUI's `LabeledContent`.

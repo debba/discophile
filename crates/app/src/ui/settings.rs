@@ -89,21 +89,24 @@ fn page_list(app: &mut App, ui: &mut Ui, current: SettingsPage) {
         for (page, icon, label) in pages(app) {
             let label = t(label);
             let selected = page == current;
-            let (rect, response) = ui.allocate_exact_size(vec2(ui.available_width(), 34.0), Sense::click());
+            let (rect, response) = ui.allocate_exact_size(vec2(ui.available_width(), 36.0), Sense::click());
             if selected {
                 ui.painter().rect_filled(
                     rect,
                     CornerRadius::same(9),
                     palette.accent.gamma_multiply(if palette.dark { 0.18 } else { 0.14 }),
                 );
-            } else if response.hovered() || response.has_focus() {
+            } else if response.hovered() {
                 ui.painter().rect_filled(rect, CornerRadius::same(9), palette.hover);
             }
             let color = if selected { palette.accent } else { palette.text };
-            crate::ui::widgets::paint_icon(ui.painter(), rect.left_center() + vec2(16.0, 0.0), icon, egui::FontId::new(17.0, theme::icon_fill()), color);
+            // Outlined like the sidebar; filled only for the current page.
+            let (family, icon_color) = if selected { (theme::icon_fill(), palette.accent) } else { (egui::FontFamily::Proportional, palette.secondary) };
+            crate::ui::widgets::paint_icon(ui.painter(), rect.left_center() + vec2(16.0, 0.0), icon, egui::FontId::new(17.0, family), icon_color);
             let font = if selected { Font::Headline.id() } else { Font::Body.id() };
             let galley = ui.painter().layout(label.clone(), font, color, rect.width() - 40.0);
             ui.painter().galley(pos2(rect.left() + 34.0, rect.center().y - galley.size().y / 2.0), galley, color);
+            widgets::focus_ring(ui, &response, 9);
             response.widget_info(|| egui::WidgetInfo::selected(egui::Role::Tab, true, selected, &label));
             if response.on_hover_cursor(egui::CursorIcon::PointingHand).clicked() && !selected {
                 app.nav.push(Route::Settings(page));
@@ -122,46 +125,40 @@ pub(crate) fn group<R>(ui: &mut Ui, add: impl FnOnce(&mut Ui) -> R) -> R {
 /// Secondary explanatory text under a group, like an iOS section footer.
 pub(crate) fn footer(ui: &mut Ui, text: &str) {
     ui.add_space(4.0);
-    ui.label(theme::secondary(ui, text, Font::Footnote));
+    ui.label(theme::secondary(ui, text, Font::Subheadline));
     ui.add_space(4.0);
 }
 
-/// A labeled switch with an optional description. Returns true when the value changed.
+/// A labeled switch with an optional description. The whole row toggles, and the text is centered on
+/// the switch. Returns true when the value changed.
 pub(crate) fn toggle_row(ui: &mut Ui, value: &mut bool, label: &str, detail: Option<&str>) -> bool {
     let palette = Palette::of_ui(ui);
     let enabled = ui.is_enabled();
-    let inner = ui.horizontal(|ui| {
-        let switch_width = 44.0;
-        let text_width = (ui.available_width() - switch_width - 16.0).max(80.0);
-        ui.vertical(|ui| {
-            ui.set_width(text_width);
-            ui.label(theme::text(label, Font::Body));
-            if let Some(detail) = detail {
-                ui.label(theme::secondary(ui, detail, Font::Footnote));
-            }
-        });
-        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            let (rect, response) = ui.allocate_exact_size(vec2(switch_width, 26.0), Sense::click());
-            let progress = if *value { 1.0 } else { 0.0 };
-            let track = if *value { palette.action } else { palette.secondary.gamma_multiply(0.35) };
-            let track = if enabled { track } else { track.gamma_multiply(0.5) };
-            ui.painter().rect_filled(rect, CornerRadius::same(13), track);
-            let knob_x = egui::lerp((rect.left() + 13.0)..=(rect.right() - 13.0), progress);
-            ui.painter().circle_filled(pos2(knob_x, rect.center().y), 10.5, Color32::WHITE);
-            if response.has_focus() {
-                ui.painter().rect_stroke(
-                    rect.expand(2.0),
-                    CornerRadius::same(15),
-                    egui::Stroke::new(2.0, palette.accent),
-                    egui::StrokeKind::Outside,
-                );
-            }
-            response.widget_info(|| egui::WidgetInfo::selected(egui::Role::Switch, enabled, *value, label));
-            response
-        })
-        .inner
-    });
-    let response = inner.inner;
+    let switch = vec2(44.0, 26.0);
+    let width = ui.available_width();
+    let text_width = (width - switch.x - 16.0).max(80.0);
+    let title = ui.painter().layout(label.to_string(), Font::Body.id(), palette.text, text_width);
+    let detail = detail.map(|d| ui.painter().layout(d.to_string(), Font::Footnote.id(), palette.secondary, text_width));
+    let text_height = title.size().y + detail.as_ref().map_or(0.0, |d| 3.0 + d.size().y);
+    let (rect, response) = ui.allocate_exact_size(vec2(width, text_height.max(switch.y) + 12.0), Sense::click());
+    let mut y = rect.center().y - text_height / 2.0;
+    let title_height = title.size().y;
+    ui.painter().galley(pos2(rect.left(), y), title, palette.text);
+    y += title_height + 3.0;
+    if let Some(detail) = detail {
+        ui.painter().galley(pos2(rect.left(), y), detail, palette.secondary);
+    }
+    let track_rect = Rect::from_min_size(pos2(rect.right() - switch.x, rect.center().y - switch.y / 2.0), switch);
+    let on = ui.ctx().animate_bool(response.id, *value);
+    let track = palette.secondary.gamma_multiply(0.45).lerp_to_gamma(palette.action, on);
+    let track = if enabled { track } else { track.gamma_multiply(0.5) };
+    ui.painter().rect_filled(track_rect, CornerRadius::same(13), track);
+    let knob_x = egui::lerp((track_rect.left() + 13.0)..=(track_rect.right() - 13.0), on);
+    ui.painter().circle_filled(pos2(knob_x, track_rect.center().y), 10.5, Color32::WHITE);
+    if response.has_focus() {
+        ui.painter().rect_stroke(track_rect.expand(2.0), CornerRadius::same(15), egui::Stroke::new(2.0, palette.accent), egui::StrokeKind::Outside);
+    }
+    response.widget_info(|| egui::WidgetInfo::selected(egui::Role::Switch, enabled, *value, label));
     if response.on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
         *value = !*value;
         return true;
@@ -188,8 +185,11 @@ pub(crate) fn choice_row(ui: &mut Ui, selected: bool, label: &str, detail: Optio
                         ui.label(theme::secondary(ui, detail, Font::Footnote));
                     }
                 });
+                // An empty circle marks the options not chosen, like a radio button.
                 if selected {
                     ui.label(theme::icon_filled(icons::CHECK_CIRCLE, 19.0).color(palette.accent));
+                } else {
+                    ui.label(theme::icon(icons::CIRCLE, 19.0).color(palette.secondary));
                 }
             });
         });

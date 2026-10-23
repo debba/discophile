@@ -12,7 +12,6 @@ use crate::features::lyrics::{self, LyricsStatus};
 use crate::nav::SidePanel;
 use crate::player;
 use crate::theme::{self, Font, Palette, icons};
-use crate::ui::player_bar::controls;
 use crate::ui::widgets;
 
 pub fn panel(app: &mut App, ui: &mut Ui) {
@@ -181,22 +180,18 @@ fn lines(app: &mut App, ui: &mut Ui, lyrics: &SongLyrics, size: f32) {
 pub fn settings(app: &mut App, ui: &mut Ui) {
     widgets::card(ui, |ui| {
         let mut online = app.settings.online_lyrics;
-        if controls::switch_row(ui, &mut online, &t("Online lyrics (LRCLIB)")).changed() {
+        if crate::ui::settings::toggle_row(ui, &mut online, &t("Online lyrics (LRCLIB)"), None) {
             lyrics::set_online(app, online);
         }
         ui.add_space(4.0);
         ui.hyperlink_to(theme::accent(ui, t("About LRCLIB"), Font::Callout), "https://lrclib.net");
     });
-    ui.add_space(6.0);
-    ui.label(theme::secondary(
+    crate::ui::settings::footer(
         ui,
-        t("When enabled, opening lyrics searches LRCLIB if your server has no synced text. The song title, artist, album and duration are sent to LRCLIB. Found lyrics are cached on this computer for offline use. Synced lyrics aren't available for every song."),
-        Font::Footnote,
-    ));
-    ui.add_space(4.0);
-    ui.label(theme::secondary(
+        &t("When enabled, opening lyrics searches LRCLIB if your server has no synced text. The song title, artist, album and duration are sent to LRCLIB. Found lyrics are cached on this computer for offline use. Synced lyrics aren't available for every song."),
+    );
+    crate::ui::settings::footer(
         ui,
-        t("Turning the option off stops LRCLIB lookups and hides its cached texts; server lyrics remain available. Try again in the lyrics view forces a fresh lookup."),
-        Font::Footnote,
-    ));
+        &t("Turning the option off stops LRCLIB lookups and hides its cached texts; server lyrics remain available. Try again in the lyrics view forces a fresh lookup."),
+    );
 }

@@ -478,7 +478,7 @@ fn delete_dialog(app: &mut App, ctx: &egui::Context, mix: &CuratedMix, edit: &mu
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             let palette = Palette::of_ui(ui);
             let button = egui::Button::new(theme::text(t("Remove selection"), Font::Headline).color(Color32::WHITE))
-                .fill(palette.danger)
+                .fill(palette.danger_fill)
                 .corner_radius(CornerRadius::same(10));
             if ui.add(button).clicked() {
                 confirm = true;

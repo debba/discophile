@@ -357,13 +357,12 @@ pub fn rediscover_settings(app: &mut App, ui: &mut Ui) {
         }
     });
     ui.add_space(6.0);
-    ui.label(theme::secondary(
+    crate::ui::settings::footer(
         ui,
-        l10n::t(
+        &l10n::t(
             "Listening history stays on this device, separately for each library. Suggestions use a sample of your collection and do not include listening in other apps.",
         ),
-        Font::Footnote,
-    ));
+    );
     if app.discovery.ui.history_expanded {
         ui.add_space(12.0);
         history_list(app, ui);
@@ -445,7 +444,7 @@ pub fn windows(app: &mut App, ctx: &egui::Context) {
         ui.add_space(12.0);
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             let button = egui::Button::new(theme::text(l10n::t("Clear listening history"), Font::Headline).color(Color32::WHITE))
-                .fill(palette.danger)
+                .fill(palette.danger_fill)
                 .corner_radius(CornerRadius::same(12))
                 .min_size(vec2(0.0, 36.0));
             clear = ui.add(button).clicked();

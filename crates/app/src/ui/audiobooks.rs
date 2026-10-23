@@ -642,33 +642,43 @@ pub fn playback_settings(app: &mut App, ui: &mut Ui) {
     widgets::section_heading(ui, &t("Audiobooks"), None);
     widgets::card(ui, |ui| {
         let mut preferences = app.audiobooks.reader.preferences.clone();
-        egui::Grid::new("abs-playback-settings").num_columns(2).spacing(vec2(24.0, 10.0)).show(ui, |ui| {
-            for (label, value, salt) in [
-                (t("Skip backward"), &mut preferences.backward_seconds, "abs-skip-back"),
-                (t("Skip forward"), &mut preferences.forward_seconds, "abs-skip-forward"),
-            ] {
-                ui.label(label);
-                egui::ComboBox::from_id_salt(salt).selected_text(count("%lld seconds", *value as i64)).show_ui(ui, |ui| {
-                    for interval in AudiobookReaderPreferences::SKIP_INTERVALS {
-                        ui.selectable_value(value, interval, count("%lld seconds", interval as i64));
-                    }
+        for (label, value, salt) in [
+            (t("Skip backward"), &mut preferences.backward_seconds, "abs-skip-back"),
+            (t("Skip forward"), &mut preferences.forward_seconds, "abs-skip-forward"),
+        ] {
+            ui.horizontal(|ui| {
+                ui.label(theme::text(&label, Font::Body));
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    egui::ComboBox::from_id_salt(salt).selected_text(count("%lld seconds", *value as i64)).show_ui(ui, |ui| {
+                        for interval in AudiobookReaderPreferences::SKIP_INTERVALS {
+                            ui.selectable_value(value, interval, count("%lld seconds", interval as i64));
+                        }
+                    });
                 });
-                ui.end_row();
-            }
-            ui.label(t("Playback speed"));
-            ui.add(
-                egui::Slider::new(&mut preferences.rate, AudiobookReaderPreferences::MIN_RATE..=AudiobookReaderPreferences::MAX_RATE)
-                    .step_by(AudiobookReaderPreferences::RATE_STEP)
-                    .custom_formatter(|v, _| format!("{v:.2}×")),
-            );
-            ui.end_row();
-        });
-        ui.checkbox(&mut preferences.adjust_time_for_speed, t("Adjust times to playback speed"));
-        ui.label(theme::secondary(
+            });
+        }
+        ui.add_space(4.0);
+        let range = AudiobookReaderPreferences::MIN_RATE..=AudiobookReaderPreferences::MAX_RATE;
+        let speed = crate::ui::player_bar::controls::labeled_slider(
             ui,
-            t("Show listening time at the selected speed. Bookmarks and chapter positions always use the original book timeline."),
-            Font::Footnote,
-        ));
+            &t("Playback speed"),
+            preferences.rate,
+            range.clone(),
+            false,
+            AudiobookReaderPreferences::RATE_STEP,
+            |v| format!("{v:.2}×"),
+        );
+        if let Some(rate) = speed.changed {
+            let step = AudiobookReaderPreferences::RATE_STEP;
+            preferences.rate = ((rate / step).round() * step).clamp(*range.start(), *range.end());
+        }
+        ui.add_space(4.0);
+        crate::ui::settings::toggle_row(
+            ui,
+            &mut preferences.adjust_time_for_speed,
+            &t("Adjust times to playback speed"),
+            Some(&t("Show listening time at the selected speed. Bookmarks and chapter positions always use the original book timeline.")),
+        );
         if preferences != app.audiobooks.reader.preferences {
             let rate_changed = preferences.rate != app.audiobooks.reader.preferences.rate;
             app.audiobooks.reader.preferences = preferences;

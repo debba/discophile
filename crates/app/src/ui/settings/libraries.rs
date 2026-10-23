@@ -258,9 +258,8 @@ fn remove_confirmation(ctx: &egui::Context, name: &str) -> Option<bool> {
         ui.label(theme::text(t(message), Font::Body));
         ui.add_space(12.0);
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            let text_color = if palette.dark { palette.background } else { Color32::WHITE };
-            let remove = egui::Button::new(theme::text(t("Remove server"), Font::Headline).color(text_color))
-                .fill(palette.danger)
+            let remove = egui::Button::new(theme::text(t("Remove server"), Font::Headline).color(Color32::WHITE))
+                .fill(palette.danger_fill)
                 .corner_radius(CornerRadius::same(14))
                 .min_size(vec2(0.0, 40.0));
             if ui.add(remove).clicked() {

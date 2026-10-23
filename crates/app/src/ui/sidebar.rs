@@ -129,10 +129,6 @@ fn nav_item(app: &mut App, ui: &mut Ui, entry: &Entry, selected: &Route, collaps
     let (rect, response) = ui.allocate_exact_size(vec2(ui.available_width(), height), Sense::click());
     if is_selected {
         ui.painter().rect_filled(rect, CornerRadius::same(9), palette.accent.gamma_multiply(if palette.dark { 0.18 } else { 0.14 }));
-        if !collapsed {
-            let indicator = egui::Rect::from_center_size(egui::pos2(rect.left() + 2.0, rect.center().y), vec2(3.0, 16.0));
-            ui.painter().rect_filled(indicator, CornerRadius::same(2), palette.accent);
-        }
     } else if response.hovered() {
         ui.painter().rect_filled(rect, CornerRadius::same(9), palette.hover);
     }

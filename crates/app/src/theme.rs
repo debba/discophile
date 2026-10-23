@@ -31,6 +31,8 @@ pub struct Palette {
     pub text: Color32,
     pub hover: Color32,
     pub danger: Color32,
+    /// Fill of destructive buttons under white text (≥ 4.5:1); `danger` is the lighter text color.
+    pub danger_fill: Color32,
     /// Text field outline with at least 3:1 contrast against `surface` and `background`.
     pub field_border: Color32,
 }
@@ -51,6 +53,7 @@ impl Palette {
             text: hex(0xF6F2F7),
             hover: Color32::from_white_alpha(14),
             danger: hex(0xFF8A80),
+            danger_fill: hex(0xB3261E),
             field_border: hex(0x77707C),
         }
     }
@@ -69,6 +72,7 @@ impl Palette {
             text: hex(0x1C1A1E),
             hover: Color32::from_black_alpha(12),
             danger: hex(0xB3261E),
+            danger_fill: hex(0xB3261E),
             field_border: hex(0x8E8692),
         }
     }

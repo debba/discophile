@@ -3,11 +3,13 @@
 
 use discophile_core::Song;
 use discophile_core::l10n::t;
-use egui::{Color32, Sense, Stroke, Ui, Vec2, pos2, vec2};
+use egui::{Color32, Sense, Stroke, Ui, Vec2, vec2};
 
 use super::DownloadState;
 use crate::app::App;
 use crate::theme::{self, Font, Palette, icons};
+#[cfg_attr(target_arch = "wasm32", allow(unused_imports))]
+use crate::ui::settings::footer;
 use crate::ui::widgets;
 
 // MARK: Track button
@@ -139,35 +141,11 @@ fn is_automatic(_app: &App, _song: &Song) -> bool {
 
 // MARK: Settings
 
-/// An iOS-style switch row. Returns true when toggled.
+/// A switch row, as elsewhere in Settings. Returns true when toggled.
 #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
 fn switch_row(ui: &mut Ui, title: &str, value: bool, enabled: bool) -> bool {
-    let mut toggled = false;
-    ui.horizontal(|ui| {
-        ui.add_enabled(enabled, egui::Label::new(theme::text(title, Font::Body)).selectable(false));
-        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            let size = vec2(40.0, 24.0);
-            let (rect, response) = ui.allocate_exact_size(size, if enabled { Sense::click() } else { Sense::hover() });
-            let palette = Palette::of_ui(ui);
-            let how_on = ui.ctx().animate_bool(response.id, value);
-            let off = if palette.dark { Color32::from_white_alpha(40) } else { Color32::from_black_alpha(36) };
-            let mut fill = off.lerp_to_gamma(palette.action, how_on);
-            if !enabled {
-                fill = fill.gamma_multiply(0.5);
-            }
-            ui.painter().rect_filled(rect, 12.0, fill);
-            let x = egui::lerp((rect.left() + 12.0)..=(rect.right() - 12.0), how_on);
-            ui.painter().circle_filled(pos2(x, rect.center().y), 10.0, Color32::WHITE);
-            response.widget_info(|| egui::WidgetInfo::selected(egui::Role::CheckBox, enabled, value, title));
-            if response.clicked() {
-                toggled = true;
-            }
-            if enabled {
-                response.on_hover_cursor(egui::CursorIcon::PointingHand);
-            }
-        });
-    });
-    toggled
+    let mut value = value;
+    ui.add_enabled_ui(enabled, |ui| crate::ui::settings::toggle_row(ui, &mut value, title, None)).inner
 }
 
 #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
@@ -180,24 +158,21 @@ fn value_row(ui: &mut Ui, title: &str, value: &str) {
     });
 }
 
-#[cfg_attr(target_arch = "wasm32", allow(dead_code))]
-fn footer(ui: &mut Ui, text: &str) {
-    ui.add_space(4.0);
-    ui.label(theme::secondary(ui, text, Font::Footnote));
-}
-
 pub fn settings_ui(app: &mut App, ui: &mut Ui) {
     #[cfg(target_arch = "wasm32")]
     {
         let _ = app;
-        widgets::section_heading(ui, &t("Offline listening"), None);
+        // The page title already names the section; the text wraps beside its icon, not under it.
         widgets::card(ui, |ui| {
-            ui.horizontal_wrapped(|ui| {
+            ui.horizontal_top(|ui| {
                 ui.label(theme::icon(icons::DOWNLOAD_SIMPLE, 20.0).color(Palette::of_ui(ui).accent));
-                ui.label(theme::text(
-                    t("Offline listening requires the Discophile desktop app. The web player streams music from your server."),
-                    Font::Body,
-                ));
+                ui.add(
+                    egui::Label::new(theme::text(
+                        t("Offline listening requires the Discophile desktop app. The web player streams music from your server."),
+                        Font::Body,
+                    ))
+                    .wrap(),
+                );
             });
         });
     }
@@ -221,7 +196,7 @@ pub fn windows(app: &mut App, ctx: &egui::Context) {
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             let palette = Palette::of_ui(ui);
             let remove = egui::Button::new(theme::text(t("Remove all music downloads"), Font::Headline).color(Color32::WHITE))
-                .fill(palette.danger)
+                .fill(palette.danger_fill)
                 .corner_radius(14)
                 .min_size(vec2(0.0, 40.0));
             if ui.add(remove).clicked() {

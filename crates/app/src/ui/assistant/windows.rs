@@ -29,6 +29,14 @@ fn title(ui: &mut Ui, text: &str) {
     ui.add_space(6.0);
 }
 
+/// The main action of a dialog: filled, like Confirm changes; `danger` for destructive ones.
+fn primary(ui: &mut Ui, label: String, enabled: bool, danger: bool) -> egui::Response {
+    let palette = Palette::of_ui(ui);
+    let fill = if danger { palette.danger_fill } else { palette.action };
+    let button = egui::Button::new(theme::text(label, Font::Headline).color(egui::Color32::WHITE)).fill(fill);
+    ui.add_enabled(enabled, button)
+}
+
 fn footer(ui: &mut Ui, add: impl FnOnce(&mut Ui)) {
     ui.add_space(12.0);
     ui.with_layout(Layout::right_to_left(Align::Center), add);
@@ -204,13 +212,17 @@ fn history_row(app: &mut App, ui: &mut Ui, row: &Row) -> bool {
                 app.assistant.ui.rename = Some((row.id, row.title.clone()));
                 ui.close();
             }
-            if ui.button(format!("{}  {}", icons::TRASH, t("Delete chat"))).clicked() {
+            let delete = theme::text(format!("{}  {}", icons::TRASH, t("Delete chat")), Font::Body).color(palette.danger);
+            if ui.button(delete).clicked() {
                 app.assistant.ui.delete = Some(row.id);
                 ui.close();
             }
         });
         menu.on_hover_text(format!("{}: {}", t("Manage chat"), row.title));
         ui.with_layout(Layout::top_down(Align::Min), |ui| {
+            // Three tight lines that fit the row, not control-height rows.
+            ui.spacing_mut().interact_size.y = 0.0;
+            ui.spacing_mut().item_spacing.y = 2.0;
             ui.horizontal(|ui| {
                 if row.unread {
                     let (dot, _) = ui.allocate_exact_size(vec2(9.0, 9.0), Sense::hover());
@@ -244,7 +256,7 @@ fn rename(app: &mut App, ctx: &egui::Context) {
             save = true;
         }
         footer(ui, |ui| {
-            if ui.add_enabled(valid, egui::Button::new(theme::text(t("Save"), Font::Headline))).clicked() {
+            if primary(ui, t("Save"), valid, false).clicked() {
                 save = true;
             }
             if ui.button(t("Cancel")).clicked() {
@@ -268,9 +280,7 @@ fn delete(app: &mut App, ctx: &egui::Context) {
         title(ui, &t("Delete this chat?"));
         ui.label(theme::text(t("This removes the conversation from this computer. Saved playlists are kept."), Font::Body));
         footer(ui, |ui| {
-            let palette = Palette::of_ui(ui);
-            let button = egui::Button::new(theme::text(t("Delete chat"), Font::Headline).color(egui::Color32::WHITE)).fill(palette.danger);
-            if ui.add(button).clicked() {
+            if primary(ui, t("Delete chat"), true, true).clicked() {
                 confirm = true;
             }
             if ui.button(t("Cancel")).clicked() {
@@ -324,7 +334,10 @@ fn review(app: &mut App, ctx: &egui::Context) {
         } else {
             format!("{} → {}", l10n::count("%lld songs", edit.before.len() as i64), l10n::count("%lld songs", edit.after.len() as i64))
         };
-        ui.label(theme::secondary(ui, summary, Font::Callout));
+        // A rename keeps the songs: their count would only repeat itself.
+        if edit.operation != AssistantEditOperation::Rename {
+            ui.label(theme::secondary(ui, summary, Font::Callout));
+        }
         let note = if server { "Changes are saved to your music server only after confirmation." } else { "Changes are saved on this computer only after confirmation." };
         ui.label(theme::secondary(ui, t(note), Font::Footnote));
         if edit.operation == AssistantEditOperation::Delete {
@@ -372,9 +385,7 @@ fn review(app: &mut App, ctx: &egui::Context) {
         footer(ui, |ui| {
             if pending {
                 let destructive = edit.operation == AssistantEditOperation::Delete;
-                let fill = if destructive { palette.danger } else { palette.action };
-                let button = egui::Button::new(theme::text(t("Confirm changes"), Font::Headline).color(egui::Color32::WHITE)).fill(fill);
-                if ui.add_enabled(!blocked, button).clicked() {
+                if primary(ui, t("Confirm changes"), !blocked, destructive).clicked() {
                     confirm = true;
                 }
             }
@@ -430,7 +441,7 @@ fn editor(app: &mut App, ctx: &egui::Context) {
             ui.label(theme::text(error, Font::Callout).color(Palette::of_ui(ui).danger));
         }
         footer(ui, |ui| {
-            if ui.add_enabled(can_save, egui::Button::new(theme::text(t("Save playlist"), Font::Headline))).clicked() {
+            if primary(ui, t("Save playlist"), can_save, false).clicked() {
                 save = true;
             }
             if ui.add_enabled(!busy, egui::Button::new(t("Cancel"))).clicked() {
@@ -534,7 +545,7 @@ fn privacy(app: &mut App, ctx: &egui::Context) {
         title(ui, &t("About this assistant"));
         egui::ScrollArea::vertical().max_height(460.0).auto_shrink([false, true]).show(ui, |ui| {
             let section = |ui: &mut Ui, heading: String, body: String| {
-                ui.add_space(6.0);
+                ui.add_space(10.0);
                 ui.label(theme::text(heading, Font::Headline));
                 ui.add(egui::Label::new(theme::text(body, Font::Callout)).wrap());
             };
