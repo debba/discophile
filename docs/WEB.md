@@ -66,11 +66,46 @@ this applies to every request it makes to your servers:
 Two more browser rules apply. A player served over HTTPS cannot reach `http://` servers (mixed content), and
 the equalizer and ReplayGain need audio served with CORS headers; without them music still plays, unprocessed.
 
-**The proxy avoids all of this.** Every environment variable `DISCOPHILE_PROXY_<NAME>=<address>` publishes that
-server at `/proxy/<name>/` on the player's own address. The name is lowercased and underscores become dashes
-(`DISCOPHILE_PROXY_MY_JELLYFIN` becomes `/proxy/my-jellyfin/`). The address must start with `http://` or `https://`
-and be reachable from the container. Requests then go to the same origin as the page, so no CORS headers are
-needed, HTTPS covers the whole connection, and streaming, seeking and the equalizer work.
+**The proxy avoids all of this.** For example, `DISCOPHILE_PROXY_JELLYFIN=http://jellyfin:8096` publishes that
+server at `/proxy/jellyfin/` on the player's own address. The suffix is a name you choose for the server,
+not a fixed provider setting. Use letters, digits and underscores; letters are lowercased and underscores
+become dashes. These examples cover every supported library provider:
+
+| Provider | Environment variable | Library URL in Discophile |
+| --- | --- | --- |
+| Navidrome | `DISCOPHILE_PROXY_NAVIDROME` | `https://music.example.com/proxy/navidrome` |
+| Subsonic | `DISCOPHILE_PROXY_SUBSONIC` | `https://music.example.com/proxy/subsonic` |
+| OpenSubsonic | `DISCOPHILE_PROXY_OPEN_SUBSONIC` | `https://music.example.com/proxy/open-subsonic` |
+| Jellyfin | `DISCOPHILE_PROXY_JELLYFIN` | `https://music.example.com/proxy/jellyfin` |
+| Audiobookshelf | `DISCOPHILE_PROXY_AUDIOBOOKSHELF` | `https://music.example.com/proxy/audiobookshelf` |
+
+For existing servers, the complete Compose environment section is:
+
+```yaml
+environment:
+  DISCOPHILE_PROXY_NAVIDROME: http://navidrome:4533
+  DISCOPHILE_PROXY_SUBSONIC: http://subsonic:4040
+  DISCOPHILE_PROXY_OPEN_SUBSONIC: http://opensubsonic:4533
+  DISCOPHILE_PROXY_JELLYFIN: http://jellyfin:8096
+  DISCOPHILE_PROXY_AUDIOBOOKSHELF: http://audiobookshelf:80
+```
+
+Keep any combination of entries you need. Replace these example addresses and ports with your own;
+they must start with `http://` or `https://` and be reachable from the Discophile container. Service names
+work on a shared Docker network; otherwise use the server's hostname or IP. Include any base path, such
+as `http://subsonic:4040/subsonic`.
+
+Replace `https://music.example.com` in the library URLs with your player's address (`http://localhost:8080`
+for local use). Choose the matching library provider in Discophile and use that server's credentials.
+For multiple servers of the same type, use distinct names: `DISCOPHILE_PROXY_JELLYFIN_HOME` and
+`DISCOPHILE_PROXY_JELLYFIN_2` become `/proxy/jellyfin-home` and `/proxy/jellyfin-2`.
+
+Enter the server's username and password in Discophile when adding the library. Docker Compose and Helm
+configure proxy addresses only; environment variables for library credentials are not currently supported.
+Credentials do not go in the proxy URL. The web player remembers them in this browser's local storage.
+
+Requests go to the same origin as the page, so no CORS headers are needed, HTTPS covers the whole connection,
+and streaming, seeking and the equalizer work.
 
 The proxy forwards only to the addresses you configure. It passes `X-Forwarded-For`, `X-Forwarded-Proto`,
 `X-Forwarded-Host` and `X-Forwarded-Prefix`, streams responses without buffering, and allows long-running
@@ -116,8 +151,14 @@ ingress:
 
 proxies:
   navidrome: http://navidrome.media.svc.cluster.local:4533
-  audiobookshelf: http://audiobookshelf.media.svc.cluster.local
+  subsonic: http://subsonic.media.svc.cluster.local:4040
+  open-subsonic: http://opensubsonic.media.svc.cluster.local:4533
+  jellyfin: http://jellyfin.media.svc.cluster.local:8096
+  audiobookshelf: http://audiobookshelf.media.svc.cluster.local:80
 ```
+
+Keep the proxies you need and replace the example service addresses and ports with yours. Helm proxy names
+use lowercase letters, digits and dashes, and match the URL paths in the table above.
 
 ```sh
 helm upgrade --install discophile oci://ghcr.io/debba/charts/discophile-web -n media -f values.yaml

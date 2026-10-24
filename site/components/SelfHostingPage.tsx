@@ -1,8 +1,10 @@
 import type { ReactNode } from "react";
 import { CodeBlock } from "@/components/CodeBlock";
+import { HostingConfigurator } from "@/components/HostingConfigurator";
 import { SiteFooter } from "@/components/SiteFooter";
 import { localePath, ui, type Locale } from "@/lib/i18n";
 import { WEB_GUIDE_URL } from "@/lib/releases";
+import { PROVIDERS, proxyName } from "@/lib/selfHosting";
 
 type Step = { title: string; body: ReactNode; code?: string };
 
@@ -11,47 +13,17 @@ type Copy = {
   lede: string;
   start: Step;
   compose: Step;
+  providers: { title: string; body: ReactNode; caption: string; head: [string, string, string]; after: ReactNode; credentials: ReactNode };
   proxy: { title: string; body: ReactNode[]; caption: string; head: [string, string]; rows: [string, string][] };
   https: Step;
-  helm: Step & { values: string; after: ReactNode };
+  helm: Step & { after: ReactNode };
   limits: { title: string; items: string[] };
   guide: { title: string; body: string; link: string; devices: string };
 };
 
 const RUN = "docker run -d --name discophile -p 8080:8080 \\\n  ghcr.io/debba/discophile-web:latest";
 
-const COMPOSE = `services:
-  discophile:
-    image: ghcr.io/debba/discophile-web:latest
-    restart: unless-stopped
-    ports: ["8080:8080"]
-    environment:
-      DISCOPHILE_PROXY_NAVIDROME: http://navidrome:4533
-      DISCOPHILE_PROXY_AUDIOBOOKSHELF: http://audiobookshelf:80
-
-  navidrome:
-    image: deluan/navidrome:latest
-    volumes: ["./navidrome:/data", "/path/to/music:/music:ro"]
-
-  audiobookshelf:
-    image: ghcr.io/advplyr/audiobookshelf:latest
-    volumes: ["./abs/config:/config", "./abs/metadata:/metadata", "/path/to/audiobooks:/audiobooks:ro"]`;
-
 const HELM = "helm install discophile oci://ghcr.io/debba/charts/discophile-web \\\n  --namespace media --create-namespace -f values.yaml";
-
-const VALUES = `ingress:
-  enabled: true
-  className: nginx
-  hosts:
-    - host: music.example.com
-      paths: [{ path: /, pathType: Prefix }]
-  tls:
-    - secretName: discophile-tls
-      hosts: [music.example.com]
-
-proxies:
-  navidrome: http://navidrome.media.svc.cluster.local:4533
-  audiobookshelf: http://audiobookshelf.media.svc.cluster.local`;
 
 const COPY: Record<Locale, Copy> = {
   en: {
@@ -64,8 +36,15 @@ const COPY: Record<Locale, Copy> = {
     },
     compose: {
       title: "Next to your servers, with Docker Compose",
-      body: <>Each <code>DISCOPHILE_PROXY_&lt;NAME&gt;</code> serves a server at <code>/proxy/&lt;name&gt;</code> on the player&apos;s own address. In Discophile, add your library as <code>https://music.example.com/proxy/navidrome</code>.</>,
-      code: COMPOSE,
+      body: <>Use Customize to choose which existing servers to connect and set their addresses and ports. All providers start disabled. Each address must be reachable from the Discophile container: service names work on a shared Docker network; otherwise use your server&apos;s hostname or IP. Include any base path, such as <code>/subsonic</code>.</>,
+    },
+    providers: {
+      title: "From environment variable to library URL",
+      body: <>For example, <code>DISCOPHILE_PROXY_JELLYFIN</code> creates <code>/proxy/jellyfin</code>. The suffix is a name you choose, rather than a fixed provider setting: uppercase letters become lowercase and underscores become dashes. Use letters, digits and underscores, with a distinct name for each server. The names below cover all supported library providers.</>,
+      caption: "Proxy variables and library URLs for every provider",
+      head: ["Provider", "Environment variable", "URL to enter in Discophile"],
+      credentials: <>Enter your server&apos;s username and password in Discophile when adding the library. Docker Compose and Helm configure the proxy addresses only; environment variables for library credentials are not currently supported. Credentials do not go in the proxy URL. The web player remembers them in this browser&apos;s local storage.</>,
+      after: <>These URLs assume the player is hosted at <code>https://music.example.com</code>; for local use, replace it with <code>http://localhost:8080</code>. Choose the matching library provider in Discophile and sign in with that server&apos;s credentials. You can combine any of these entries. For two Jellyfin servers, for example, use <code>DISCOPHILE_PROXY_JELLYFIN_HOME</code> and <code>DISCOPHILE_PROXY_JELLYFIN_2</code>: their URLs end in <code>/proxy/jellyfin-home</code> and <code>/proxy/jellyfin-2</code>.</>,
     },
     proxy: {
       title: "Why the proxy matters",
@@ -89,10 +68,9 @@ const COPY: Record<Locale, Copy> = {
     },
     helm: {
       title: "On Kubernetes, with Helm",
-      body: "The chart deploys a stateless, read-only pod with an optional Ingress. Changing the proxies restarts the pods.",
+      body: "The chart deploys a stateless, read-only pod with an optional Ingress. Use Customize to set your domain, Ingress, TLS and proxies. All library providers start disabled; enable the ones you need and replace their service addresses and ports with yours. Proxy names use lowercase letters, digits and dashes, and match the URL paths in the table above. Changing the proxies restarts the pods.",
       code: HELM,
-      values: VALUES,
-      after: <>Then add <code>https://music.example.com/proxy/navidrome</code> in Discophile. Every value of the chart is described in the guide.</>,
+      after: <>After enabling a proxy, add its library URL in Discophile, for example <code>https://music.example.com/proxy/navidrome</code>. Every value of the chart is described in the guide.</>,
     },
     limits: {
       title: "Good to know",
@@ -119,8 +97,15 @@ const COPY: Record<Locale, Copy> = {
     },
     compose: {
       title: "Accanto ai tuoi server, con Docker Compose",
-      body: <>Ogni <code>DISCOPHILE_PROXY_&lt;NOME&gt;</code> pubblica un server su <code>/proxy/&lt;nome&gt;</code> all&apos;indirizzo del player. In Discophile aggiungi la libreria come <code>https://music.example.com/proxy/navidrome</code>.</>,
-      code: COMPOSE,
+      body: <>Usa Personalizza per scegliere quali server esistenti collegare e impostare i loro indirizzi e le porte. Tutti i provider sono inizialmente disabilitati. Ogni indirizzo deve essere raggiungibile dal container Discophile: i nomi dei servizi funzionano su una rete Docker condivisa; altrimenti usa il nome host o l&apos;IP del server. Includi l&apos;eventuale percorso di base, come <code>/subsonic</code>.</>,
+    },
+    providers: {
+      title: "Dalla variabile d’ambiente all’URL della libreria",
+      body: <>Per esempio, <code>DISCOPHILE_PROXY_JELLYFIN</code> crea <code>/proxy/jellyfin</code>. Il suffisso è un nome che scegli tu, non un&apos;impostazione fissa del provider: le maiuscole diventano minuscole e gli underscore diventano trattini. Usa lettere, cifre e underscore, con un nome distinto per ogni server. I nomi qui sotto coprono tutti i provider di librerie supportati.</>,
+      caption: "Variabili proxy e URL delle librerie per ogni provider",
+      head: ["Provider", "Variabile d’ambiente", "URL da inserire in Discophile"],
+      credentials: <>Inserisci il nome utente e la password del server in Discophile quando aggiungi la libreria. Docker Compose e Helm configurano solo gli indirizzi dei proxy; al momento non sono supportate variabili d&apos;ambiente per le credenziali delle librerie. Le credenziali non vanno nell&apos;URL del proxy. Il player web le ricorda nello storage locale di questo browser.</>,
+      after: <>Questi URL presuppongono che il player sia su <code>https://music.example.com</code>; in locale sostituiscilo con <code>http://localhost:8080</code>. Scegli il provider corrispondente in Discophile e accedi con le credenziali di quel server. Puoi combinare liberamente queste voci. Per due server Jellyfin, per esempio, usa <code>DISCOPHILE_PROXY_JELLYFIN_HOME</code> e <code>DISCOPHILE_PROXY_JELLYFIN_2</code>: i rispettivi URL terminano con <code>/proxy/jellyfin-home</code> e <code>/proxy/jellyfin-2</code>.</>,
     },
     proxy: {
       title: "Perché il proxy conta",
@@ -144,10 +129,9 @@ const COPY: Record<Locale, Copy> = {
     },
     helm: {
       title: "Su Kubernetes, con Helm",
-      body: "Il chart installa un pod senza stato e in sola lettura, con un Ingress facoltativo. Cambiare i proxy riavvia i pod.",
+      body: "Il chart installa un pod senza stato e in sola lettura, con un Ingress facoltativo. Usa Personalizza per impostare dominio, Ingress, TLS e proxy. Tutti i provider di librerie sono inizialmente disabilitati: abilita quelli che ti servono e sostituisci gli indirizzi e le porte dei servizi con i tuoi. I nomi dei proxy usano lettere minuscole, cifre e trattini e corrispondono ai percorsi URL della tabella sopra. Cambiare i proxy riavvia i pod.",
       code: HELM,
-      values: VALUES,
-      after: <>Poi aggiungi <code>https://music.example.com/proxy/navidrome</code> in Discophile. Tutti i valori del chart sono descritti nella guida.</>,
+      after: <>Dopo aver abilitato un proxy, aggiungi il suo URL di libreria in Discophile, per esempio <code>https://music.example.com/proxy/navidrome</code>. Tutti i valori del chart sono descritti nella guida.</>,
     },
     limits: {
       title: "Da sapere",
@@ -189,7 +173,29 @@ export function SelfHostingPage({ locale }: { locale: Locale }) {
           <section aria-labelledby="compose-title">
             <h2 id="compose-title">{c.compose.title}</h2>
             <p>{c.compose.body}</p>
-            <CodeBlock code={c.compose.code!} title="compose.yaml" labels={code} />
+            <HostingConfigurator mode="compose" locale={locale} />
+          </section>
+
+          <section aria-labelledby="providers-title">
+            <h2 id="providers-title">{c.providers.title}</h2>
+            <p>{c.providers.body}</p>
+            <div className="table-scroll" tabIndex={0} role="region" aria-label={c.providers.caption}>
+              <table>
+                <caption className="sr-only">{c.providers.caption}</caption>
+                <thead><tr>{c.providers.head.map((cell) => <th key={cell} scope="col">{cell}</th>)}</tr></thead>
+                <tbody>
+                  {PROVIDERS.map(({ name, key }) => (
+                    <tr key={key}>
+                      <th scope="row">{name}</th>
+                      <td><code>DISCOPHILE_PROXY_{key}</code></td>
+                      <td><code>https://music.example.com/proxy/{proxyName(key)}</code></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p>{c.providers.after}</p>
+            <p>{c.providers.credentials}</p>
           </section>
 
           <section aria-labelledby="proxy-title">
@@ -214,7 +220,7 @@ export function SelfHostingPage({ locale }: { locale: Locale }) {
           <section aria-labelledby="helm-title">
             <h2 id="helm-title">{c.helm.title}</h2>
             <p>{c.helm.body}</p>
-            <CodeBlock code={c.helm.values} title="values.yaml" labels={code} />
+            <HostingConfigurator mode="helm" locale={locale} />
             <CodeBlock code={c.helm.code!} title="Helm" labels={code} />
             <p>{c.helm.after}</p>
           </section>

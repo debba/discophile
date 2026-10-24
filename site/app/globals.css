@@ -1086,12 +1086,77 @@ html:has(.video-page) { overflow: hidden; }
 /* Code samples with a title bar and a copy button */
 .code-block { margin: 16px 0; border-radius: 16px; overflow: hidden; background: var(--vinyl); }
 .code-bar {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;
   padding: 8px 8px 8px 18px; border-bottom: 1px solid rgb(255 255 255 / 0.1);
   font: 600 0.88rem/1 var(--body); color: #f26f96;
 }
 .code-block .code { margin: 0; border-radius: 0; }
+.code-bar > span { min-width: 0; overflow-wrap: anywhere; }
 .code:focus-visible { outline: 3px solid #f26f96; outline-offset: -3px; }
+.code-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-left: auto; }
+.code-actions .copy-button { min-height: 44px; }
+.customize-button { background: transparent; color: #f26f96; box-shadow: inset 0 0 0 1px #f26f96; }
+.customize-button:hover { background: rgb(242 111 150 / 0.12); }
+.copy-error { margin: 0; padding: 12px 18px; color: #f6e9ef; font-size: 0.92rem; }
+
+/* Self-hosting configuration editor */
+.hosting-config { width: min(1120px, calc(100% - 32px)); height: min(880px, calc(100dvh - 32px)); }
+.hosting-config[open] { display: flex; flex-direction: column; }
+.hosting-config .sheet-head { flex: none; padding-bottom: 12px; }
+.hosting-config h2 { min-width: 0; overflow-wrap: anywhere; }
+.hosting-config h2 span { font-family: monospace; font-size: 0.82em; }
+.hosting-config .config-intro { grid-column: 1 / -1; max-width: none; margin: 0; color: var(--ink-soft); }
+.config-body { flex: 1; min-height: 0; overflow: auto; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; gap: 28px; padding: 8px 28px 24px; scroll-padding: 16px; }
+.config-fields, .config-preview { min-width: 0; }
+.config-body p, .config-body label, .config-body legend, .config-preview h3 { overflow-wrap: anywhere; }
+.config-body legend { max-width: 100%; }
+.config-group { min-width: 0; margin: 0 0 24px; padding: 0; border: 0; }
+.config-group > legend, .config-preview h3 { padding: 0; margin: 0 0 16px; font: 700 1.4rem/1.3 var(--display); }
+.config-group > .hint { margin: 0 0 12px; }
+.config-fields .field { margin-bottom: 16px; }
+.config-fields .field:last-child { margin-bottom: 0; }
+.config-fields .choice { margin-bottom: 8px; }
+.config-ingress { margin-top: 12px; }
+.config-servers { display: grid; gap: 12px; }
+.config-server { min-width: 0; padding: 0 16px 16px; border: 1px solid rgb(var(--line-rgb) / 0.25); border-radius: 16px; background: var(--surface); }
+.config-server legend { padding: 0 6px; font-weight: 600; }
+.config-server.is-excluded { background: transparent; padding-bottom: 4px; }
+.config-server-bar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; }
+.config-server-bar .link-button { min-height: 44px; color: var(--link); font-weight: 600; }
+.config-server .field > label { font-size: 0.92rem; }
+.config-add { margin-top: 20px; }
+.config-add > label { display: block; margin-bottom: 8px; font-weight: 600; }
+.config-add > div { display: flex; flex-wrap: wrap; gap: 8px; }
+.config-add select { flex: 1 1 12rem; min-width: 0; min-height: 48px; padding: 8px 12px; border: 2px solid var(--ink-soft); border-radius: 12px; background: var(--surface); color: var(--ink); font: inherit; }
+.config-preview { position: sticky; top: 0; }
+.config-preview .code { max-height: 54dvh; overflow: auto; }
+.config-preview .code-block { margin: 0; }
+.config-notice { max-width: none; padding: 20px; border-radius: 16px; background: var(--tint); color: var(--ink); }
+.config-footer { flex: none; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; padding: 16px 28px; border-top: 1px solid rgb(var(--line-rgb) / 0.2); }
+.config-reset, .config-review { min-height: 44px; font-weight: 600; color: var(--link); }
+.hosting-config .link-button:hover { color: var(--link); }
+.config-footer-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.config-footer .copy-error { flex-basis: 100%; padding: 0; color: var(--ink); }
+.config-footer .button:disabled { opacity: 0.5; cursor: not-allowed; }
+@media (max-width: 760px) {
+  .hosting-config .sheet-head { padding: 20px 18px 12px; }
+  .hosting-config .config-intro { margin-bottom: 16px; font-size: 0.95rem; }
+  .config-body { grid-template-columns: minmax(0, 1fr); padding: 8px 18px 20px; gap: 8px; }
+  .config-preview { position: static; }
+  .config-preview .code { max-height: 45dvh; }
+  .config-footer { padding: 12px 18px; gap: 8px; }
+  .config-footer .button { padding-inline: 14px; }
+}
+@media (max-height: 600px) {
+  .hosting-config[open] { display: block; height: auto; overflow: auto; scroll-padding-block: 16px; }
+  .hosting-config .sheet-head { position: static; }
+  .config-body { overflow: visible; }
+  .config-preview { position: static; }
+}
+@media (forced-colors: active) {
+  .customize-button, .config-server { border: 1px solid ButtonText; }
+  .config-footer .button:disabled { opacity: 1; color: GrayText; border-color: GrayText; }
+}
 
 /* Screenshots that follow the theme */
 :root[data-theme="dark"] .theme-light-only, :root[data-theme="light"] .theme-dark-only { display: none !important; }
