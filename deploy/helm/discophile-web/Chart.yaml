@@ -1,0 +1,20 @@
+apiVersion: v2
+name: discophile-web
+description: Discophile web player. Your music server, played like a record collection, for Navidrome, Subsonic, Jellyfin and Audiobookshelf.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+home: https://discophile.app
+icon: https://raw.githubusercontent.com/debba/discophile/main/docs/images/icon.png
+sources:
+  - https://github.com/debba/discophile
+keywords:
+  - music
+  - music-player
+  - navidrome
+  - subsonic
+  - jellyfin
+  - audiobookshelf
+maintainers:
+  - name: Andrea Debernardi
+    url: https://github.com/debba

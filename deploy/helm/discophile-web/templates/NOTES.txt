@@ -1,0 +1,20 @@
+Discophile web player {{ .Values.image.tag | default .Chart.AppVersion }} is installed.
+{{ if .Values.ingress.enabled }}
+Open it at:
+{{- range $host := .Values.ingress.hosts }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ $host.host }}/
+{{- end }}
+{{- else }}
+To open it from this computer:
+  kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "discophile-web.fullname" . }} 8080:{{ .Values.service.port }}
+  then visit http://127.0.0.1:8080/
+{{- end }}
+{{ if .Values.proxies }}
+Same-origin proxies. In Discophile, add each server with the player's address followed by the path:
+{{- range $name, $url := .Values.proxies }}
+  /proxy/{{ $name }}  ->  {{ $url }}
+{{- end }}
+{{- else }}
+Your servers must allow requests from the player's address (CORS), or set `proxies` to serve them
+from the player's own address.
+{{- end }}

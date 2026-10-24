@@ -1,0 +1,9 @@
+target/
+dist/
+.screenshots/
+.git/
+.github/
+docs/
+deploy/helm/
+site/
+**/.DS_Store
