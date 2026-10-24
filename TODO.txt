@@ -1,3 +1,0 @@
-Discophile desktop: pending requests
-[] Informazioni con AI su album, artisti, brani, podcast ed episodi (pannello Informazioni con panoramica, domande di seguito e fonti: note del server, feed, MusicBrainz e Wikipedia opzionali). Intervento 2026-10-23: core music_info con test, pannello desktop e porting iOS; da provare con ChatGPT e modello locale su server reali
-[] Server MCP per agenti esterni (Impostazioni > Agenti, 127.0.0.1 con token, 22 strumenti per libreria, playlist, preferiti, informazioni e riproduzione; conferma in app per rimozioni ed eliminazioni). Intervento 2026-10-23: test del protocollo e prova con fixture e app reale via curl; da provare con Claude Code e Claude Desktop
