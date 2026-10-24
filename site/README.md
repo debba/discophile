@@ -3,6 +3,9 @@
 Next.js (App Router) site for Discophile at [discophile.app](https://discophile.app), deployed on Vercel from
 this directory (the Vercel project's Root Directory is `site`).
 
+The [design guide](DESIGN.md) documents the visual identity, shared tokens, components, and accessibility
+rules for the website and related Discophile interfaces.
+
 ```sh
 npm install
 npm run dev        # http://localhost:3000
