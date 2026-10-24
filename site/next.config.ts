@@ -6,6 +6,8 @@ const nextConfig: NextConfig = {
     return [
       { source: "/index.html", destination: "/", permanent: true },
       { source: "/privacy.html", destination: "/privacy", permanent: true },
+      { source: "/devices", destination: "/download", permanent: true },
+      { source: "/it/devices", destination: "/it/download", permanent: true },
     ];
   },
   async headers() {

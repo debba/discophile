@@ -75,7 +75,7 @@ export function LanguageSwitcher({ locale, pathname }: { locale: Locale; pathnam
       >
         <Flag locale={locale} />
         <span className="sr-only">{ui[locale].language}: </span>
-        <span>{NAMES[locale]}</span>
+        <span className="lang-name">{NAMES[locale]}</span>
         <svg className="lang-chevron" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
       </button>
       <ul id={menuId} className="lang-menu" hidden={!open}>

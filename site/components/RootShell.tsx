@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
 import { Bricolage_Grotesque, Public_Sans } from "next/font/google";
 import { CookieConsent } from "@/components/CookieConsent";
+import { DownloadProvider } from "@/components/Download";
+import { THEME_SCRIPT } from "@/components/ThemeSwitcher";
 import { SiteHeader } from "@/components/SiteHeader";
 import { TestFlightProvider } from "@/components/TestFlight";
 import { alternates, ui, type Locale } from "@/lib/i18n";
+import { latestRelease } from "@/lib/releases";
 import "@/app/globals.css";
 
 const display = Bricolage_Grotesque({ subsets: ["latin"], axes: ["opsz", "wdth"], variable: "--font-display", display: "swap" });
@@ -12,17 +15,17 @@ const body = Public_Sans({ subsets: ["latin"], weight: ["400", "500", "600"], st
 const copy = {
   en: {
     title: "Discophile, a music player for your own server",
-    description: "A native iPhone player for Navidrome, Subsonic and Jellyfin libraries, with Audiobookshelf audiobooks, internet radio and a music assistant that runs on your iPhone or with ChatGPT.",
-    ogDescription: "Your music server, played like a record collection. A native iPhone player for Navidrome, Subsonic, Jellyfin and Audiobookshelf.",
-    twitterDescription: "A native iPhone player for Navidrome, Subsonic, Jellyfin and Audiobookshelf.",
+    description: "A music player for your Navidrome, Subsonic and Jellyfin libraries, with audiobooks, radio and a music assistant. On iPhone, Mac, Windows, Linux and the web.",
+    ogDescription: "Your music server, played like a record collection. A player for Navidrome, Subsonic, Jellyfin and Audiobookshelf on iPhone, Mac, Windows, Linux and the web.",
+    twitterDescription: "A player for Navidrome, Subsonic, Jellyfin and Audiobookshelf on iPhone, Mac, Windows, Linux and the web.",
     ogAlt: "Discophile on two iPhones in front of a vinyl record, with the headline Your music server, played like a record collection.",
     ogLocale: "en_US",
   },
   it: {
     title: "Discophile, un player musicale per il tuo server",
-    description: "Un player musicale nativo per iPhone, per le librerie Navidrome, Subsonic e Jellyfin, con gli audiolibri di Audiobookshelf, le radio online e un assistente che funziona sull'iPhone o con ChatGPT.",
-    ogDescription: "La musica del tuo server, come una collezione di dischi. Un player nativo per iPhone, per Navidrome, Subsonic, Jellyfin e Audiobookshelf.",
-    twitterDescription: "Un player musicale nativo per iPhone, per Navidrome, Subsonic, Jellyfin e Audiobookshelf.",
+    description: "Un player per le tue librerie Navidrome, Subsonic e Jellyfin, con audiolibri, radio e un assistente musicale. Su iPhone, Mac, Windows, Linux e web.",
+    ogDescription: "La musica del tuo server, come una collezione di dischi. Un player per Navidrome, Subsonic, Jellyfin e Audiobookshelf su iPhone, Mac, Windows, Linux e web.",
+    twitterDescription: "Un player musicale per Navidrome, Subsonic, Jellyfin e Audiobookshelf su iPhone, Mac, Windows, Linux e web.",
     ogAlt: "Discophile su due iPhone davanti a un disco in vinile, con il titolo in inglese Your music server, played like a record collection.",
     ogLocale: "it_IT",
   },
@@ -48,20 +51,27 @@ export function rootMetadata(locale: Locale): Metadata {
       url: path,
       title: c.title,
       description: c.ogDescription,
-      images: [{ url: "/assets/og.png?v=2", width: 1200, height: 630, alt: c.ogAlt }],
+      images: [{ url: "/assets/og.png?v=3", width: 1200, height: 630, alt: c.ogAlt }],
     },
-    twitter: { card: "summary_large_image", title: c.title, description: c.twitterDescription, images: ["/assets/og.png?v=2"] },
+    twitter: { card: "summary_large_image", title: c.title, description: c.twitterDescription, images: ["/assets/og.png?v=3"] },
   };
 }
 
-export function RootShell({ locale, children }: { locale: Locale; children: React.ReactNode }) {
+export async function RootShell({ locale, children }: { locale: Locale; children: React.ReactNode }) {
+  const release = await latestRelease();
   return (
-    <html lang={locale} className={`${display.variable} ${body.variable}`}>
+    // The theme script sets data-theme before React hydrates, so that attribute may differ from the server's.
+    <html lang={locale} className={`${display.variable} ${body.variable}`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body>
         <a className="skip" href="#main">{ui[locale].skip}</a>
         <TestFlightProvider locale={locale}>
-          <SiteHeader locale={locale} />
-          {children}
+          <DownloadProvider locale={locale} release={release}>
+            <SiteHeader locale={locale} />
+            {children}
+          </DownloadProvider>
         </TestFlightProvider>
         <CookieConsent locale={locale} />
       </body>

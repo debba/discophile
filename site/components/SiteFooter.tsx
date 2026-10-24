@@ -22,6 +22,7 @@ export function SiteFooter({ locale, current, note }: { locale: Locale; current?
         <CookiePreferencesButton locale={locale} />
         <TestFlightButton className="link-button" />
         <a href="https://github.com/sponsors/debba">{t.sponsor}</a>
+        <a href="https://github.com/debba/discophile">{t.github}</a>
       </nav>
       <nav className="footer-products" aria-labelledby="other-projects">
         <h2 id="other-projects">{t.otherProjects}</h2>

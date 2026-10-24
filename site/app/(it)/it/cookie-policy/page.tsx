@@ -2,23 +2,26 @@ import type { Metadata } from "next";
 import { CookiePreferencesButton } from "@/components/CookieConsent";
 import { PolicyTable } from "@/components/PolicyTable";
 import { SiteFooter } from "@/components/SiteFooter";
-import { alternates } from "@/lib/i18n";
+import { OG_ALT, pageMetadata } from "@/lib/seo";
 
 const description = "Come il sito di Discophile usa i cookie e le tecnologie simili, e come puoi controllarli.";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
+  locale: "it",
+  path: "/cookie-policy",
   title: "Cookie policy | Discophile",
+  socialTitle: "Cookie policy di Discophile",
   description,
-  alternates: { ...alternates("/cookie-policy"), canonical: "/it/cookie-policy" },
-  openGraph: { type: "article", url: "/it/cookie-policy", title: "Cookie policy di Discophile", description, locale: "it_IT" },
-};
+  type: "article",
+  imageAlt: OG_ALT.it,
+});
 
 export default function CookiePolicy() {
   return (
     <>
       <main id="main" className="policy" tabIndex={-1}>
         <h1>Cookie policy</h1>
-        <p className="updated">Ultimo aggiornamento: 22 ottobre 2026</p>
+        <p className="updated">Ultimo aggiornamento: 24 ottobre 2026</p>
 
         <p className="policy-summary">Il sito di Discophile conta le visite con Matomo, ospitato dallo sviluppatore, senza cookie. I cookie di misurazione vengono impostati solo se li consenti. Non ci sono pubblicità né marketing, e nulla viene condiviso con terze parti.</p>
 
@@ -26,7 +29,7 @@ export default function CookiePolicy() {
         <p>I cookie sono piccoli file di testo che un sito salva nel browser, per ricordare informazioni tra una pagina e l&apos;altra e tra una visita e l&apos;altra. Le tecnologie simili, come il local storage, funzionano allo stesso modo. Questa policy le copre tutte.</p>
 
         <h2>Come questo sito usa i cookie</h2>
-        <p>Il sito usa un insieme minimo di cookie e tecnologie simili, raggruppati nelle categorie qui sotto. Pagine, immagini, caratteri e video di presentazione sono serviti dal sito stesso. Puoi cambiare la tua scelta in qualsiasi momento con <b>Preferenze cookie</b> in fondo a ogni pagina.</p>
+        <p>Il sito usa un insieme minimo di cookie e tecnologie simili, raggruppati nelle categorie qui sotto. Pagine, immagini, caratteri e video di presentazione sono serviti dal sito stesso. Il sito ricorda la lingua e l&apos;aspetto che scegli. Puoi cambiare la tua scelta in qualsiasi momento con <b>Preferenze cookie</b> in fondo a ogni pagina.</p>
 
         <h2>Categorie di cookie</h2>
         <h3 className="policy-category">Necessari <span className="badge">Sempre attivi</span></h3>
@@ -38,8 +41,9 @@ export default function CookiePolicy() {
           rows={[
             ["discophile-cookie-consent", "www.discophile.app", "Salva la tua scelta sui cookie", "Persistente (local storage)"],
             ["discophile-locale", "www.discophile.app", "Ricorda la lingua che hai scelto con il selettore. Senza questo cookie, il sito segue la lingua del browser", "12 mesi"],
-            ["Nessuno (senza cookie)", "analytics.debbaweb.it", "Statistiche anonime sulle pagine visitate senza identificativi persistenti, più l'uso del modulo TestFlight e del video di presentazione", "Solo sessione"],
-            ["Nessuno (senza cookie)", "www.discophile.app", "Protezione antispam del modulo TestFlight: le richieste dal tuo indirizzo IP sono contate nella memoria del server, mai scritte su disco", "10 minuti"],
+            ["discophile-theme", "www.discophile.app", "Ricorda l'aspetto che hai scelto, Chiaro o Scuro. Non viene salvato con Automatico, che segue il tuo dispositivo", "Persistente (local storage)"],
+            ["Nessuno (senza cookie)", "analytics.debbaweb.it", "Statistiche anonime sulle pagine visitate senza identificativi persistenti, più il conteggio delle aperture della finestra di download, della piattaforma scaricata, del video di presentazione, delle richieste TestFlight, delle iscrizioni alla newsletter e dei link a GitHub Sponsors", "Solo sessione"],
+            ["Nessuno (senza cookie)", "www.discophile.app", "Protezione antispam dei moduli TestFlight e newsletter: le richieste dal tuo indirizzo IP sono contate nella memoria del server, mai scritte su disco", "10 minuti"],
             ["Nessuno (senza cookie)", "Vercel", "Hosting: serve le pagine e protegge il servizio, trattando il tuo indirizzo IP nei log del server", "Secondo la conservazione dei log di Vercel"],
           ]}
         />
@@ -60,11 +64,14 @@ export default function CookiePolicy() {
         <h3 className="policy-category">Marketing</h3>
         <p>Non ci sono cookie di marketing. Se un giorno venisse aggiunto un servizio che li richiede, questa policy sarà aggiornata prima, e il sito chiederà il tuo consenso prima di impostarli.</p>
 
-        <h2>Il modulo di richiesta TestFlight</h2>
-        <p>Il modulo non imposta cookie. Quando lo invii, i tuoi dati arrivano allo sviluppatore via email, come descritto nell&apos;<a href="/it/privacy#website">informativa sulla privacy</a>.</p>
+        <h2>Moduli</h2>
+        <p>Il modulo di richiesta TestFlight e l&apos;iscrizione alla newsletter non impostano cookie. Una richiesta TestFlight viene consegnata allo sviluppatore via email. Un&apos;iscrizione alla newsletter viene inoltrata dal server di questo sito a Emailchef, che poi ti invia un&apos;email di conferma; su questo sito non viene caricato alcuno script o cookie di Emailchef. Entrambi sono descritti nell&apos;<a href="/it/privacy#website">informativa sulla privacy</a>.</p>
+
+        <h2>Download</h2>
+        <p>L&apos;elenco delle versioni viene letto da GitHub dal server di questo sito, quindi aprire la finestra di download non contatta GitHub dal tuo browser. I file vengono scaricati da GitHub quando ne scegli uno.</p>
 
         <h2>Link ad altri siti</h2>
-        <p>I link a GitHub Sponsors, agli altri progetti dello sviluppatore e ai servizi Apple portano a siti con le proprie cookie policy. Nulla viene caricato da quei siti finché non segui un link.</p>
+        <p>I link a GitHub (download, codice sorgente e GitHub Sponsors), all&apos;Arch User Repository, agli altri progetti dello sviluppatore e ai servizi Apple portano a siti con le proprie cookie policy. Nulla viene caricato da quei siti finché non segui un link o avvii un download.</p>
 
         <h2>Gestire le preferenze</h2>
         <p>La tua scelta è salvata solo nel tuo browser e non viene mai inviata a un server. Puoi cambiarla in qualsiasi momento, oppure cancellare i dati di questo sito nel browser perché ti venga chiesto di nuovo.</p>

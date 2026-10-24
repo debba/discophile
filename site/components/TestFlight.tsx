@@ -59,10 +59,10 @@ export function TestFlightProvider({ locale, children }: { locale: Locale; child
   );
 }
 
-export function TestFlightButton({ className = "button primary", children }: { className?: string; children?: ReactNode }) {
+export function TestFlightButton({ className = "button primary", children, onBeforeOpen }: { className?: string; children?: ReactNode; onBeforeOpen?: () => void }) {
   const { open, locale } = useContext(TestFlightContext);
   return (
-    <button type="button" className={className} aria-haspopup="dialog" onClick={open}>
+    <button type="button" className={className} aria-haspopup="dialog" onClick={() => { onBeforeOpen?.(); open(); }}>
       {children ?? ui[locale].testflight.button}
     </button>
   );
