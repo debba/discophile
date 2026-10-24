@@ -211,7 +211,7 @@ fn downloaded_only_toggle(app: &mut App, ui: &mut Ui, collapsed: bool) {
 
 const TOOLBAR_HEIGHT: f32 = 52.0;
 
-/// Back/forward on the left; assistant and the library menu on the right.
+/// Back/forward on the left; GitHub, assistant and the library menu on the right.
 pub fn toolbar(app: &mut App, ui: &mut Ui) {
     // A fixed-height bar with its controls centred, so the space above and below them is equal.
     let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), TOOLBAR_HEIGHT), Sense::hover());
@@ -244,6 +244,10 @@ pub fn toolbar(app: &mut App, ui: &mut Ui) {
             if response.clicked() {
                 app.nav.toggle_panel(SidePanel::Assistant);
             }
+        }
+        ui.add_space(widgets::space::S);
+        if widgets::icon_button(ui, icons::GITHUB_LOGO, &t("Discophile on GitHub"), 19.0).clicked() {
+            ui.ctx().open_url(egui::OpenUrl::new_tab(crate::platform::GITHUB));
         }
     });
 }

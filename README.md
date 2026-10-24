@@ -53,7 +53,7 @@ month, **Still to discover** finds the ones you never played, and **Have 25 minu
 from first track to last. Pick up where you left off, even after a restart.
 
 <p align="center">
-  <picture><source media="(prefers-color-scheme: light)" srcset="docs/screenshots/light/listen-now.webp"><img src="docs/screenshots/listen-now.webp" alt="Listen Now with Pick up where you left off, discovery mixes, listening statistics and album suggestions"></picture>
+  <picture><source media="(prefers-color-scheme: light)" srcset="docs/screenshots/light/listen-now.webp"><img src="docs/screenshots/listen-now.webp" alt="Listen Now with Continue listening, a featured album for tonight, two alternatives and recently added albums"></picture>
 </p>
 
 ### Your whole library

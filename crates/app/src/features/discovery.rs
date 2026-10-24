@@ -34,8 +34,8 @@ const FLUSH_SECONDS: f64 = 10.0;
 const RETRY_MILLIS: i64 = 300_000;
 /// Album lists requested for "Choose a record for tonight".
 const NEWEST_ALBUMS: usize = 30;
-const ALPHABETICAL_ALBUMS: usize = 60;
-/// Albums whose duration is unknown are completed with one request each, at most this many.
+const RANDOM_ALBUMS: usize = 60;
+/// Candidate albums whose track lists are checked per refresh, at most this many.
 const ALBUM_COMPLETIONS: usize = 9;
 
 /// The song currently being listened to, accumulated between archive writes.
@@ -70,6 +70,8 @@ pub struct DiscoveryUi {
     pub selection: Option<SelectionWindow>,
     /// "Choose a record for tonight" duration filter; `None` is any duration.
     pub minutes: Option<i64>,
+    /// Albums already shown while browsing tonight's suggestions.
+    pub shown_albums: HashSet<String>,
     pub period: ListeningPeriod,
     pub history_expanded: bool,
     pub confirm_clear: bool,
@@ -82,6 +84,7 @@ impl Default for DiscoveryUi {
         Self {
             selection: None,
             minutes: None,
+            shown_albums: HashSet::new(),
             period: storage::load("statistics-period").unwrap_or_default(),
             history_expanded: false,
             confirm_clear: false,
@@ -359,7 +362,7 @@ pub fn refresh(app: &mut App, force: bool) {
         let mut sample = client.random_songs(RANDOM_SAMPLE_SIZE).await.unwrap_or_default();
         let favorites = client.favorites().await;
         let newest = client.albums("newest", 0, NEWEST_ALBUMS).await;
-        let alphabetical = client.albums("alphabeticalByName", 0, ALPHABETICAL_ALBUMS).await.unwrap_or_default();
+        let random = client.albums("random", 0, RANDOM_ALBUMS).await.unwrap_or_default();
         let mut error: Option<MusicError> = None;
         if sample.is_empty() {
             // Older servers can still supply a sample through albums.
@@ -387,14 +390,14 @@ pub fn refresh(app: &mut App, force: bool) {
         let mut seen = HashSet::new();
         let mut albums: Vec<Album> = newest
             .into_iter()
-            .chain(alphabetical)
+            .chain(random)
             .chain(favorite_albums.iter().cloned())
             .filter(|a| seen.insert(a.id.clone()))
             .map(|a| details.get(&a.id).cloned().unwrap_or(a))
             .collect();
-        // Most servers already return durations. Bound extra lookups when they do not.
+        // Check track durations even when list metadata already reports a total.
         let mut completed = Vec::new();
-        for album in albums.iter_mut().filter(|a| album_listening::duration(a).is_none()).take(ALBUM_COMPLETIONS) {
+        for album in albums.iter_mut().filter(|a| !album_listening::is_complete(a)).take(ALBUM_COMPLETIONS) {
             if let Ok(full) = client.album(&album.id).await {
                 *album = full.clone();
                 completed.push(full);
@@ -537,11 +540,34 @@ pub fn album_suggestions(app: &mut App) -> Vec<AlbumSuggestion> {
     {
         return suggestions.clone();
     }
-    let albums = album_sources(app);
+    let albums: Vec<Album> = album_sources(app).into_iter().filter(|a| !app.discovery.ui.shown_albums.contains(&a.id)).collect();
     let favorites = favorite_album_ids(app);
     let suggestions = album_listening::suggest(&albums, &app.discovery.archive.history, &favorites, minutes, now);
     app.discovery.caches.albums = Some((key, suggestions.clone()));
     suggestions
+}
+
+/// Moves through eligible albums without repeating a pick until the sample is exhausted.
+pub fn more_album_suggestions(app: &mut App) {
+    let current: HashSet<String> = album_suggestions(app).iter().map(|s| s.album.id.clone()).collect();
+    app.discovery.ui.shown_albums.extend(current.iter().cloned());
+    app.discovery.caches.albums = None;
+    if album_suggestions(app).is_empty() {
+        app.discovery.ui.shown_albums = current;
+        app.discovery.caches.albums = None;
+        if album_suggestions(app).is_empty() {
+            app.discovery.ui.shown_albums.clear();
+            app.discovery.caches.albums = None;
+        }
+    }
+}
+
+pub fn set_album_minutes(app: &mut App, minutes: Option<i64>) {
+    if app.discovery.ui.minutes != minutes {
+        app.discovery.ui.minutes = minutes;
+        app.discovery.ui.shown_albums.clear();
+        app.discovery.caches.albums = None;
+    }
 }
 
 /// Plays a whole album in disc and track order, loading its track list first when needed.

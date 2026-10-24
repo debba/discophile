@@ -42,7 +42,7 @@ const COPY: Record<Locale, Copy> = {
         <><b>Choose a record for tonight</b> suggests three whole albums for 25, 45 or 60 minutes, then plays the one you pick from first track to last.</>,
       ],
       iphone: [["listen-now", "Listen Now with discovery mixes and album suggestions"], ["album", "An album page with Play, Shuffle and the track list"], ["now-playing", "Now Playing with large artwork, timeline and transport controls"]],
-      desktop: [["listen-now", "Listen Now on the desktop, with mixes and album suggestions"]],
+      desktop: [["listen-now", "Listen Now on desktop, with Continue listening, Tonight’s album and two alternatives"]],
     },
     assistant: {
       title: "Ask for a playlist. Get songs you own.",
@@ -122,7 +122,7 @@ const COPY: Record<Locale, Copy> = {
         <><b>Scegli un disco per stasera</b> ti propone tre album interi da 25, 45 o 60 minuti, poi riproduce quello che scegli dalla prima all&apos;ultima traccia.</>,
       ],
       iphone: [["listen-now", "La schermata Ascolta con i mix di scoperta e gli album suggeriti"], ["album", "La pagina di un album con Riproduci, Casuale e l'elenco delle tracce"], ["now-playing", "In riproduzione, con copertina grande, barra di avanzamento e controlli"]],
-      desktop: [["listen-now", "Ascolta sul desktop, con i mix e gli album suggeriti"]],
+      desktop: [["listen-now", "Ascolta sul desktop, con Continua ad ascoltare, Il disco di stasera e due alternative"]],
     },
     assistant: {
       title: "Tu dai l’idea. La tua musica fa il resto.",

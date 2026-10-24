@@ -7,7 +7,7 @@ use discophile_core::{Song, l10n};
 use egui::{Align, CornerRadius, Layout, Response, Sense, Ui, vec2};
 
 use crate::app::App;
-use crate::features::{discovery, downloads};
+use crate::features::{discovery, downloads, library};
 use crate::nav::Route;
 use crate::player;
 use crate::theme::{self, Font, Palette, icons};
@@ -18,7 +18,6 @@ const TWO_COLUMNS: f32 = 720.0;
 const CARD_HEIGHT: f32 = 84.0;
 
 enum Card {
-    Resume(Box<Song>, f64),
     Mix(DiscoveryMix, Vec<Song>),
     Statistics(f64),
 }
@@ -35,21 +34,28 @@ pub fn show(app: &mut App, ui: &mut Ui) {
             );
             return;
         }
+        resume_section(app, ui);
+        albums_section(app, ui);
+        recently_added(app, ui);
         discovery_section(app, ui);
         crate::ui::curator::listen_now_section(app, ui);
-        albums_section(app, ui);
     });
+}
+
+fn resume_section(app: &mut App, ui: &mut Ui) {
+    if (player::has_pending_resume(app) || (app.player.mode == player::Mode::Music && !app.player.is_playing()))
+        && let Some(song) = app.player.queue.current().cloned()
+        && !song.is_podcast()
+        && (!app.settings.downloaded_only || downloads::is_downloaded(app, &song))
+    {
+        ui.add_space(8.0);
+        resume_card(app, ui, &song, app.player.position());
+    }
 }
 
 fn discovery_section(app: &mut App, ui: &mut Ui) {
     widgets::section_heading(ui, &l10n::t("Make room for a good listen"), Some(&l10n::t("Something familiar. Something unexpected.")));
     let mut cards = Vec::new();
-    if player::has_pending_resume(app)
-        && let Some(song) = app.player.queue.current().cloned()
-        && (!app.settings.downloaded_only || downloads::is_downloaded(app, &song))
-    {
-        cards.push(Card::Resume(Box::new(song), app.player.position()));
-    }
     for (mix, songs) in discovery::mixes(app) {
         if !songs.is_empty() {
             cards.push(Card::Mix(mix, songs));
@@ -59,7 +65,6 @@ fn discovery_section(app: &mut App, ui: &mut Ui) {
         cards.push(Card::Statistics(discovery::week_summary(app).seconds));
     }
     card_grid(ui, &cards, |ui, card| match card {
-        Card::Resume(song, position) => resume_card(app, ui, song, *position),
         Card::Mix(mix, songs) => mix_card(app, ui, *mix, songs),
         Card::Statistics(seconds) => statistics_card(app, ui, *seconds),
     });
@@ -122,8 +127,13 @@ fn card_texts(ui: &mut Ui, caption: Option<&str>, title: &str, subtitle: &str) {
 }
 
 fn resume_card(app: &mut App, ui: &mut Ui, song: &Song, position: f64) {
-    let caption = l10n::t("Pick up where you left off");
-    let subtitle = format!("{} · {}", song.artist.clone().unwrap_or_else(|| l10n::t("Unknown artist")), l10n::time(position));
+    let caption = l10n::t("Continue listening");
+    let title = match app.player.context.as_ref() {
+        Some(player::PlayContext::AlbumFocus { title, .. } | player::PlayContext::Mix { title }) => title.clone(),
+        _ => song.album.clone().unwrap_or_else(|| song.title.clone()),
+    };
+    let subtitle = format!("{} · {} · {}", song.title, song.artist.clone().unwrap_or_else(|| l10n::t("Unknown artist")), l10n::time(position));
+    let next = app.player.queue.songs().get(app.player.queue.index() + 1).map(|s| format!("{}: {}", l10n::t("Next track"), s.title));
     let label = format!("{caption}, {}, {subtitle}", song.title);
     let mut play = false;
     let response = action_card(ui, CARD_HEIGHT, &label, |ui| {
@@ -131,9 +141,16 @@ fn resume_card(app: &mut App, ui: &mut Ui, song: &Song, position: f64) {
         ui.add_space(4.0);
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             play = widgets::icon_button_tinted(ui, icons::PLAY, &l10n::t("Play"), 20.0, Some(Palette::of_ui(ui).accent)).clicked();
-            card_texts(ui, Some(&caption), &song.title, &subtitle);
+            ui.with_layout(Layout::top_down(Align::Min), |ui| {
+                ui.spacing_mut().item_spacing.y = 3.0;
+                ui.add(egui::Label::new(theme::text(format!("{caption} · {title}"), Font::Headline)).truncate().selectable(false));
+                ui.add(egui::Label::new(theme::secondary(ui, &subtitle, Font::Subheadline)).truncate().selectable(false));
+            });
         });
     });
+    if let Some(next) = next {
+        response.clone().on_hover_text(next);
+    }
     if play || response.clicked() {
         player::play(app);
     }
@@ -193,22 +210,21 @@ fn statistics_card(app: &mut App, ui: &mut Ui, seconds: f64) {
 // MARK: Choose a record for tonight
 
 fn albums_section(app: &mut App, ui: &mut Ui) {
-    widgets::section_heading(ui, &l10n::t("Choose a record for tonight"), Some(&l10n::t("Three covers. One album. Time to listen.")));
+    widgets::section_heading(ui, &l10n::t("Tonight’s album"), None);
     ui.horizontal_wrapped(|ui| {
-        ui.label(theme::secondary(ui, l10n::t("Time for an album"), Font::Subheadline));
         let current = app.discovery.ui.minutes;
         if widgets::chip(ui, current.is_none(), &l10n::t("Any duration")).clicked() {
-            app.discovery.ui.minutes = None;
+            discovery::set_album_minutes(app, None);
         }
         for minutes in MINUTE_OPTIONS {
-            if widgets::chip(ui, current == Some(minutes), &l10n::count("%lld minutes", minutes)).clicked() {
-                app.discovery.ui.minutes = Some(minutes);
+            if widgets::chip(ui, current == Some(minutes), &l10n::tf("Up to %@ min", &[&minutes.to_string()])).clicked() {
+                discovery::set_album_minutes(app, Some(minutes));
             }
         }
     });
-    ui.add_space(8.0);
+    ui.add_space(18.0);
     let suggestions = discovery::album_suggestions(app);
-    if suggestions.is_empty() {
+    let Some(featured) = suggestions.first() else {
         if app.discovery.loading {
             widgets::loading(ui);
         } else {
@@ -220,43 +236,142 @@ fn albums_section(app: &mut App, ui: &mut Ui) {
             ui.label(theme::secondary(ui, l10n::t(message), Font::Subheadline));
         }
         return;
-    }
-    let gap = 20.0;
-    let width = ((ui.available_width() - gap * 2.0) / 3.0).clamp(140.0, 220.0);
-    ui.horizontal_top(|ui| {
-        ui.spacing_mut().item_spacing.x = gap;
-        for suggestion in &suggestions {
-            ui.allocate_ui_with_layout(vec2(width, 0.0), Layout::top_down(Align::Min), |ui| {
-                ui.set_width(width);
-                album_tile(app, ui, suggestion, width);
+    };
+    let available = ui.available_width();
+    if available >= 680.0 {
+        let side = (available * 0.28).clamp(180.0, 270.0);
+        let main = available - side - 28.0;
+        ui.horizontal_top(|ui| {
+            ui.spacing_mut().item_spacing.x = 28.0;
+            ui.allocate_ui_with_layout(vec2(main, 0.0), Layout::top_down(Align::Min), |ui| {
+                ui.set_width(main);
+                featured_album(app, ui, featured);
             });
+            ui.allocate_ui_with_layout(vec2(side, 0.0), Layout::top_down(Align::Min), |ui| {
+                ui.set_width(side);
+                ui.label(theme::secondary(ui, l10n::t("Or try"), Font::Subheadline));
+                ui.add_space(10.0);
+                for suggestion in suggestions.iter().skip(1) {
+                    alternative_album(app, ui, suggestion);
+                    ui.add_space(14.0);
+                }
+            });
+        });
+    } else {
+        featured_album(app, ui, featured);
+        for suggestion in suggestions.iter().skip(1) {
+            ui.add_space(12.0);
+            alternative_album(app, ui, suggestion);
+        }
+    }
+}
+
+fn featured_album(app: &mut App, ui: &mut Ui, suggestion: &AlbumSuggestion) {
+    let available = ui.available_width();
+    let size = (available * 0.42).clamp(180.0, 260.0).min(available);
+    if available >= 520.0 {
+        ui.horizontal_top(|ui| {
+            ui.spacing_mut().item_spacing.x = 24.0;
+            featured_artwork(app, ui, suggestion, size);
+            ui.allocate_ui_with_layout(vec2(available - size - 24.0, size), Layout::top_down(Align::Min), |ui| {
+                ui.set_width(available - size - 24.0);
+                featured_album_details(app, ui, suggestion);
+            });
+        });
+    } else {
+        featured_artwork(app, ui, suggestion, size);
+        featured_album_details(app, ui, suggestion);
+    }
+}
+
+fn featured_artwork(app: &mut App, ui: &mut Ui, suggestion: &AlbumSuggestion, size: f32) {
+    let album = &suggestion.album;
+    let art = widgets::artwork(ui, app, &album.id, album.cover_art.as_deref(), size, 16.0);
+    let label = format!("{}: {}", l10n::t("Show album"), album.name);
+    if widgets::tile_target(ui, art.rect, ("featured-album", &album.id), &label).clicked() {
+        app.nav.push(Route::Album(album.id.clone()));
+    }
+}
+
+fn featured_album_details(app: &mut App, ui: &mut Ui, suggestion: &AlbumSuggestion) {
+    let album = &suggestion.album;
+    ui.add_space(12.0);
+    ui.label(theme::text(&album.name, Font::Title2));
+    ui.label(theme::secondary(ui, album_metadata(album), Font::Subheadline));
+    ui.add_space(8.0);
+    ui.label(theme::secondary(ui, suggestion.reason.description(), Font::Callout));
+    ui.add_space(12.0);
+    let loading = app.discovery.ui.album_loading.is_some();
+    ui.horizontal_wrapped(|ui| {
+        ui.add_enabled_ui(!loading, |ui| {
+            if widgets::pill_button(ui, icons::PLAY, l10n::t("Listen to the whole album"), true).clicked() {
+                discovery::play_album(app, album.clone());
+            }
+        });
+        if widgets::pill_button(ui, icons::ARROWS_CLOCKWISE, l10n::t("Another recommendation"), false).clicked() {
+            discovery::more_album_suggestions(app);
+        }
+        if loading {
+            ui.spinner();
         }
     });
 }
 
-fn album_tile(app: &mut App, ui: &mut Ui, suggestion: &AlbumSuggestion, width: f32) {
-    let album = &suggestion.album;
-    let loading = app.discovery.ui.album_loading.as_deref() == Some(album.id.as_str());
-    let art = widgets::artwork(ui, app, &album.id, album.cover_art.as_deref(), width, 12.0);
-    if loading {
-        ui.painter().rect_filled(art.rect, CornerRadius::same(12), egui::Color32::from_black_alpha(110));
-        egui::Spinner::new().size(28.0).paint_at(ui, egui::Rect::from_center_size(art.rect.center(), vec2(28.0, 28.0)));
-    }
-    ui.spacing_mut().item_spacing.y = 3.0;
-    let title = ui.add(egui::Label::new(theme::text(&album.name, Font::Headline)).wrap().sense(Sense::click()));
+fn album_metadata(album: &discophile_core::Album) -> String {
     let artist = album.artist.clone().unwrap_or_else(|| l10n::t("Unknown artist"));
-    ui.label(theme::secondary(ui, &artist, Font::Caption));
-    let duration = album_listening::duration(album);
-    if let Some(duration) = duration {
-        ui.label(theme::secondary(ui, l10n::time(duration), Font::Caption).monospace());
+    match album_listening::duration(album) {
+        Some(duration) => format!("{artist} · {}", l10n::time(duration)),
+        None => artist,
     }
-    ui.label(theme::secondary(ui, suggestion.reason.description(), Font::Caption));
-    let response = art.union(title).on_hover_text(l10n::t("Listen to the whole album")).on_hover_cursor(egui::CursorIcon::PointingHand);
-    let label = format!("{}, {artist}, {}", album.name, suggestion.reason.description());
-    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, &label));
-    if response.clicked() {
+}
+
+fn alternative_album(app: &mut App, ui: &mut Ui, suggestion: &AlbumSuggestion) {
+    let album = &suggestion.album;
+    let metadata = album_metadata(album);
+    let response = action_card(ui, 100.0, &format!("{}, {metadata}", album.name), |ui| {
+        widgets::artwork(ui, app, &album.id, album.cover_art.as_deref(), 64.0, 10.0);
+        ui.add_space(8.0);
+        ui.vertical(|ui| {
+            ui.add(egui::Label::new(theme::text(&album.name, Font::Headline)).wrap().selectable(false));
+            ui.add(egui::Label::new(theme::secondary(ui, &metadata, Font::Caption)).wrap().selectable(false));
+        });
+    });
+    if response.on_hover_text(l10n::t("Listen to the whole album")).clicked() {
         discovery::play_album(app, album.clone());
     }
+}
+
+fn recently_added(app: &mut App, ui: &mut Ui) {
+    library::ensure(app, library::keys::NEWEST);
+    let albums = if app.settings.downloaded_only {
+        let downloaded = library::downloaded_albums(app);
+        app.library.snapshot.newest.iter().filter(|a| downloaded.iter().any(|d| d.id == a.id)).cloned().collect::<Vec<_>>()
+    } else {
+        app.library.snapshot.newest.clone()
+    };
+    if albums.is_empty() {
+        return;
+    }
+    widgets::section_heading(ui, &l10n::t("Recently added"), None);
+    if ui.link(l10n::t("Show all")).clicked() {
+        library::set_album_list(app, library::AlbumListType::Newest);
+        app.nav.push(Route::Albums);
+    }
+    ui.add_space(8.0);
+    let width = ((ui.available_width() - 4.0 * 16.0) / 5.0).clamp(120.0, 160.0);
+    egui::ScrollArea::horizontal().id_salt("home-recent-albums").show(ui, |ui| {
+        ui.horizontal_top(|ui| {
+            ui.spacing_mut().item_spacing.x = 16.0;
+            for album in albums.iter().take(12) {
+                ui.allocate_ui_with_layout(vec2(width, 0.0), Layout::top_down(Align::Min), |ui| {
+                    ui.set_width(width);
+                    if widgets::album_tile(ui, app, album, width).clicked() {
+                        app.nav.push(Route::Album(album.id.clone()));
+                    }
+                });
+            }
+        });
+    });
 }
 
 // MARK: Selection window

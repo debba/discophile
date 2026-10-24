@@ -13,6 +13,9 @@ use crate::models::{Album, Song};
 pub const MINUTE_OPTIONS: [i64; 3] = [25, 45, 60];
 /// Suggestions shown at once.
 pub const SUGGESTION_COUNT: usize = 3;
+/// Keep tonight's picks to album-length releases rather than singles or long box sets.
+const MIN_ALBUM_SECONDS: f64 = 20.0 * 60.0;
+const MAX_ALBUM_SECONDS: f64 = 90.0 * 60.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -65,6 +68,12 @@ pub fn is_complete(album: &Album) -> bool {
 
 /// The album's duration, or the sum of its tracks when every track's duration is known.
 pub fn duration(album: &Album) -> Option<f64> {
+    if is_complete(album) {
+        let songs = album.songs();
+        if songs.iter().all(|s| s.duration.is_some_and(|d| d > 0.0 && d.is_finite())) {
+            return Some(songs.iter().filter_map(|s| s.duration).sum());
+        }
+    }
     if let Some(duration) = album.duration.filter(|d| d.is_finite() && *d > 0.0) {
         return Some(duration);
     }
@@ -96,9 +105,15 @@ pub fn suggest(
     now: i64,
 ) -> Vec<AlbumSuggestion> {
     let mut seen = HashSet::new();
-    let albums = albums.iter().filter(|a| seen.insert(a.id.as_str())).filter(|album| match minutes {
+    let albums = albums.iter().filter(|a| seen.insert(a.id.as_str())).filter(|album| {
+        let count = album.song_count.or_else(|| album.song.as_ref().map(|songs| songs.len() as i64));
+        count.is_none_or(|count| count > 1)
+            && duration(album).is_some_and(|seconds| (MIN_ALBUM_SECONDS..=MAX_ALBUM_SECONDS).contains(&seconds))
+    }).filter(|album| match minutes {
         None => true,
-        Some(minutes) => duration(album).is_some_and(|d| d <= minutes as f64 * 60.0),
+        Some(minutes) => duration(album).is_some_and(|d| {
+            d >= ((minutes - 15) as f64 * 60.0).max(MIN_ALBUM_SECONDS) && d <= minutes as f64 * 60.0
+        }),
     });
     let mut latest: HashMap<&str, i64> = HashMap::new();
     for entry in history.entries() {
@@ -178,6 +193,30 @@ mod tests {
     }
 
     #[test]
+    fn forty_five_minutes_rejects_short_releases_and_uses_complete_track_durations() {
+        let short = album(r#"{"id":"short","name":"Ghost Trees","duration":1087,"songCount":5}"#);
+        let fitting = album(r#"{"id":"fit","name":"Album","duration":2370,"songCount":10}"#);
+        let result = suggest(&[short, fitting], &ListeningHistory::new(), &HashSet::new(), Some(45), NOW);
+        assert_eq!(result.iter().map(|s| s.id()).collect::<Vec<_>>(), ["fit"]);
+        let full = album(r#"{"id":"full","name":"Full","duration":1087,"songCount":2,"song":[{"id":"a","title":"A","duration":1200},{"id":"b","title":"B","duration":1200}]}"#);
+        assert_eq!(duration(&full), Some(2400.0));
+        assert_eq!(suggest(&[full], &ListeningHistory::new(), &HashSet::new(), Some(45), NOW).len(), 1);
+    }
+
+    #[test]
+    fn suggestions_exclude_singles_and_box_sets_even_without_a_time_limit() {
+        let albums = [
+            album(r#"{"id":"box","name":"Box set","duration":16720,"songCount":80}"#),
+            album(r#"{"id":"single","name":"Single","duration":187,"songCount":1}"#),
+            album(r#"{"id":"ep","name":"Short EP","duration":600,"songCount":4}"#),
+            album(r#"{"id":"one","name":"One track","duration":1800,"songCount":1}"#),
+            album(r#"{"id":"album","name":"Album","duration":2400,"songCount":10}"#),
+        ];
+        let result = suggest(&albums, &ListeningHistory::new(), &HashSet::new(), None, NOW);
+        assert_eq!(result.iter().map(|s| s.id()).collect::<Vec<_>>(), ["album"]);
+    }
+
+    #[test]
     fn album_listening_rejects_missing_and_partial_track_lists() {
         let partial = album(r#"{"id":"partial","name":"Partial","songCount":2,"song":[{"id":"one","title":"One"}]}"#);
         assert!(!is_complete(&partial));
@@ -194,10 +233,10 @@ mod tests {
         history.record(&old_song, Uuid::new_v4(), 40.0, 40.0, 180.0, false, &at(NOW - 40 * DAY_MILLIS));
         history.record(&favorite_song, Uuid::new_v4(), 40.0, 40.0, 180.0, false, &at(NOW));
         let albums = [
-            Album::new("new", "New", "A"),
-            Album::new("same", "Same", "A"),
-            Album::new("old", "Old", "B"),
-            Album::new("favorite", "Favorite", "C"),
+            album(r#"{"id":"new","name":"New","artist":"A","duration":2400}"#),
+            album(r#"{"id":"same","name":"Same","artist":"A","duration":2400}"#),
+            album(r#"{"id":"old","name":"Old","artist":"B","duration":2400}"#),
+            album(r#"{"id":"favorite","name":"Favorite","artist":"C","duration":2400}"#),
         ];
         let favorites: HashSet<String> = ["favorite".to_string()].into();
         let result = suggest(&albums, &history, &favorites, None, NOW);

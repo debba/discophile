@@ -26,6 +26,8 @@ pub trait MaybeSend {}
 impl<T> MaybeSend for T {}
 
 pub const IS_WEB: bool = cfg!(target_arch = "wasm32");
+pub const WEBSITE: &str = "https://discophile.app";
+pub const GITHUB: &str = "https://github.com/debba/discophile";
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn runtime() -> &'static tokio::runtime::Runtime {

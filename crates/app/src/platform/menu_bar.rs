@@ -14,7 +14,7 @@ use tray_icon::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu
 
 use crate::nav::Route;
 
-pub const WEBSITE: &str = "https://discophile.app";
+use super::{GITHUB, WEBSITE};
 pub const ISSUES: &str = "https://github.com/debba/discophile/issues";
 
 #[derive(Clone, Debug, PartialEq)]
@@ -108,6 +108,7 @@ pub fn command(id: &str) -> Option<MenuCommand> {
         "go.back" => MenuCommand::Back,
         "go.forward" => MenuCommand::Forward,
         "help.website" => MenuCommand::Open(WEBSITE),
+        "help.github" => MenuCommand::Open(GITHUB),
         "help.issues" => MenuCommand::Open(ISSUES),
         _ => return None,
     })
@@ -250,7 +251,11 @@ impl MenuBar {
         let help = Submenu::with_items(
             t("Help"),
             true,
-            &[&item("help.website", "Discophile on GitHub", None), &item("help.issues", "Report a problem", None)],
+            &[
+                &item("help.website", "Discophile website", None),
+                &item("help.github", "Discophile on GitHub", None),
+                &item("help.issues", "Report a problem", None),
+            ],
         )?;
 
         let menu = Menu::new();
