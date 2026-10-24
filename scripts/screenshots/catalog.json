@@ -1,0 +1,2228 @@
+{
+ "albums": [
+  {
+   "key": "mina-discophile",
+   "artist": "Mina Sol",
+   "title": "Discophile",
+   "style": "photo",
+   "genre": "Pop",
+   "year": 2026,
+   "palette": [
+    "#b5121b",
+    "#f4a3b4",
+    "#1a1a1a"
+   ],
+   "tracks": [
+    {
+     "title": "Discophile",
+     "seconds": 66,
+     "lyrics": [
+      [
+       0.6,
+       "Pick a record, any record you like"
+      ],
+      [
+       3.3,
+       "Drop the needle, here we go, press play"
+      ],
+      [
+       6.0,
+       "Discophile, discophile"
+      ],
+      [
+       7.61,
+       "Discophile, discophile"
+      ],
+      [
+       9.22,
+       "Discophile, discophile"
+      ],
+      [
+       10.83,
+       "Uh, uh-huh, uh-huh"
+      ],
+      [
+       12.44,
+       "Discophile, discophile"
+      ],
+      [
+       14.05,
+       "Discophile, discophile"
+      ],
+      [
+       15.66,
+       "Discophile, discophile"
+      ],
+      [
+       17.28,
+       "Uh, uh-huh, uh-huh"
+      ],
+      [
+       18.89,
+       "B-side, B-side"
+      ],
+      [
+       22.11,
+       "Stacked up to the ceiling, but"
+      ],
+      [
+       25.33,
+       "I wanna play them all tonight (uh-huh, uh-huh)"
+      ],
+      [
+       28.55,
+       "Deep cuts, deep cuts"
+      ],
+      [
+       31.77,
+       "Every single one, yeah"
+      ],
+      [
+       34.99,
+       "Put the needle where it feels so right, oh-oh, oh"
+      ],
+      [
+       38.21,
+       "Play it louder, one more time now, baby"
+      ],
+      [
+       41.44,
+       "Every record's got a little light"
+      ],
+      [
+       44.66,
+       "Skip the radio, I know what I like, so"
+      ],
+      [
+       47.88,
+       "Turn it up and tell me I'm a"
+      ],
+      [
+       51.1,
+       "Discophile, discophile"
+      ],
+      [
+       52.71,
+       "Discophile, discophile"
+      ],
+      [
+       54.32,
+       "Discophile, discophile"
+      ],
+      [
+       55.93,
+       "Uh, uh-huh, uh-huh"
+      ],
+      [
+       57.54,
+       "Discophile, discophile"
+      ],
+      [
+       59.15,
+       "Discophile, discophile"
+      ],
+      [
+       60.77,
+       "Discophile, discophile"
+      ],
+      [
+       62.38,
+       "Uh, uh-huh, uh-huh"
+      ],
+      [
+       64.49,
+       "Discophile!"
+      ]
+     ]
+    },
+    {
+     "title": "Needle Drop",
+     "seconds": 184
+    },
+    {
+     "title": "Side B Summer",
+     "seconds": 178
+    },
+    {
+     "title": "Cherry Static",
+     "seconds": 201
+    },
+    {
+     "title": "Spin Me Slow",
+     "seconds": 215
+    },
+    {
+     "title": "Pink Label",
+     "seconds": 169
+    },
+    {
+     "title": "Run-Out Groove",
+     "seconds": 187
+    },
+    {
+     "title": "Crate Digger",
+     "seconds": 174
+    },
+    {
+     "title": "Dust Sleeve",
+     "seconds": 206
+    },
+    {
+     "title": "Liner Notes",
+     "seconds": 193
+    },
+    {
+     "title": "Encore",
+     "seconds": 226
+    }
+   ]
+  },
+  {
+   "key": "rose-rosie",
+   "artist": "Mina Sol",
+   "title": "petal",
+   "style": "mesh",
+   "genre": "Pop",
+   "year": 2024,
+   "palette": [
+    "#6d2412",
+    "#d24b2f",
+    "#e0a15a"
+   ],
+   "tracks": [
+    {
+     "title": "first light girl",
+     "seconds": 189
+    },
+    {
+     "title": "4am",
+     "seconds": 167
+    },
+    {
+     "title": "two summers",
+     "seconds": 198
+    },
+    {
+     "title": "sweet till it stings",
+     "seconds": 231
+    },
+    {
+     "title": "tea or tequila",
+     "seconds": 154
+    },
+    {
+     "title": "APARTMENT",
+     "seconds": 157
+    },
+    {
+     "title": "joystick",
+     "seconds": 253
+    },
+    {
+     "title": "stay a minute more",
+     "seconds": 216
+    },
+    {
+     "title": "not the same sky",
+     "seconds": 160
+    },
+    {
+     "title": "call it a night",
+     "seconds": 194
+    },
+    {
+     "title": "too good for us",
+     "seconds": 222
+    },
+    {
+     "title": "dance till dawn",
+     "seconds": 155
+    }
+   ]
+  },
+  {
+   "key": "charli-xcx-brat",
+   "artist": "Vex Monroe",
+   "title": "lime",
+   "style": "block",
+   "genre": "Electronic",
+   "year": 2024,
+   "palette": [
+    "#8ace00",
+    "#8ace00",
+    "#20251a"
+   ],
+   "tracks": [
+    {
+     "title": "sour",
+     "seconds": 212
+    },
+    {
+     "title": "club heart",
+     "seconds": 175
+    },
+    {
+     "title": "so obvious",
+     "seconds": 152
+    },
+    {
+     "title": "apple pie",
+     "seconds": 159
+    },
+    {
+     "title": "everyone's here",
+     "seconds": 203
+    },
+    {
+     "title": "mean girls",
+     "seconds": 201
+    },
+    {
+     "title": "rewind",
+     "seconds": 156
+    },
+    {
+     "title": "b4 midnight",
+     "seconds": 178
+    },
+    {
+     "title": "talk talk",
+     "seconds": 159
+    },
+    {
+     "title": "neon diet",
+     "seconds": 218
+    },
+    {
+     "title": "girl, so pretty",
+     "seconds": 202
+    },
+    {
+     "title": "i might say something",
+     "seconds": 155
+    },
+    {
+     "title": "drive fast",
+     "seconds": 253
+    },
+    {
+     "title": "party for one",
+     "seconds": 220
+    },
+    {
+     "title": "last one out",
+     "seconds": 163
+    }
+   ]
+  },
+  {
+   "key": "tyler-the-creator-chromakopia",
+   "artist": "Odell Kingsley",
+   "title": "VERDANT",
+   "style": "mono",
+   "genre": "Hip-Hop",
+   "year": 2025,
+   "palette": [
+    "#2c3a2a",
+    "#7ea04d",
+    "#c9d6b0"
+   ],
+   "tracks": [
+    {
+     "title": "Paper Moon",
+     "seconds": 176
+    },
+    {
+     "title": "Gold Rush",
+     "seconds": 228
+    },
+    {
+     "title": "Late Bloomer",
+     "seconds": 228
+    },
+    {
+     "title": "Satellite",
+     "seconds": 222
+    },
+    {
+     "title": "Heatwave",
+     "seconds": 155
+    },
+    {
+     "title": "Glass House",
+     "seconds": 221
+    },
+    {
+     "title": "Northbound",
+     "seconds": 222
+    },
+    {
+     "title": "Polaroid",
+     "seconds": 198
+    },
+    {
+     "title": "Slow Dance",
+     "seconds": 154
+    },
+    {
+     "title": "Midnight Drive",
+     "seconds": 176
+    },
+    {
+     "title": "Postcard",
+     "seconds": 153
+    },
+    {
+     "title": "Weightless",
+     "seconds": 219
+    },
+    {
+     "title": "Afterparty",
+     "seconds": 257
+    }
+   ]
+  },
+  {
+   "key": "bad-bunny-debi-tirar-mas-fotos",
+   "artist": "Tavo Rey",
+   "title": "Sillas Blancas",
+   "style": "mesh",
+   "genre": "Latin",
+   "year": 2025,
+   "palette": [
+    "#c97f4a",
+    "#f2d3a6",
+    "#7a3f24"
+   ],
+   "tracks": [
+    {
+     "title": "Static Love",
+     "seconds": 165
+    },
+    {
+     "title": "Velvet Sky",
+     "seconds": 185
+    },
+    {
+     "title": "Wildflower",
+     "seconds": 201
+    },
+    {
+     "title": "Daydreamer",
+     "seconds": 166
+    },
+    {
+     "title": "Low Tide",
+     "seconds": 217
+    },
+    {
+     "title": "Echo Park",
+     "seconds": 163
+    },
+    {
+     "title": "Neon Rain",
+     "seconds": 221
+    },
+    {
+     "title": "Sunday Light",
+     "seconds": 187
+    },
+    {
+     "title": "Fever Dream",
+     "seconds": 219
+    },
+    {
+     "title": "Starling",
+     "seconds": 252
+    },
+    {
+     "title": "Ghost Town",
+     "seconds": 235
+    },
+    {
+     "title": "Golden Hour",
+     "seconds": 171
+    },
+    {
+     "title": "Overtime",
+     "seconds": 161
+    },
+    {
+     "title": "Cassette",
+     "seconds": 222
+    }
+   ]
+  },
+  {
+   "key": "chappell-roan-the-rise-and-fall-of-a-midwest-princess",
+   "artist": "Ruby Lark",
+   "title": "The Pageant Years",
+   "style": "mesh",
+   "genre": "Pop",
+   "year": 2024,
+   "palette": [
+    "#5d2f6e",
+    "#e58fb7",
+    "#f4c6a8"
+   ],
+   "tracks": [
+    {
+     "title": "Glitter Junkie",
+     "seconds": 221
+    },
+    {
+     "title": "Fireflies",
+     "seconds": 229
+    },
+    {
+     "title": "Small Town Royalty",
+     "seconds": 172
+    },
+    {
+     "title": "Lipstick Lullaby",
+     "seconds": 195
+    },
+    {
+     "title": "Two-Step Heart",
+     "seconds": 160
+    },
+    {
+     "title": "Prom Queen Blues",
+     "seconds": 218
+    },
+    {
+     "title": "SPELL IT OUT!",
+     "seconds": 239
+    },
+    {
+     "title": "Coffee Cup",
+     "seconds": 156
+    },
+    {
+     "title": "Velvet Ribbon",
+     "seconds": 220
+    },
+    {
+     "title": "Blue Ribbon",
+     "seconds": 155
+    },
+    {
+     "title": "Silver Sash",
+     "seconds": 227
+    },
+    {
+     "title": "Nightlight",
+     "seconds": 174
+    },
+    {
+     "title": "Carnival",
+     "seconds": 211
+    },
+    {
+     "title": "Encore",
+     "seconds": 235
+    }
+   ]
+  },
+  {
+   "key": "olivia-rodrigo-guts",
+   "artist": "Lena Vale",
+   "title": "NERVE",
+   "style": "orb",
+   "genre": "Alternative",
+   "year": 2023,
+   "palette": [
+    "#140c1f",
+    "#ff5a3c",
+    "#5a1f6b"
+   ],
+   "tracks": [
+    {
+     "title": "Firecracker",
+     "seconds": 216
+    },
+    {
+     "title": "Honey",
+     "seconds": 202
+    },
+    {
+     "title": "Runaway",
+     "seconds": 247
+    },
+    {
+     "title": "Undercurrent",
+     "seconds": 188
+    },
+    {
+     "title": "Lightning",
+     "seconds": 207
+    },
+    {
+     "title": "Sweet Spot",
+     "seconds": 222
+    },
+    {
+     "title": "Wild Heart",
+     "seconds": 206
+    },
+    {
+     "title": "Ocean Eyes Closed",
+     "seconds": 194
+    },
+    {
+     "title": "Paper Planes",
+     "seconds": 186
+    },
+    {
+     "title": "Halo Effect",
+     "seconds": 179
+    },
+    {
+     "title": "Silver Lining",
+     "seconds": 249
+    }
+   ]
+  },
+  {
+   "key": "billie-eilish-hit-me-hard-and-soft",
+   "artist": "Isla Wren",
+   "title": "UNDERTOW",
+   "style": "orb",
+   "genre": "Indie",
+   "year": 2024,
+   "palette": [
+    "#0d2836",
+    "#3fa7c9",
+    "#a6e1ea"
+   ],
+   "tracks": [
+    {
+     "title": "SKIM",
+     "seconds": 171
+    },
+    {
+     "title": "SALT",
+     "seconds": 237
+    },
+    {
+     "title": "DEEP END",
+     "seconds": 247
+    },
+    {
+     "title": "the blue",
+     "seconds": 179
+    },
+    {
+     "title": "SURFACE TENSION",
+     "seconds": 158
+    },
+    {
+     "title": "tidepool",
+     "seconds": 221
+    },
+    {
+     "title": "WEIGHT",
+     "seconds": 186
+    },
+    {
+     "title": "quiet water",
+     "seconds": 215
+    },
+    {
+     "title": "LUNG",
+     "seconds": 211
+    },
+    {
+     "title": "PRESSURE",
+     "seconds": 260
+    },
+    {
+     "title": "the shore",
+     "seconds": 191
+    }
+   ]
+  },
+  {
+   "key": "sabrina-carpenter-short-n-sweet",
+   "artist": "Daisy Cole",
+   "title": "Sugar Rush Hour",
+   "style": "horizon",
+   "genre": "Pop",
+   "year": 2025,
+   "palette": [
+    "#f2a7c3",
+    "#ff7a59",
+    "#ffd166"
+   ],
+   "tracks": [
+    {
+     "title": "Double Shot",
+     "seconds": 241
+    },
+    {
+     "title": "Cherry Soda",
+     "seconds": 205
+    },
+    {
+     "title": "Lemonade Stand",
+     "seconds": 184
+    },
+    {
+     "title": "Pink Flamingo",
+     "seconds": 225
+    },
+    {
+     "title": "Hold Your Horses",
+     "seconds": 157
+    },
+    {
+     "title": "Tiny Disaster",
+     "seconds": 163
+    },
+    {
+     "title": "Shiny Thing",
+     "seconds": 213
+    },
+    {
+     "title": "Late Checkout",
+     "seconds": 201
+    },
+    {
+     "title": "Sugar",
+     "seconds": 169
+    },
+    {
+     "title": "Bubblegum Mood",
+     "seconds": 244
+    },
+    {
+     "title": "Butterscotch",
+     "seconds": 191
+    },
+    {
+     "title": "Goodnight Kiss",
+     "seconds": 167
+    }
+   ]
+  },
+  {
+   "key": "sabrina-carpenter-man-s-best-friend",
+   "artist": "Daisy Cole",
+   "title": "Good Behavior",
+   "style": "frame",
+   "genre": "Pop",
+   "year": 2023,
+   "palette": [
+    "#e8ded0",
+    "#b0473a",
+    "#3c3a37"
+   ],
+   "tracks": [
+    {
+     "title": "Moonwalk",
+     "seconds": 210
+    },
+    {
+     "title": "Big Sky",
+     "seconds": 201
+    },
+    {
+     "title": "Lost Signal",
+     "seconds": 153
+    },
+    {
+     "title": "Summer Rain",
+     "seconds": 233
+    },
+    {
+     "title": "Pulse",
+     "seconds": 157
+    },
+    {
+     "title": "Dreamland",
+     "seconds": 245
+    },
+    {
+     "title": "Electric",
+     "seconds": 219
+    },
+    {
+     "title": "Mirrorball",
+     "seconds": 221
+    },
+    {
+     "title": "Open Road",
+     "seconds": 249
+    },
+    {
+     "title": "Daylight",
+     "seconds": 260
+    }
+   ]
+  },
+  {
+   "key": "dua-lipa-radical-optimism",
+   "artist": "Nova Reyes",
+   "title": "Open Water",
+   "style": "horizon",
+   "genre": "R&B",
+   "year": 2024,
+   "palette": [
+    "#1d5f8a",
+    "#f0b45a",
+    "#9ad1e6"
+   ],
+   "tracks": [
+    {
+     "title": "Training Season Over",
+     "seconds": 252
+    },
+    {
+     "title": "Float",
+     "seconds": 188
+    },
+    {
+     "title": "Sunlit",
+     "seconds": 191
+    },
+    {
+     "title": "These Tides",
+     "seconds": 236
+    },
+    {
+     "title": "Whatcha Waiting For",
+     "seconds": 192
+    },
+    {
+     "title": "Riptide",
+     "seconds": 224
+    },
+    {
+     "title": "Lighthouse",
+     "seconds": 211
+    },
+    {
+     "title": "Anything for Love",
+     "seconds": 222
+    },
+    {
+     "title": "Saltwater",
+     "seconds": 250
+    },
+    {
+     "title": "Happy for You",
+     "seconds": 206
+    },
+    {
+     "title": "Shoreline",
+     "seconds": 156
+    }
+   ]
+  },
+  {
+   "key": "kendrick-lamar-gnx",
+   "artist": "K. Ashford",
+   "title": "V8",
+   "style": "mono",
+   "genre": "Rock",
+   "year": 2023,
+   "palette": [
+    "#3a3a3a",
+    "#d93a2b",
+    "#9a9a9a"
+   ],
+   "tracks": [
+    {
+     "title": "Warm Static",
+     "seconds": 255
+    },
+    {
+     "title": "Afterglow",
+     "seconds": 159
+    },
+    {
+     "title": "Comet",
+     "seconds": 182
+    },
+    {
+     "title": "Gravity",
+     "seconds": 208
+    },
+    {
+     "title": "Holiday",
+     "seconds": 237
+    },
+    {
+     "title": "Ricochet",
+     "seconds": 233
+    },
+    {
+     "title": "Crystal",
+     "seconds": 156
+    },
+    {
+     "title": "Atlas",
+     "seconds": 155
+    },
+    {
+     "title": "Orbit",
+     "seconds": 241
+    },
+    {
+     "title": "Daybreak",
+     "seconds": 237
+    },
+    {
+     "title": "Tangerine",
+     "seconds": 187
+    },
+    {
+     "title": "Lavender",
+     "seconds": 230
+    }
+   ]
+  },
+  {
+   "key": "lady-gaga-mayhem",
+   "artist": "Gloria Veil",
+   "title": "STATIC",
+   "style": "mono",
+   "genre": "Electronic",
+   "year": 2025,
+   "palette": [
+    "#2b2b2b",
+    "#5be0ff",
+    "#bdbdbd"
+   ],
+   "tracks": [
+    {
+     "title": "Saltwater",
+     "seconds": 221
+    },
+    {
+     "title": "Mosaic",
+     "seconds": 235
+    },
+    {
+     "title": "Riverside",
+     "seconds": 253
+    },
+    {
+     "title": "Rooftop",
+     "seconds": 205
+    },
+    {
+     "title": "Parade",
+     "seconds": 184
+    },
+    {
+     "title": "Carousel",
+     "seconds": 239
+    },
+    {
+     "title": "Wonderland",
+     "seconds": 197
+    },
+    {
+     "title": "Wishbone",
+     "seconds": 261
+    },
+    {
+     "title": "Highway",
+     "seconds": 233
+    },
+    {
+     "title": "Lullaby",
+     "seconds": 192
+    }
+   ]
+  },
+  {
+   "key": "taylor-swift-the-life-of-a-showgirl",
+   "artist": "Clara Bright",
+   "title": "The Encore",
+   "style": "mesh",
+   "genre": "Pop",
+   "year": 2022,
+   "palette": [
+    "#3f6e3a",
+    "#d9c27a",
+    "#8fb07a"
+   ],
+   "tracks": [
+    {
+     "title": "Spotlight",
+     "seconds": 150
+    },
+    {
+     "title": "Avalanche",
+     "seconds": 207
+    },
+    {
+     "title": "Butterflies",
+     "seconds": 193
+    },
+    {
+     "title": "Sundown",
+     "seconds": 169
+    },
+    {
+     "title": "Skyline",
+     "seconds": 226
+    },
+    {
+     "title": "Rush",
+     "seconds": 162
+    },
+    {
+     "title": "Ember",
+     "seconds": 211
+    },
+    {
+     "title": "Bloom",
+     "seconds": 155
+    },
+    {
+     "title": "Blush",
+     "seconds": 175
+    },
+    {
+     "title": "Cloud Nine",
+     "seconds": 246
+    },
+    {
+     "title": "Feather",
+     "seconds": 184
+    },
+    {
+     "title": "Glow",
+     "seconds": 164
+    },
+    {
+     "title": "Harbor",
+     "seconds": 242
+    }
+   ]
+  },
+  {
+   "key": "doechii-alligator-bites-never-heal",
+   "artist": "Jules Okafor",
+   "title": "Swamp Queen",
+   "style": "mesh",
+   "genre": "Soul",
+   "year": 2024,
+   "palette": [
+    "#4d5c2a",
+    "#c79a3b",
+    "#8a9c55"
+   ],
+   "tracks": [
+    {
+     "title": "Ivory",
+     "seconds": 179
+    },
+    {
+     "title": "Jade",
+     "seconds": 198
+    },
+    {
+     "title": "Kaleidoscope",
+     "seconds": 198
+    },
+    {
+     "title": "Lantern",
+     "seconds": 259
+    },
+    {
+     "title": "Marigold",
+     "seconds": 211
+    },
+    {
+     "title": "Nectar",
+     "seconds": 158
+    },
+    {
+     "title": "Opal",
+     "seconds": 169
+    },
+    {
+     "title": "Prism",
+     "seconds": 205
+    },
+    {
+     "title": "Quartz",
+     "seconds": 199
+    },
+    {
+     "title": "Radio",
+     "seconds": 218
+    },
+    {
+     "title": "Sapphire",
+     "seconds": 183
+    },
+    {
+     "title": "Thunder",
+     "seconds": 261
+    }
+   ]
+  },
+  {
+   "key": "tame-impala-deadbeat",
+   "artist": "Mirage Garden",
+   "title": "Afterglow",
+   "style": "mono",
+   "genre": "Electronic",
+   "year": 2023,
+   "palette": [
+    "#555555",
+    "#e05a8a",
+    "#cccccc"
+   ],
+   "tracks": [
+    {
+     "title": "Umbra",
+     "seconds": 165
+    },
+    {
+     "title": "Vapor",
+     "seconds": 252
+    },
+    {
+     "title": "Willow",
+     "seconds": 203
+    },
+    {
+     "title": "Zenith",
+     "seconds": 258
+    },
+    {
+     "title": "Hourglass",
+     "seconds": 218
+    },
+    {
+     "title": "Firefly",
+     "seconds": 183
+    },
+    {
+     "title": "Undertow Two",
+     "seconds": 238
+    },
+    {
+     "title": "Breathe Out",
+     "seconds": 201
+    },
+    {
+     "title": "Hold Still",
+     "seconds": 193
+    }
+   ]
+  },
+  {
+   "key": "rosalia-lux",
+   "artist": "Inés Mar",
+   "title": "CLARA",
+   "style": "frame",
+   "genre": "Indie",
+   "year": 2024,
+   "palette": [
+    "#8aa0b8",
+    "#f2a65a",
+    "#e8d6c4"
+   ],
+   "tracks": [
+    {
+     "title": "Say It Twice",
+     "seconds": 235
+    },
+    {
+     "title": "Come Closer",
+     "seconds": 261
+    },
+    {
+     "title": "Light Me Up",
+     "seconds": 196
+    },
+    {
+     "title": "Nothing Else",
+     "seconds": 177
+    },
+    {
+     "title": "Keep Moving",
+     "seconds": 167
+    },
+    {
+     "title": "All Night",
+     "seconds": 158
+    },
+    {
+     "title": "Right Here",
+     "seconds": 170
+    },
+    {
+     "title": "Go Slow",
+     "seconds": 167
+    },
+    {
+     "title": "Stay Gold",
+     "seconds": 177
+    },
+    {
+     "title": "Fall Back",
+     "seconds": 232
+    }
+   ]
+  },
+  {
+   "key": "addison-rae-addison",
+   "artist": "Bailey Shore",
+   "title": "Bailey",
+   "style": "mesh",
+   "genre": "Pop",
+   "year": 2025,
+   "palette": [
+    "#f4b54a",
+    "#f26a3d",
+    "#f6e6a8"
+   ],
+   "tracks": [
+    {
+     "title": "Turn Around",
+     "seconds": 177
+    },
+    {
+     "title": "Rise Up",
+     "seconds": 149
+    },
+    {
+     "title": "Let Go",
+     "seconds": 210
+    },
+    {
+     "title": "Head Over",
+     "seconds": 254
+    },
+    {
+     "title": "Never Mind",
+     "seconds": 223
+    },
+    {
+     "title": "Maybe Tonight",
+     "seconds": 171
+    },
+    {
+     "title": "One More Time",
+     "seconds": 181
+    },
+    {
+     "title": "Out of Reach",
+     "seconds": 184
+    },
+    {
+     "title": "Back to You",
+     "seconds": 148
+    },
+    {
+     "title": "Into Blue",
+     "seconds": 166
+    },
+    {
+     "title": "Over the Moon",
+     "seconds": 201
+    }
+   ]
+  },
+  {
+   "key": "the-weeknd-hurry-up-tomorrow",
+   "artist": "The Night Shift",
+   "title": "Last Call",
+   "style": "orb",
+   "genre": "Jazz",
+   "year": 2023,
+   "palette": [
+    "#120d1c",
+    "#f2a23a",
+    "#3b2a5a"
+   ],
+   "tracks": [
+    {
+     "title": "Under the Sun",
+     "seconds": 216
+    },
+    {
+     "title": "Out Loud",
+     "seconds": 195
+    },
+    {
+     "title": "Real Love",
+     "seconds": 226
+    },
+    {
+     "title": "True North",
+     "seconds": 220
+    },
+    {
+     "title": "First Light",
+     "seconds": 188
+    },
+    {
+     "title": "Last Dance",
+     "seconds": 164
+    },
+    {
+     "title": "High Noon",
+     "seconds": 236
+    },
+    {
+     "title": "Dead Calm",
+     "seconds": 257
+    },
+    {
+     "title": "Free Fall",
+     "seconds": 213
+    },
+    {
+     "title": "Long Way Home",
+     "seconds": 227
+    }
+   ]
+  },
+  {
+   "key": "kali-uchis-orquideas",
+   "artist": "Mara Flor",
+   "title": "JARDÍN",
+   "style": "mesh",
+   "genre": "Latin",
+   "year": 2024,
+   "palette": [
+    "#3a7a4a",
+    "#f25c7a",
+    "#ffd36b"
+   ],
+   "tracks": [
+    {
+     "title": "Heart Shaped",
+     "seconds": 231
+    },
+    {
+     "title": "Little Things",
+     "seconds": 234
+    },
+    {
+     "title": "Ready Now",
+     "seconds": 242
+    },
+    {
+     "title": "Safe Place",
+     "seconds": 154
+    },
+    {
+     "title": "Better Days",
+     "seconds": 206
+    },
+    {
+     "title": "Brand New",
+     "seconds": 259
+    },
+    {
+     "title": "Close Call",
+     "seconds": 247
+    },
+    {
+     "title": "Dear Diary",
+     "seconds": 259
+    },
+    {
+     "title": "Easy Now",
+     "seconds": 235
+    },
+    {
+     "title": "Fast Lane",
+     "seconds": 250
+    },
+    {
+     "title": "Good Grief",
+     "seconds": 219
+    },
+    {
+     "title": "Hard Feelings",
+     "seconds": 198
+    }
+   ]
+  },
+  {
+   "key": "beyonce-cowboy-carter",
+   "artist": "Delphine",
+   "title": "FRONTIER",
+   "style": "orb",
+   "genre": "Country",
+   "year": 2022,
+   "palette": [
+    "#1a1410",
+    "#e8b04a",
+    "#6a3a1a"
+   ],
+   "tracks": [
+    {
+     "title": "Inside Out",
+     "seconds": 198
+    },
+    {
+     "title": "Just Friends",
+     "seconds": 199
+    },
+    {
+     "title": "Kind Words",
+     "seconds": 198
+    },
+    {
+     "title": "Lucky Star",
+     "seconds": 161
+    },
+    {
+     "title": "Mixed Signals",
+     "seconds": 209
+    },
+    {
+     "title": "New Year",
+     "seconds": 229
+    },
+    {
+     "title": "Open Arms",
+     "seconds": 199
+    },
+    {
+     "title": "Pink Skies",
+     "seconds": 155
+    },
+    {
+     "title": "Quiet Storm",
+     "seconds": 172
+    },
+    {
+     "title": "Red Light",
+     "seconds": 156
+    },
+    {
+     "title": "Second Wind",
+     "seconds": 174
+    },
+    {
+     "title": "Third Wheel",
+     "seconds": 204
+    }
+   ]
+  },
+  {
+   "key": "fred-again-ten-days",
+   "artist": "Theo Lane",
+   "title": "seven nights",
+   "style": "horizon",
+   "genre": "Indie",
+   "year": 2025,
+   "palette": [
+    "#2a2f5a",
+    "#ff9a6a",
+    "#f5d3b0"
+   ],
+   "tracks": [
+    {
+     "title": "Upside Down",
+     "seconds": 168
+    },
+    {
+     "title": "Very Late",
+     "seconds": 162
+    },
+    {
+     "title": "White Noise",
+     "seconds": 191
+    },
+    {
+     "title": "Yellow Light",
+     "seconds": 224
+    },
+    {
+     "title": "Zero Hour",
+     "seconds": 154
+    },
+    {
+     "title": "Blue Jeans",
+     "seconds": 161
+    },
+    {
+     "title": "Copper",
+     "seconds": 148
+    }
+   ]
+  },
+  {
+   "key": "clairo-charm",
+   "artist": "June Ash",
+   "title": "Velvet",
+   "style": "mesh",
+   "genre": "R&B",
+   "year": 2024,
+   "palette": [
+    "#3a0f24",
+    "#c43a6a",
+    "#7a2a4a"
+   ],
+   "tracks": [
+    {
+     "title": "Driftwood",
+     "seconds": 220
+    },
+    {
+     "title": "Echoes",
+     "seconds": 167
+    },
+    {
+     "title": "Fireside",
+     "seconds": 216
+    },
+    {
+     "title": "Greenhouse",
+     "seconds": 160
+    },
+    {
+     "title": "Hideaway",
+     "seconds": 194
+    },
+    {
+     "title": "Island",
+     "seconds": 226
+    },
+    {
+     "title": "Jukebox",
+     "seconds": 151
+    },
+    {
+     "title": "Kingdom",
+     "seconds": 157
+    },
+    {
+     "title": "Lighthouse Two",
+     "seconds": 259
+    },
+    {
+     "title": "Meadow",
+     "seconds": 174
+    },
+    {
+     "title": "Nightfall",
+     "seconds": 226
+    }
+   ]
+  },
+  {
+   "key": "gracie-abrams-the-secret-of-us",
+   "artist": "Ivy Hale",
+   "title": "The Quiet Part",
+   "style": "frame",
+   "genre": "Folk",
+   "year": 2023,
+   "palette": [
+    "#d6cbb8",
+    "#6a7a5a",
+    "#3a3f33"
+   ],
+   "tracks": [
+    {
+     "title": "Oasis",
+     "seconds": 196
+    },
+    {
+     "title": "Pinwheel",
+     "seconds": 167
+    },
+    {
+     "title": "Rainmaker",
+     "seconds": 229
+    },
+    {
+     "title": "Sandcastle",
+     "seconds": 180
+    },
+    {
+     "title": "Telescope",
+     "seconds": 192
+    },
+    {
+     "title": "Upstairs",
+     "seconds": 225
+    },
+    {
+     "title": "Voyager",
+     "seconds": 194
+    },
+    {
+     "title": "Waterfall",
+     "seconds": 208
+    },
+    {
+     "title": "Xylophone",
+     "seconds": 163
+    },
+    {
+     "title": "Yesterday Again",
+     "seconds": 162
+    }
+   ]
+  },
+  {
+   "key": "jungle-volcano",
+   "artist": "Palm Society",
+   "title": "Lava",
+   "style": "block",
+   "genre": "Electronic",
+   "year": 2024,
+   "palette": [
+    "#ff6a3a",
+    "#ff6a3a",
+    "#2a1a12"
+   ],
+   "tracks": [
+    {
+     "title": "Zigzag",
+     "seconds": 256
+    },
+    {
+     "title": "Aurora",
+     "seconds": 210
+    },
+    {
+     "title": "Balcony",
+     "seconds": 207
+    },
+    {
+     "title": "Candlelight",
+     "seconds": 209
+    },
+    {
+     "title": "Downtown",
+     "seconds": 209
+    },
+    {
+     "title": "Eastbound",
+     "seconds": 187
+    },
+    {
+     "title": "Flicker",
+     "seconds": 158
+    },
+    {
+     "title": "Garnet",
+     "seconds": 166
+    },
+    {
+     "title": "Horizon",
+     "seconds": 161
+    },
+    {
+     "title": "Indigo",
+     "seconds": 243
+    },
+    {
+     "title": "Juniper",
+     "seconds": 191
+    },
+    {
+     "title": "Kite",
+     "seconds": 242
+    }
+   ]
+  },
+  {
+   "key": "khruangbin-a-la-sala",
+   "artist": "Desert Radio",
+   "title": "La Ventana",
+   "style": "frame",
+   "genre": "Latin",
+   "year": 2023,
+   "palette": [
+    "#b8a48a",
+    "#3a6a8a",
+    "#e8d8c0"
+   ],
+   "tracks": [
+    {
+     "title": "Lilac",
+     "seconds": 181
+    },
+    {
+     "title": "Monsoon",
+     "seconds": 209
+    },
+    {
+     "title": "Nova",
+     "seconds": 254
+    },
+    {
+     "title": "Orchid",
+     "seconds": 236
+    },
+    {
+     "title": "Pebble",
+     "seconds": 168
+    },
+    {
+     "title": "Quiver",
+     "seconds": 214
+    },
+    {
+     "title": "Ripple",
+     "seconds": 150
+    },
+    {
+     "title": "Solstice",
+     "seconds": 174
+    },
+    {
+     "title": "Tundra",
+     "seconds": 215
+    },
+    {
+     "title": "Utopia",
+     "seconds": 194
+    },
+    {
+     "title": "Velour",
+     "seconds": 166
+    }
+   ]
+  },
+  {
+   "key": "lorde-virgin",
+   "artist": "Kiri",
+   "title": "Blue Hour",
+   "style": "horizon",
+   "genre": "Electronic",
+   "year": 2024,
+   "palette": [
+    "#6ba7d6",
+    "#3a9ae8",
+    "#dceaf5"
+   ],
+   "tracks": [
+    {
+     "title": "Wanderer",
+     "seconds": 236
+    },
+    {
+     "title": "Yarrow",
+     "seconds": 217
+    },
+    {
+     "title": "Zephyr",
+     "seconds": 151
+    },
+    {
+     "title": "Paper Moon",
+     "seconds": 245
+    },
+    {
+     "title": "Gold Rush",
+     "seconds": 215
+    },
+    {
+     "title": "Late Bloomer",
+     "seconds": 186
+    },
+    {
+     "title": "Satellite",
+     "seconds": 230
+    },
+    {
+     "title": "Heatwave",
+     "seconds": 258
+    },
+    {
+     "title": "Glass House",
+     "seconds": 159
+    }
+   ]
+  },
+  {
+   "key": "pinkpantheress-fancy-that",
+   "artist": "Cherry Vale",
+   "title": "Bouquet",
+   "style": "mesh",
+   "genre": "Indie",
+   "year": 2025,
+   "palette": [
+    "#5a1418",
+    "#c43a3a",
+    "#e8a0a0"
+   ],
+   "tracks": [
+    {
+     "title": "Northbound",
+     "seconds": 237
+    },
+    {
+     "title": "Polaroid",
+     "seconds": 256
+    },
+    {
+     "title": "Slow Dance",
+     "seconds": 181
+    },
+    {
+     "title": "Midnight Drive",
+     "seconds": 214
+    },
+    {
+     "title": "Postcard",
+     "seconds": 194
+    },
+    {
+     "title": "Weightless",
+     "seconds": 169
+    },
+    {
+     "title": "Afterparty",
+     "seconds": 193
+    },
+    {
+     "title": "Static Love",
+     "seconds": 246
+    },
+    {
+     "title": "Velvet Sky",
+     "seconds": 176
+    },
+    {
+     "title": "Wildflower",
+     "seconds": 216
+    },
+    {
+     "title": "Daydreamer",
+     "seconds": 217
+    }
+   ]
+  },
+  {
+   "key": "wet-leg-moisturizer",
+   "artist": "Damp Season",
+   "title": "lotion",
+   "style": "block",
+   "genre": "R&B",
+   "year": 2023,
+   "palette": [
+    "#a8d8c8",
+    "#f2f2e8",
+    "#3a6a5a"
+   ],
+   "tracks": [
+    {
+     "title": "Low Tide",
+     "seconds": 247
+    },
+    {
+     "title": "Echo Park",
+     "seconds": 212
+    },
+    {
+     "title": "Neon Rain",
+     "seconds": 190
+    },
+    {
+     "title": "Sunday Light",
+     "seconds": 229
+    },
+    {
+     "title": "Fever Dream",
+     "seconds": 176
+    },
+    {
+     "title": "Starling",
+     "seconds": 226
+    },
+    {
+     "title": "Ghost Town",
+     "seconds": 251
+    },
+    {
+     "title": "Golden Hour",
+     "seconds": 248
+    },
+    {
+     "title": "Overtime",
+     "seconds": 245
+    },
+    {
+     "title": "Cassette",
+     "seconds": 257
+    }
+   ]
+  },
+  {
+   "key": "turnstile-never-enough",
+   "artist": "Skyline Youth",
+   "title": "WIDE OPEN",
+   "style": "horizon",
+   "genre": "Rock",
+   "year": 2024,
+   "palette": [
+    "#1a3a6a",
+    "#ffb43a",
+    "#8ac0f0"
+   ],
+   "tracks": [
+    {
+     "title": "Firecracker",
+     "seconds": 172
+    },
+    {
+     "title": "Honey",
+     "seconds": 251
+    },
+    {
+     "title": "Runaway",
+     "seconds": 178
+    },
+    {
+     "title": "Undercurrent",
+     "seconds": 252
+    },
+    {
+     "title": "Lightning",
+     "seconds": 199
+    },
+    {
+     "title": "Sweet Spot",
+     "seconds": 242
+    },
+    {
+     "title": "Wild Heart",
+     "seconds": 250
+    },
+    {
+     "title": "Ocean Eyes Closed",
+     "seconds": 177
+    },
+    {
+     "title": "Paper Planes",
+     "seconds": 173
+    },
+    {
+     "title": "Halo Effect",
+     "seconds": 214
+    },
+    {
+     "title": "Silver Lining",
+     "seconds": 211
+    },
+    {
+     "title": "Moonwalk",
+     "seconds": 193
+    }
+   ]
+  },
+  {
+   "key": "sza-sos-deluxe-lana",
+   "artist": "Zara Moon",
+   "title": "Lagoon",
+   "style": "orb",
+   "genre": "Electronic",
+   "year": 2025,
+   "palette": [
+    "#0a3a4a",
+    "#3ae8d8",
+    "#0a6a8a"
+   ],
+   "tracks": [
+    {
+     "title": "Big Sky",
+     "seconds": 241
+    },
+    {
+     "title": "Lost Signal",
+     "seconds": 151
+    },
+    {
+     "title": "Summer Rain",
+     "seconds": 151
+    },
+    {
+     "title": "Pulse",
+     "seconds": 249
+    },
+    {
+     "title": "Dreamland",
+     "seconds": 183
+    },
+    {
+     "title": "Electric",
+     "seconds": 208
+    },
+    {
+     "title": "Mirrorball",
+     "seconds": 181
+    },
+    {
+     "title": "Open Road",
+     "seconds": 172
+    },
+    {
+     "title": "Daylight",
+     "seconds": 236
+    },
+    {
+     "title": "Warm Static",
+     "seconds": 225
+    }
+   ]
+  },
+  {
+   "key": "benson-boone-american-heart",
+   "artist": "Cole Riviera",
+   "title": "Heartland",
+   "style": "mono",
+   "genre": "Country",
+   "year": 2024,
+   "palette": [
+    "#3a3a3a",
+    "#c8a26a",
+    "#8a8a8a"
+   ],
+   "tracks": [
+    {
+     "title": "Afterglow",
+     "seconds": 192
+    },
+    {
+     "title": "Comet",
+     "seconds": 205
+    },
+    {
+     "title": "Gravity",
+     "seconds": 251
+    },
+    {
+     "title": "Holiday",
+     "seconds": 240
+    },
+    {
+     "title": "Ricochet",
+     "seconds": 192
+    },
+    {
+     "title": "Crystal",
+     "seconds": 194
+    },
+    {
+     "title": "Atlas",
+     "seconds": 158
+    },
+    {
+     "title": "Orbit",
+     "seconds": 176
+    },
+    {
+     "title": "Daybreak",
+     "seconds": 161
+    },
+    {
+     "title": "Tangerine",
+     "seconds": 177
+    },
+    {
+     "title": "Lavender",
+     "seconds": 208
+    },
+    {
+     "title": "Saltwater",
+     "seconds": 173
+    },
+    {
+     "title": "Mosaic",
+     "seconds": 191
+    }
+   ]
+  }
+ ],
+ "books": [
+  {
+   "key": "andy-weir-project-hail-mary",
+   "author": "Daniel Kane",
+   "title": "Orbit Zero",
+   "narrator": "Ray Porter",
+   "style": "emblem",
+   "genre": "Science Fiction",
+   "year": 2021,
+   "hours": 16.2,
+   "chapters": 34,
+   "palette": [
+    "#0e2a3a",
+    "#e8b04a"
+   ]
+  },
+  {
+   "key": "frank-herbert-dune",
+   "author": "Hollis Mercer",
+   "title": "The Amber Wastes",
+   "narrator": "Simon Hale",
+   "style": "horizon",
+   "genre": "Fantasy",
+   "year": 2020,
+   "hours": 21.0,
+   "chapters": 48,
+   "palette": [
+    "#c8783a",
+    "#ffd9a0"
+   ]
+  },
+  {
+   "key": "percival-everett-james",
+   "author": "Marcus Bell",
+   "title": "The Long Water",
+   "narrator": "Dominic Reed",
+   "style": "type",
+   "genre": "Historical Fiction",
+   "year": 2024,
+   "hours": 9.0,
+   "chapters": 34,
+   "palette": [
+    "#f2ece0",
+    "#3a6a8a"
+   ]
+  },
+  {
+   "key": "rebecca-yarros-onyx-storm",
+   "author": "Rowan Hart",
+   "title": "Obsidian Sky",
+   "narrator": "Rebecca Soler, Teddy Hamilton",
+   "style": "emblem",
+   "genre": "Fantasy",
+   "year": 2025,
+   "hours": 23.5,
+   "chapters": 70,
+   "palette": [
+    "#1a1020",
+    "#c8a04a"
+   ]
+  },
+  {
+   "key": "suzanne-collins-sunrise-on-the-reaping",
+   "author": "Tessa Quinn",
+   "title": "Ember Games",
+   "narrator": "Jefferson White",
+   "style": "emblem",
+   "genre": "Young Adult",
+   "year": 2025,
+   "hours": 12.0,
+   "chapters": 27,
+   "palette": [
+    "#2a0a0a",
+    "#e8603a"
+   ]
+  },
+  {
+   "key": "sally-rooney-intermezzo",
+   "author": "Clare Duffy",
+   "title": "Interlude",
+   "narrator": "Aoife Byrne",
+   "style": "type",
+   "genre": "Literary Fiction",
+   "year": 2024,
+   "hours": 14.0,
+   "chapters": 36,
+   "palette": [
+    "#f6efe4",
+    "#c45a3a"
+   ]
+  },
+  {
+   "key": "rebecca-yarros-fourth-wing",
+   "author": "Rowan Hart",
+   "title": "Third Talon",
+   "narrator": "Rebecca Soler, Teddy Hamilton",
+   "style": "emblem",
+   "genre": "Fantasy",
+   "year": 2023,
+   "hours": 20.8,
+   "chapters": 38,
+   "palette": [
+    "#101a24",
+    "#d8b25a"
+   ]
+  },
+  {
+   "key": "matt-haig-the-midnight-library",
+   "author": "Owen Price",
+   "title": "The Hour Archive",
+   "narrator": "Carey Mills",
+   "style": "type",
+   "genre": "Literary Fiction",
+   "year": 2020,
+   "hours": 8.8,
+   "chapters": 40,
+   "palette": [
+    "#f4eee2",
+    "#4a5a8a"
+   ]
+  },
+  {
+   "key": "james-clear-atomic-habits",
+   "author": "Jordan Lee",
+   "title": "Small Moves",
+   "narrator": "Jordan Lee",
+   "style": "type",
+   "genre": "Self-Help",
+   "year": 2018,
+   "hours": 5.6,
+   "chapters": 24,
+   "palette": [
+    "#f2ede4",
+    "#e0a03a"
+   ]
+  },
+  {
+   "key": "gabrielle-zevin-tomorrow-and-tomorrow-and-tomorrow",
+   "author": "Mei Lin Park",
+   "title": "Again, and Again",
+   "narrator": "Grace Tan",
+   "style": "horizon",
+   "genre": "Literary Fiction",
+   "year": 2022,
+   "hours": 13.3,
+   "chapters": 30,
+   "palette": [
+    "#e88a5a",
+    "#f8d8b0"
+   ]
+  },
+  {
+   "key": "yuval-noah-harari-nexus",
+   "author": "Ari Navon",
+   "title": "Signal",
+   "narrator": "Daniel Ross",
+   "style": "type",
+   "genre": "Nonfiction",
+   "year": 2024,
+   "hours": 17.5,
+   "chapters": 25,
+   "palette": [
+    "#f0ebe2",
+    "#3a8a7a"
+   ]
+  },
+  {
+   "key": "jonathan-haidt-the-anxious-generation",
+   "author": "Paul Halden",
+   "title": "Screen Years",
+   "narrator": "Mark Elwood",
+   "style": "emblem",
+   "genre": "Nonfiction",
+   "year": 2024,
+   "hours": 11.4,
+   "chapters": 22,
+   "palette": [
+    "#20242a",
+    "#e8c04a"
+   ]
+  }
+ ]
+}
