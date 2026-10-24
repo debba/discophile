@@ -169,6 +169,9 @@ jobs:
             type=raw,value=latest,enable=${{ github.ref_type == 'tag' }}
             type=sha
       - uses: docker/build-push-action@v6
+        env:
+          # The build record artifact breaks the release job's artifact download.
+          DOCKER_BUILD_RECORD_UPLOAD: false
         with:
           context: .
           platforms: linux/amd64,linux/arm64
@@ -213,6 +216,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: dist
+          pattern: "{macos,windows,linux,helm}"
           merge-multiple: true
       - name: Publish
         run: |
