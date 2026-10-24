@@ -48,9 +48,9 @@ export function rootMetadata(locale: Locale): Metadata {
       url: path,
       title: c.title,
       description: c.ogDescription,
-      images: [{ url: "/assets/og.png", width: 1200, height: 630, alt: c.ogAlt }],
+      images: [{ url: "/assets/og.png?v=2", width: 1200, height: 630, alt: c.ogAlt }],
     },
-    twitter: { card: "summary_large_image", title: c.title, description: c.twitterDescription, images: ["/assets/og.png"] },
+    twitter: { card: "summary_large_image", title: c.title, description: c.twitterDescription, images: ["/assets/og.png?v=2"] },
   };
 }
 
