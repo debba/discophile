@@ -1,0 +1,27 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Public+Sans:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../app/globals.css">
+<style>
+  html, body { margin: 0; width: 1200px; height: 630px; overflow: hidden; }
+  .og { position: relative; width: 1200px; height: 630px; background: var(--rose); }
+  .og-copy { position: absolute; left: 72px; top: 70px; width: 560px; }
+  .og-brand { display: flex; align-items: center; gap: 16px; font: 700 34px/1 var(--display); font-variation-settings: "wdth" 85; }
+  .og-brand img { width: 64px; height: 64px; border-radius: 15px; box-shadow: 0 4px 14px rgb(102 29 73 / .3); }
+  .og h1 { font-size: 78px; margin: 56px 0 26px; }
+  .og p { font-size: 24px; color: var(--ink-soft); margin: 0; }
+  .og .record { inset: auto; width: 640px; left: 700px; top: -250px; animation: none; rotate: 18deg; }
+  .og .phone { position: absolute; width: 230px; }
+  .og .p1 { left: 650px; top: 120px; rotate: -6deg; }
+  .og .p2 { left: 900px; top: 250px; rotate: 4deg; }
+</style></head>
+<body><div class="og">
+  <div class="og-copy">
+    <div class="og-brand"><img src="../public/assets/icon-192.png" alt="">Discophile</div>
+    <h1>Your music server, played like a record collection.</h1>
+    <p>A native iPhone player for Navidrome, Subsonic, Jellyfin and Audiobookshelf.</p>
+  </div>
+  <div class="record"><div class="label"></div></div>
+  <figure class="phone p1"><img src="../public/assets/screens/now-playing.webp" alt=""></figure>
+  <figure class="phone p2"><img src="../public/assets/screens/listen-now.webp" alt=""></figure>
+</div></body></html>

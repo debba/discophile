@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="Melicum">
+<defs><radialGradient id="tile" cx="0.5" cy="0.28" r="0.95"><stop offset="0.0" stop-color="#3D3D46"/><stop offset="0.55" stop-color="#26262D"/><stop offset="1.0" stop-color="#111114"/></radialGradient>
+<linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0.1"/><stop offset="0.5" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>
+<rect x="100" y="100" width="824" height="824" rx="185" fill="url(#tile)"/>
+<rect x="100" y="100" width="824" height="824" rx="185" fill="url(#sheen)"/>
+<rect x="101" y="101" width="822" height="822" rx="184" fill="none" stroke="#fff" stroke-opacity="0.08" stroke-width="2"/>
+<g transform="translate(512 516) scale(0.86) translate(-512 -503)">
+<defs><mask id="icon-fill" maskUnits="userSpaceOnUse" x="-200" y="-200" width="1424" height="1424"><rect x="-200" y="-200" width="1424" height="1424" fill="#fff"/><path d="M 300 262 C 400 230 450 300 512 300 C 574 300 624 230 724 262" fill="none" stroke="#000" stroke-width="44" stroke-linecap="round" stroke-linejoin="round"/><path d="M 300 712 L 724 712" fill="none" stroke="#000" stroke-width="44" stroke-linecap="round" stroke-linejoin="round"/><path d="M 444.0 279.5 L 444.0 712" fill="none" stroke="#000" stroke-width="37" stroke-linecap="round" stroke-linejoin="round"/><path d="M 580.0 279.5 L 580.0 712" fill="none" stroke="#000" stroke-width="37" stroke-linecap="round" stroke-linejoin="round"/><path d="M 478.0 293.8 L 478.0 712" fill="none" stroke="#000" stroke-width="37" stroke-linecap="round" stroke-linejoin="round"/><path d="M 546.0 293.8 L 546.0 712" fill="none" stroke="#000" stroke-width="37" stroke-linecap="round" stroke-linejoin="round"/><path d="M 512 300 L 512 712" fill="none" stroke="#000" stroke-width="37" stroke-linecap="round" stroke-linejoin="round"/><path d="M 430 788 L 594 788" fill="none" stroke="#000" stroke-width="35" stroke-linecap="round" stroke-linejoin="round"/><circle cx="300" cy="262" r="50.5" fill="#000"/><circle cx="512" cy="300" r="50.5" fill="#000"/><circle cx="724" cy="262" r="50.5" fill="#000"/></mask>
+<mask id="icon-line" maskUnits="userSpaceOnUse" x="-200" y="-200" width="1424" height="1424"><rect x="-200" y="-200" width="1424" height="1424" fill="#fff"/><circle cx="300" cy="262" r="22.5" fill="#000"/><circle cx="512" cy="300" r="22.5" fill="#000"/><circle cx="724" cy="262" r="22.5" fill="#000"/></mask></defs>
+<g mask="url(#icon-fill)"><path d="M 384 712 C 276 660 222 556 230 430 C 236 352 262 292 256 236 C 252 206 236 186 214 172 C 262 170 300 200 314 246 C 324 284 304 360 304 436 C 304 540 352 640 440 712 Z" fill="#F3EDE2"/>
+  <path d="M 640 712 C 748 660 802 556 794 430 C 788 352 762 292 768 236 C 772 206 788 186 810 172 C 762 170 724 200 710 246 C 700 284 720 360 720 436 C 720 540 672 640 584 712 Z" fill="#FF5A47"/>
+  <path d="M 348 740 L 676 740 L 676 784 L 630 834 L 394 834 L 348 784 Z" fill="#F3EDE2"/></g>
+<g mask="url(#icon-line)" fill="none" stroke="#F3EDE2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M 300 262 C 400 230 450 300 512 300 C 574 300 624 230 724 262" stroke-width="18"/>
+  <path d="M 300 712 L 724 712" stroke-width="18"/>
+  <path d="M 444.0 279.5 L 444.0 712" stroke-width="11"/>
+  <path d="M 580.0 279.5 L 580.0 712" stroke-width="11"/>
+  <path d="M 478.0 293.8 L 478.0 712" stroke-width="11"/>
+  <path d="M 546.0 293.8 L 546.0 712" stroke-width="11"/>
+  <path d="M 512 300 L 512 712" stroke-width="11"/>
+  <path d="M 430 788 L 594 788" stroke-width="9"/>
+  <circle cx="300" cy="262" r="30" stroke-width="15"/>
+  <circle cx="512" cy="300" r="30" stroke-width="15"/>
+  <circle cx="724" cy="262" r="30" stroke-width="15"/>
+</g>
+</g>
+</svg>
