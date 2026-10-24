@@ -202,14 +202,15 @@ fn titles(app: &mut App, ui: &mut Ui) {
     };
     let artist = song.artist.clone().unwrap_or_else(|| t("Unknown artist"));
     let artist_text = theme::text(artist, Font::Title3).color(palette.accent);
-    match song.artist_id.clone() {
-        Some(id) => {
+    let route = if song.is_podcast() { None } else { crate::features::library::artist_route(app, song.artist_id.as_deref(), song.artist.as_deref()) };
+    match route {
+        Some(route) => {
             if ui
                 .add(egui::Label::new(artist_text).sense(Sense::click()).truncate())
                 .on_hover_cursor(egui::CursorIcon::PointingHand)
                 .clicked()
             {
-                app.nav.push(Route::Artist(id));
+                app.nav.push(route);
             }
         }
         None => {

@@ -27,5 +27,6 @@
   "Unmute": "Riattiva audio",
   "Up next": "In coda",
   "Vocal": "Voce",
-  "When enabled, opening lyrics searches LRCLIB if your server has no synced text. The song title, artist, album and duration are sent to LRCLIB. Found lyrics are cached on this computer for offline use. Synced lyrics aren't available for every song.": "Se attivo, aprendo il testo si cerca su LRCLIB quando il server non ha un testo sincronizzato. Titolo, artista, album e durata del brano vengono inviati a LRCLIB. I testi trovati vengono salvati su questo computer per l'uso offline. I testi sincronizzati non sono disponibili per tutti i brani."
+  "When enabled, opening lyrics searches LRCLIB if your server has no synced text. The song title, artist, album and duration are sent to LRCLIB. Found lyrics are cached on this computer for offline use. Synced lyrics aren't available for every song.": "Se attivo, aprendo il testo si cerca su LRCLIB quando il server non ha un testo sincronizzato. Titolo, artista, album e durata del brano vengono inviati a LRCLIB. I testi trovati vengono salvati su questo computer per l'uso offline. I testi sincronizzati non sono disponibili per tutti i brani.",
+  "Show artist": "Mostra artista"
 }

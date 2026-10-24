@@ -1,14 +1,8 @@
-//! Ask your curator (Listen Now) and the page of a saved selection, ported from the iOS `CuratorViews`.
-//!
-//! Presets generate only after Generate selection; a free-text request opens the chat. Saved selections
-//! stay on this computer (the discovery archive) and can be played, renamed, trimmed, reordered, saved as a
-//! server playlist (keeping its identifier for later chat edits), edited with the assistant or removed.
+//! Saved assistant selections in Listen Now and their detail page.
 
 use chrono::{Datelike, Local, TimeZone};
 use discophile_core::Song;
-use discophile_core::assistant::AssistantProvider;
-use discophile_core::assistant::turn::MAX_REQUEST_CHARACTERS;
-use discophile_core::curated_mix::{CuratedMix, CuratorPreset};
+use discophile_core::curated_mix::CuratedMix;
 use discophile_core::l10n::{self, t};
 use egui::{Align, Color32, CornerRadius, Layout, Sense, Ui, vec2};
 use uuid::Uuid;
@@ -17,8 +11,7 @@ use crate::app::App;
 use crate::features::assistant::{self as feature, SelectionEdit};
 use crate::features::library::{self, PlaylistChange};
 use crate::features::{discovery, downloads};
-use crate::nav::{Route, SettingsPage};
-use crate::platform;
+use crate::nav::Route;
 use crate::theme::{self, Font, Palette, icons};
 use crate::ui::widgets;
 
@@ -42,10 +35,8 @@ fn date_label(millis: i64) -> String {
 
 // MARK: Listen Now
 
-/// The "A selection just for you" section of Listen Now (Ask your curator, saved selections).
+/// Saved selections created through the music assistant.
 pub fn listen_now_section(app: &mut App, ui: &mut Ui) {
-    widgets::section_heading(ui, &t("A selection just for you"), Some(&t("Let your music assistant choose the next half hour.")));
-    widgets::card(ui, |ui| curator_card(app, ui));
     let mixes: Vec<CuratedMix> = discovery::archive(app)
         .curated
         .iter()
@@ -56,8 +47,7 @@ pub fn listen_now_section(app: &mut App, ui: &mut Ui) {
         return;
     }
     ui.add_space(12.0);
-    ui.label(theme::text(t("Your selections"), Font::Title3));
-    ui.add_space(6.0);
+    widgets::section_heading(ui, &t("Your selections"), None);
     // `widgets::tile_grid` cannot lend the app to tiles, so the columns are laid out here.
     let gap = 14.0;
     let available = ui.available_width();
@@ -75,126 +65,6 @@ pub fn listen_now_section(app: &mut App, ui: &mut Ui) {
         });
         ui.add_space(gap);
     }
-}
-
-fn curator_card(app: &mut App, ui: &mut Ui) {
-    let palette = Palette::of_ui(ui);
-    let (provider, model) =
-        app.assistant.store.selected().map(|c| (c.provider, c.model_id.clone())).unwrap_or((app.assistant.config.provider, String::new()));
-    let unavailable = feature::unavailable_reason(app, provider);
-    let busy = app.assistant.curator.busy;
-    let has_library = app.session.has_library();
-
-    ui.label(theme::text(format!("{}  {}", icons::SPARKLE, t("Ask your curator")), Font::Headline));
-    ui.add_space(4.0);
-    ui.label(theme::secondary(ui, t("Listening occasion"), Font::Footnote));
-    ui.horizontal_wrapped(|ui| {
-        for preset in CuratorPreset::ALL {
-            if widgets::chip(ui, app.assistant.curator.preset == preset, &preset.title()).clicked() {
-                app.assistant.curator.preset = preset;
-            }
-        }
-    });
-    ui.add_space(6.0);
-    ui.horizontal_wrapped(|ui| {
-        let enabled = !busy && unavailable.is_none() && has_library;
-        let generate = ui.add_enabled_ui(enabled, |ui| widgets::pill_button(ui, icons::SPARKLE, t("Generate selection"), true)).inner;
-        if generate.clicked() {
-            let preset = app.assistant.curator.preset;
-            feature::curate(app, preset);
-        }
-        if busy {
-            ui.spinner();
-            ui.label(theme::secondary(ui, t("Working…"), Font::Callout));
-            if ui.button(t("Cancel")).clicked() {
-                feature::cancel_curator(app);
-            }
-        }
-        provider_menu(app, ui, provider, &model);
-    });
-    if let Some(reason) = &unavailable {
-        ui.horizontal_wrapped(|ui| {
-            ui.label(theme::text(reason, Font::Footnote).color(palette.secondary));
-            if ui.link(t("Set up")).clicked() {
-                app.nav.push(Route::Settings(SettingsPage::Assistant));
-            }
-        });
-    }
-    if let Some(error) = &app.assistant.curator.error {
-        ui.add(egui::Label::new(theme::text(error, Font::Callout).color(palette.accent)).wrap());
-    }
-    ui.label(theme::secondary(
-        ui,
-        t("Selections use a sample of your library and favor less-played songs. Mood and style are estimates from metadata, without audio analysis."),
-        Font::Footnote,
-    ));
-    ui.add_space(8.0);
-    ui.separator();
-    ui.add_space(6.0);
-    let mut send = false;
-    ui.horizontal(|ui| {
-        let prompt = &mut app.assistant.curator.prompt;
-        let response = ui.add(
-            egui::TextEdit::singleline(prompt).align(egui::Align2::LEFT_CENTER)
-                .hint_text(t("Describe the music or change you want"))
-                .desired_width((ui.available_width() - 150.0).max(120.0))
-                .margin(vec2(10.0, 8.0)),
-        );
-        let length = prompt.trim().chars().count();
-        let valid = length > 0 && length <= MAX_REQUEST_CHARACTERS && has_library;
-        let enter = response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
-        let button = ui.add_enabled(valid, egui::Button::new(format!("{}  {}", icons::CHATS, t("Send request"))));
-        if valid && (button.clicked() || enter) {
-            send = true;
-        }
-    });
-    if send {
-        let prompt = std::mem::take(&mut app.assistant.curator.prompt);
-        feature::ask(app, &prompt);
-    }
-    ui.label(theme::secondary(
-        ui,
-        t("Create a selection with a prompt, or open one of your selections to manage it in chat. Changes always need your confirmation."),
-        Font::Footnote,
-    ));
-    let privacy = if provider == AssistantProvider::ChatGpt {
-        "A selection is generated only when you ask. ChatGPT receives your request and bounded song metadata. Your listening history stays on this computer."
-    } else {
-        "A selection is generated only when you ask, with the local model you configured. Your listening history stays on this computer."
-    };
-    ui.label(theme::secondary(ui, t(privacy), Font::Footnote));
-}
-
-/// Provider and model of the selected chat, which the curator uses too.
-fn provider_menu(app: &mut App, ui: &mut Ui, provider: AssistantProvider, model: &str) {
-    let name = feature::provider_name(app, provider, model);
-    egui::ComboBox::from_id_salt("curator-provider")
-        .selected_text(name)
-        .width(200.0)
-        .show_ui(ui, |ui| {
-            if ui.selectable_label(provider == AssistantProvider::Local, t("Local model")).clicked() {
-                feature::cancel_curator(app);
-                feature::set_provider(app, AssistantProvider::Local);
-            }
-            if !platform::IS_WEB {
-                if ui.selectable_label(provider == AssistantProvider::ChatGpt && model.is_empty(), "ChatGPT").clicked() {
-                    feature::cancel_curator(app);
-                    feature::set_provider(app, AssistantProvider::ChatGpt);
-                    feature::set_model(app, "");
-                }
-                let models = app.assistant.chatgpt.models.clone();
-                for item in models {
-                    let selected = provider == AssistantProvider::ChatGpt && model == item.slug;
-                    if ui.selectable_label(selected, format!("ChatGPT · {}", item.display_name)).clicked() {
-                        feature::cancel_curator(app);
-                        feature::set_provider(app, AssistantProvider::ChatGpt);
-                        feature::set_model(app, &item.slug);
-                    }
-                }
-            }
-        })
-        .response
-        .on_hover_text(t("AI provider and model"));
 }
 
 fn selection_card(app: &mut App, ui: &mut Ui, mix: &CuratedMix) {

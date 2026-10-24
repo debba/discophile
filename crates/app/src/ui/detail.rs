@@ -7,7 +7,6 @@ use egui::Ui;
 use crate::app::App;
 use crate::features::info;
 use crate::features::library::{self, keys};
-use crate::nav::Route;
 use crate::theme::{Font, icons};
 use crate::ui::library::parts::{self, Header, TrackList};
 use crate::ui::widgets;
@@ -54,6 +53,7 @@ pub fn album(app: &mut App, ui: &mut Ui, id: &str) {
             .unwrap_or_else(|| l10n::t("Album"));
         let artist = meta.as_ref().and_then(|a| a.artist.clone()).or_else(|| first.as_ref().and_then(|s| s.artist.clone()));
         let artist_id = meta.as_ref().and_then(|a| a.artist_id.clone()).or_else(|| first.as_ref().and_then(|s| s.artist_id.clone()));
+        let artist_route = library::artist_route(app, artist_id.as_deref(), artist.as_deref());
         let year = meta.as_ref().and_then(|a| a.year).filter(|y| *y > 0);
         let header = Header {
             seed: id.to_string(),
@@ -61,7 +61,7 @@ pub fn album(app: &mut App, ui: &mut Ui, id: &str) {
             round: false,
             kind: l10n::t("Album"),
             title,
-            subtitle: Some((artist.unwrap_or_else(|| l10n::t("Unknown artist")), artist_id.filter(|a| !a.is_empty()).map(Route::Artist))),
+            subtitle: Some((artist.unwrap_or_else(|| l10n::t("Unknown artist")), artist_route)),
             details: vec![
                 meta.as_ref().and_then(|a| a.genre.clone()).unwrap_or_default(),
                 year.map(|y| y.to_string()).unwrap_or_default(),

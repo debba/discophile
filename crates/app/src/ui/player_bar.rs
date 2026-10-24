@@ -58,6 +58,12 @@ fn now_playing_item(app: &mut App, ui: &mut Ui) {
     };
     let show_favorite = app.session.client.is_some() && app.player.mode == Mode::Music && song.as_ref().is_some_and(|s| !s.is_podcast());
     let text_width = (ui.available_width() - if show_favorite { 44.0 } else { 4.0 }).max(40.0);
+    // The artist opens its page; the rest of the item opens Now Playing.
+    let artist_route = song
+        .as_ref()
+        .filter(|s| app.player.mode == Mode::Music && !s.is_podcast() && !app.player.status.buffering)
+        .and_then(|s| crate::features::library::artist_route(app, s.artist_id.as_deref(), s.artist.as_deref()));
+    let mut open_artist = None;
     let text = ui
         .allocate_ui_with_layout(vec2(text_width, 56.0), Layout::top_down(Align::Min), |ui| {
             ui.add_space(9.0);
@@ -66,12 +72,25 @@ fn now_playing_item(app: &mut App, ui: &mut Ui) {
                     let title = ui.add(egui::Label::new(theme::text(title, Font::Headline)).truncate().sense(Sense::click()));
                     let subtitle = if app.player.status.buffering { t("Buffering…") } else { subtitle };
                     let sub = ui.add(egui::Label::new(theme::secondary(ui, subtitle, Font::Footnote)).truncate().sense(Sense::click()));
-                    title.union(sub)
+                    match artist_route.clone() {
+                        Some(route) => {
+                            let label = t("Show artist");
+                            sub.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Link, true, &label));
+                            if sub.on_hover_text(&label).on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
+                                open_artist = Some(route);
+                            }
+                            title
+                        }
+                        None => title.union(sub),
+                    }
                 }
                 None => ui.add(egui::Label::new(theme::secondary(ui, t("Now playing"), Font::Callout)).selectable(false)),
             }
         })
         .inner;
+    if let Some(route) = open_artist {
+        app.nav.push(route);
+    }
     let open = art.union(text);
     let label = t("Open Now Playing");
     open.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, has_item, &label));

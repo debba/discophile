@@ -616,6 +616,15 @@ pub fn find_artist(app: &App, id: &str) -> Option<Artist> {
     s.artists.iter().chain(s.favorites.artists()).chain(app.library.search.results.artists()).find(|a| a.id == id).cloned()
 }
 
+/// The artist page for an artist ID or, when the server sent none, an artist with exactly that name.
+pub fn artist_route(app: &App, id: Option<&str>, name: Option<&str>) -> Option<crate::nav::Route> {
+    if let Some(id) = id.filter(|id| !id.is_empty()) {
+        return Some(crate::nav::Route::Artist(id.to_string()));
+    }
+    let name = name.filter(|n| !n.is_empty())?;
+    app.library.snapshot.artists.iter().find(|a| a.name == name).map(|a| crate::nav::Route::Artist(a.id.clone()))
+}
+
 pub fn find_playlist(app: &App, id: &str) -> Option<Playlist> {
     app.library.snapshot.playlists.iter().find(|p| p.id == id).or_else(|| app.library.opened_playlists.get(id)).cloned()
 }
