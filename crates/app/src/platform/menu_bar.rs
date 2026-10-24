@@ -20,6 +20,7 @@ pub const ISSUES: &str = "https://github.com/debba/discophile/issues";
 #[derive(Clone, Debug, PartialEq)]
 pub enum MenuCommand {
     About,
+    CheckForUpdates,
     Settings,
     Search,
     Quit,
@@ -52,6 +53,7 @@ pub struct MenuState {
     pub has_audiobooks: bool,
     pub can_go_back: bool,
     pub can_go_forward: bool,
+    pub can_check_updates: bool,
 }
 
 const SECTIONS: [(&str, &str, Code); 9] = [
@@ -89,6 +91,7 @@ pub fn command(id: &str) -> Option<MenuCommand> {
     }
     Some(match id {
         "app.about" => MenuCommand::About,
+        "app.check-updates" => MenuCommand::CheckForUpdates,
         "app.settings" => MenuCommand::Settings,
         "app.quit" => MenuCommand::Quit,
         "file.search" => MenuCommand::Search,
@@ -117,6 +120,7 @@ pub fn command(id: &str) -> Option<MenuCommand> {
 pub struct MenuBar {
     _menu: Menu,
     language: Language,
+    check_updates: MenuItem,
     toggle: MenuItem,
     next: MenuItem,
     previous: MenuItem,
@@ -153,6 +157,7 @@ impl MenuBar {
         let separator = PredefinedMenuItem::separator;
 
         let about = item("app.about", "About Discophile", None);
+        let check_updates = item("app.check-updates", "Check for Updates…", None);
         let settings = item("app.settings", "Settings…", command_key(Code::Comma));
         let quit = item("app.quit", "Quit Discophile", command_key(Code::KeyQ));
         let app_menu = Submenu::with_items(
@@ -160,6 +165,7 @@ impl MenuBar {
             true,
             &[
                 &about,
+                &check_updates,
                 &separator(),
                 &settings,
                 &separator(),
@@ -266,6 +272,7 @@ impl MenuBar {
         Ok(Self {
             _menu: menu,
             language,
+            check_updates,
             toggle,
             next,
             previous,
@@ -299,6 +306,7 @@ impl MenuBar {
             }
         };
         set(&bar.toggle, state.has_content);
+        set(&bar.check_updates, state.can_check_updates);
         set(&bar.next, state.can_skip);
         set(&bar.previous, state.can_skip);
         for item in &bar.volume {

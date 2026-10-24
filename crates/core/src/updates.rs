@@ -2,11 +2,11 @@
 //! Release assets are named `Discophile-<version>-<os>-<arch>.<ext>` by the release workflow, with
 //! `universal` as the macOS architecture.
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 pub const LATEST_RELEASE_URL: &str = "https://api.github.com/repos/debba/discophile/releases/latest";
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Release {
     /// The tag without its leading `v`, for example `1.2.0`.
     pub version: String,
@@ -15,7 +15,7 @@ pub struct Release {
     pub assets: Vec<Asset>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Asset {
     pub name: String,
     pub url: String,
@@ -56,11 +56,7 @@ pub fn parse_release(json: &str) -> Option<Release> {
         version,
         page_url: release.html_url,
         notes: release.body.unwrap_or_default().trim().to_string(),
-        assets: release
-            .assets
-            .into_iter()
-            .map(|a| Asset { name: a.name, url: a.browser_download_url, size: a.size })
-            .collect(),
+        assets: release.assets.into_iter().map(|a| Asset { name: a.name, url: a.browser_download_url, size: a.size }).collect(),
     })
 }
 
@@ -106,16 +102,47 @@ impl Release {
 
 /// Fetches the latest release. `None` when there is none, it cannot be read, or the request fails.
 pub async fn fetch_latest() -> Option<Release> {
-    let response = crate::http::public_client()
-        .get(LATEST_RELEASE_URL)
-        .header("Accept", "application/vnd.github+json")
-        .send()
-        .await
-        .ok()?;
+    let response = crate::http::public_client().get(LATEST_RELEASE_URL).header("Accept", "application/vnd.github+json").send().await.ok()?;
     if !response.status().is_success() {
         return None;
     }
     parse_release(&response.text().await.ok()?)
+}
+
+/// Published release notes only: open/unmerged PRs are not installed changes.
+/// Includes every skipped release, newest first. Fails as a whole rather than presenting partial notes.
+pub async fn fetch_notes_between(previous: &str, current: &str) -> Option<String> {
+    let client = crate::http::public_client();
+    let mut notes = Vec::new();
+    for page in 1..=10 {
+        let response = client
+            .get(format!("https://api.github.com/repos/debba/discophile/releases?per_page=100&page={page}"))
+            .header("Accept", "application/vnd.github+json")
+            .send()
+            .await
+            .ok()?;
+        if !response.status().is_success() {
+            return None;
+        }
+        let releases: Vec<serde_json::Value> = response.json().await.ok()?;
+        for json in &releases {
+            if let Some(release) = parse_release(&json.to_string())
+                && is_newer(&release.version, previous)
+                && !is_newer(&release.version, current)
+            {
+                notes.push(release);
+            }
+        }
+        if releases.len() < 100 {
+            return Some(format_notes(notes));
+        }
+    }
+    None
+}
+
+fn format_notes(mut releases: Vec<Release>) -> String {
+    releases.sort_by_key(|release| std::cmp::Reverse(parse_version(&release.version)));
+    releases.into_iter().map(|release| format!("# Discophile {}\n\n{}", release.version, release.notes)).collect::<Vec<_>>().join("\n\n---\n\n")
 }
 
 #[cfg(test)]
@@ -167,5 +194,20 @@ mod tests {
         assert_eq!(release.asset_for("windows", "x86_64").unwrap().name, "Discophile-1.2.0-windows-x86_64.zip");
         assert_eq!(release.asset_for("linux", "aarch64").unwrap().name, "Discophile-1.2.0-linux-aarch64.tar.gz");
         assert!(release.asset_for("windows", "aarch64").is_none());
+    }
+
+    #[test]
+    fn changelog_preserves_markdown_and_orders_skipped_versions() {
+        let mut older = release(&[]);
+        older.version = "0.9.0".into();
+        older.notes = "## Fixes\n\n* **Playback** ([#12](https://github.com/debba/discophile/pull/12))".into();
+        let mut newer = release(&[]);
+        newer.version = "0.10.0".into();
+        newer.notes = "## Features\n\n* `Markdown` notes".into();
+        let markdown = format_notes(vec![older.clone(), newer.clone()]);
+        assert!(markdown.starts_with("# Discophile 0.10.0"));
+        assert!(markdown.find(&newer.notes).unwrap() < markdown.find(&older.notes).unwrap());
+        assert!(markdown.contains("**Playback**"));
+        assert!(markdown.contains("[#12](https://github.com/debba/discophile/pull/12)"));
     }
 }

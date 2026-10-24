@@ -1,6 +1,10 @@
 //! Screens. Each page module exposes `show`-style functions called by the app shell.
 
 pub mod widgets;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod software_update;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod release_notes;
 
 pub mod accounts;
 pub mod agents;

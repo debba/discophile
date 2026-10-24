@@ -221,7 +221,11 @@ jobs:
       - name: Publish
         run: |
           (cd dist && sha256sum -- * > SHA256SUMS.txt)
-          gh release create "$GITHUB_REF_NAME" dist/* --title "Discophile $VERSION" --generate-notes --verify-tag
+          notes=(--generate-notes)
+          if [[ -f "docs/releases/$VERSION.md" ]]; then
+            notes+=(--notes-file "docs/releases/$VERSION.md")
+          fi
+          gh release create "$GITHUB_REF_NAME" dist/* --title "Discophile $VERSION" "${notes[@]}" --verify-tag
 
   aur:
     if: github.ref_type == 'tag' && !github.event.repository.private

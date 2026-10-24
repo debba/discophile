@@ -204,6 +204,8 @@ impl App {
     }
 
     fn shortcuts(&mut self, ctx: &egui::Context) {
+        #[cfg(not(target_arch = "wasm32"))]
+        if ui::software_update::modal_open(self) { return; }
         let typing = ctx.egui_wants_keyboard_input();
         let (space, back, forward, find, settings) = ctx.input(|i| {
             (
@@ -328,12 +330,13 @@ impl App {
             has_audiobooks: audiobooks::has_account(self),
             can_go_back: self.nav.can_go_back(),
             can_go_forward: self.nav.can_go_forward(),
+            can_check_updates: self.software_update.status != features::software_update::UpdateStatus::Checking && !self.software_update.status.busy(),
         };
         MenuBar::sync(&mut self.menu_bar, self.settings.effective_language(), &state);
         for command in menu.iter().filter_map(|id| menu_bar::command(id)) {
             let shows_window = matches!(
                 command,
-                MenuCommand::About | MenuCommand::Settings | MenuCommand::Search | MenuCommand::Go(_) | MenuCommand::NowPlaying
+                MenuCommand::About | MenuCommand::CheckForUpdates | MenuCommand::Settings | MenuCommand::Search | MenuCommand::Go(_) | MenuCommand::NowPlaying
                     | MenuCommand::Queue | MenuCommand::Lyrics | MenuCommand::Assistant
             );
             if shows_window {
@@ -344,6 +347,11 @@ impl App {
             }
             match command {
                 MenuCommand::About => self.nav.push(Route::Settings(SettingsPage::About)),
+                MenuCommand::CheckForUpdates => {
+                    self.nav.now_playing = false;
+                    self.nav.push(Route::Settings(SettingsPage::About));
+                    features::software_update::check_now(self);
+                }
                 MenuCommand::Settings => self.nav.push(Route::Settings(SettingsPage::General)),
                 MenuCommand::Search | MenuCommand::Go(Route::Search) => {
                     self.nav.now_playing = false;
@@ -481,44 +489,62 @@ impl eframe::App for App {
         self.shortcuts(&ctx);
         let palette = Palette::of(&ctx);
 
-        if !self.settings.introduction_completed {
-            egui::CentralPanel::default().frame(Frame::new().fill(palette.background)).show(root, |ui| ui::welcome::introduction(self, ui));
-        } else if !self.has_any_source() {
-            egui::CentralPanel::default().frame(Frame::new().fill(palette.background)).show(root, |ui| ui::welcome::welcome(self, ui));
-        } else {
-            egui::Panel::bottom("player-bar")
-                .exact_size(96.0)
-                .frame(Frame::new().fill(palette.surface).stroke(egui::Stroke::new(1.0, palette.separator)).inner_margin(Margin::symmetric(24, 14)))
-                .show(root, |ui| ui::player_bar::show(self, ui));
-            let collapsed = self.settings.sidebar_collapsed;
-            egui::Panel::left("sidebar")
-                .resizable(false)
-                .exact_size(if collapsed { 72.0 } else { 244.0 })
-                .frame(Frame::new().fill(palette.sidebar).inner_margin(Margin::symmetric(14, 20)))
-                .show(root, |ui| ui::sidebar::show(self, ui));
-            if self.nav.side_panel != SidePanel::None && !self.nav.now_playing {
-                egui::Panel::right("side-panel")
-                    .resizable(true)
-                    .default_size(360.0)
-                    .size_range(300.0..=560.0)
-                    .frame(Frame::new().fill(palette.sidebar).inner_margin(Margin::symmetric(14, 12)))
-                    .show(root, |ui| match self.nav.side_panel {
-                        SidePanel::Queue => ui::queue::panel(self, ui),
-                        SidePanel::Lyrics => ui::lyrics::panel(self, ui),
-                        SidePanel::Assistant => ui::assistant::panel(self, ui),
-                        SidePanel::Info => ui::info::panel(self, ui),
-                        SidePanel::None => {}
-                    });
+        let background = root.scope(|root| {
+            #[cfg(not(target_arch = "wasm32"))]
+            if (!self.settings.introduction_completed || !self.has_any_source() || self.nav.now_playing)
+                && self.software_update.available.is_some() {
+                egui::Panel::top("update-banner").frame(Frame::new().fill(palette.background)).show(root, |ui| {
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| ui::software_update::toolbar(self, ui));
+                    ui::software_update::launch_notice(self, ui);
+                });
             }
-            egui::CentralPanel::default().frame(Frame::new().fill(palette.background)).show(root, |ui| {
-                if self.nav.now_playing {
-                    ui::now_playing::show(self, ui);
-                } else {
-                    ui::sidebar::toolbar(self, ui);
-                    self.content(ui);
+
+            if !self.settings.introduction_completed {
+                egui::CentralPanel::default().frame(Frame::new().fill(palette.background)).show(root, |ui| ui::welcome::introduction(self, ui));
+            } else if !self.has_any_source() {
+                egui::CentralPanel::default().frame(Frame::new().fill(palette.background)).show(root, |ui| ui::welcome::welcome(self, ui));
+            } else {
+                egui::Panel::bottom("player-bar")
+                    .exact_size(96.0)
+                    .frame(Frame::new().fill(palette.surface).stroke(egui::Stroke::new(1.0, palette.separator)).inner_margin(Margin::symmetric(24, 14)))
+                    .show(root, |ui| ui::player_bar::show(self, ui));
+                let collapsed = ui::sidebar::collapsed(self);
+                egui::Panel::left("sidebar")
+                    .resizable(false)
+                    .exact_size(if collapsed { 72.0 } else { 244.0 })
+                    .frame(Frame::new().fill(palette.sidebar).inner_margin(Margin::symmetric(14, 20)))
+                    .show(root, |ui| ui::sidebar::show(self, ui));
+                if self.nav.side_panel != SidePanel::None && !self.nav.now_playing {
+                    egui::Panel::right("side-panel")
+                        .resizable(true)
+                        .default_size(360.0)
+                        .size_range(300.0..=560.0)
+                        .frame(Frame::new().fill(palette.sidebar).inner_margin(Margin::symmetric(14, 12)))
+                        .show(root, |ui| match self.nav.side_panel {
+                            SidePanel::Queue => ui::queue::panel(self, ui),
+                            SidePanel::Lyrics => ui::lyrics::panel(self, ui),
+                            SidePanel::Assistant => ui::assistant::panel(self, ui),
+                            SidePanel::Info => ui::info::panel(self, ui),
+                            SidePanel::None => {}
+                        });
                 }
-            });
-        }
+                egui::CentralPanel::default().frame(Frame::new().fill(palette.background)).show(root, |ui| {
+                    if self.nav.now_playing {
+                        ui::now_playing::show(self, ui);
+                    } else {
+                        ui::sidebar::toolbar(self, ui);
+                        #[cfg(not(target_arch = "wasm32"))]
+                        ui::software_update::launch_notice(self, ui);
+                        self.content(ui);
+                    }
+                });
+            }
+
+        });
+        #[cfg(not(target_arch = "wasm32"))]
+        ui::software_update::background_accessibility(&ctx, background.response.id, ui::software_update::modal_open(self));
+        #[cfg(target_arch = "wasm32")]
+        let _ = background;
 
         features::windows(self, &ctx);
         ui::accounts::add_account_window(self, &ctx);

@@ -10,6 +10,11 @@ default-run = "Discophile"
 [lib]
 crate-type = ["rlib"]
 
+[dev-dependencies]
+flate2 = "1"
+tar = "0.4"
+zip = { version = "4", default-features = false, features = ["deflate"] }
+
 [[bin]]
 name = "Discophile"
 path = "src/main.rs"
@@ -47,6 +52,9 @@ env_logger = "0.11"
 notify-rust = "4"
 keepawake = "0.6"
 tray-icon = { version = "0.26", default-features = false, features = ["ksni"] }
+pulldown-cmark = { version = "0.13", default-features = false }
+sha2 = "0.10"
+tempfile = "3"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 # Reopening the window from the Dock (the application delegate); muda brings the same versions.
@@ -55,8 +63,11 @@ objc2-app-kit = { version = "0.3", default-features = false, features = ["std", 
 
 [target.'cfg(target_os = "windows")'.dependencies]
 raw-window-handle = "0.6"
+zip = { version = "4", default-features = false, features = ["deflate"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
+flate2 = "1"
+tar = "0.4"
 winit = { version = "0.30", default-features = false, features = ["wayland-csd-adwaita"] }
 zbus = { version = "5", default-features = false, features = ["tokio"] }
 

@@ -57,6 +57,7 @@ pub fn show(app: &mut App, ui: &mut Ui) {
     let ctx = ui.ctx().clone();
     let escape = ctx.input(|i| i.key_pressed(egui::Key::Escape));
     if escape
+        && ctx.memory(|memory| memory.top_modal_layer().is_none())
         && !ctx.egui_wants_keyboard_input()
         && !egui::Popup::is_any_open(&ctx)
         && app.effects.details.is_none()

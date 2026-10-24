@@ -347,7 +347,9 @@ pub(crate) enum Look {
 /// default emoji font cannot shadow (it covers part of the private-use area used by outlined glyphs).
 pub(crate) fn labeled_button(ui: &mut Ui, icon: &str, label: &str, look: Look) -> egui::Response {
     let button = labeled(ui, icon, label, look);
-    ui.add(button)
+    let response = ui.add(button);
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, ui.is_enabled(), label));
+    response
 }
 
 /// The widget behind `labeled_button`, for `ui.add_enabled`.

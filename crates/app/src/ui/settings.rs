@@ -53,6 +53,18 @@ pub fn show(app: &mut App, ui: &mut Ui, page: crate::nav::SettingsPage) {
     let page = if page == SettingsPage::Advanced && !app.settings.advanced_unlocked { SettingsPage::About } else { page };
     let palette = Palette::of_ui(ui);
     let rect = ui.available_rect_before_wrap();
+    if rect.width() < 640.0 {
+        let available = pages(app);
+        let mut selected = page;
+        let title = available.iter().find(|(candidate, _, _)| *candidate == page).map(|(_, _, title)| t(title)).unwrap_or_default();
+        egui::ComboBox::from_label(t("Settings")).selected_text(title).show_ui(ui, |ui| {
+            for (candidate, _, title) in &available { ui.selectable_value(&mut selected, *candidate, t(title)); }
+        });
+        if selected != page { app.nav.push(crate::nav::Route::Settings(selected)); }
+        ui.add_space(8.0);
+        settings_content(app, ui, selected);
+        return;
+    }
     let list_width = if rect.width() < 760.0 { 190.0 } else { 236.0 };
     let list_rect = Rect::from_min_max(rect.min + vec2(widgets::PAGE_MARGIN - 10.0, 12.0), pos2(rect.min.x + list_width, rect.max.y - 8.0));
     let body_rect = Rect::from_min_max(pos2(rect.min.x + list_width + 8.0, rect.min.y), rect.max);
@@ -62,7 +74,12 @@ pub fn show(app: &mut App, ui: &mut Ui, page: crate::nav::SettingsPage) {
     ui.painter().vline(list_rect.right() + 8.0, (rect.top() + 12.0)..=(rect.bottom() - 12.0), egui::Stroke::new(1.0, palette.separator));
 
     let mut body = ui.new_child(UiBuilder::new().id_salt("settings-body").max_rect(body_rect).layout(Layout::top_down(Align::Min)));
-    widgets::page(&mut body, ("settings", page), |ui| {
+    settings_content(app, &mut body, page);
+    ui.advance_cursor_after_rect(rect);
+}
+
+fn settings_content(app: &mut App, ui: &mut Ui, page: SettingsPage) {
+    widgets::page(ui, ("settings", page), |ui| {
         ui.set_max_width(ui.available_width().min(780.0));
         let title = pages(app).into_iter().find(|(p, _, _)| *p == page).map(|(_, _, title)| t(title)).unwrap_or_default();
         widgets::page_title(ui, &title);
@@ -80,7 +97,6 @@ pub fn show(app: &mut App, ui: &mut Ui, page: crate::nav::SettingsPage) {
             SettingsPage::About => about(app, ui),
         }
     });
-    ui.advance_cursor_after_rect(rect);
 }
 
 fn page_list(app: &mut App, ui: &mut Ui, current: SettingsPage) {
@@ -514,6 +530,7 @@ fn about(app: &mut App, ui: &mut Ui) {
                 open_advanced(app);
             }
         }
+        link_button(ui, icons::GITHUB_LOGO, &t("Discophile on GitHub"), crate::platform::GITHUB, None);
         if state.offer_advanced && !app.settings.advanced_unlocked {
             ui.add_space(2.0);
             if ui.add(egui::Button::new(theme::accent(ui, t("Advanced settings"), Font::Callout)).frame(false)).clicked() {
@@ -573,54 +590,92 @@ fn software_update(app: &mut App, ui: &mut Ui) {
     use crate::features::software_update::{self as updates, UpdateStatus};
 
     widgets::section_heading(ui, &t("Updates"), None);
+    let status = app.software_update.status.clone();
     group(ui, |ui| {
-        let status = app.software_update.status.clone();
-        let check = trailing_row(
-            ui,
-            |ui| ui.add_enabled(status != UpdateStatus::Checking, crate::ui::accounts::labeled(ui, icons::ARROWS_CLOCKWISE, &t("Check now"), Look::Tinted)).clicked(),
-            |ui| {
-                let (title, detail) = match &status {
-                    UpdateStatus::Idle => (t("Discophile can look for new versions on GitHub."), None),
-                    UpdateStatus::Checking => (t("Checking for updates…"), None),
-                    UpdateStatus::UpToDate => (t("Discophile is up to date."), None),
-                    UpdateStatus::Failed => (t("Unable to check for updates."), Some(t("Check your connection and try again."))),
-                    UpdateStatus::Available(release) => (
-                        l10n::tf("Discophile %@ is available", &[&release.version]),
-                        Some(l10n::tf("You have version %@.", &[&env!("CARGO_PKG_VERSION")])),
-                    ),
-                };
-                ui.label(theme::text(title, Font::Body));
-                if let Some(detail) = detail {
-                    ui.label(theme::secondary(ui, detail, Font::Footnote));
-                }
-            },
-        );
-        if check {
-            updates::check_now(app);
+        let action = |ui: &mut Ui| {
+            let (icon, label, look) = match &status {
+                UpdateStatus::Available(_) => (icons::DOWNLOAD_SIMPLE, t("Install and restart"), Look::Filled),
+                status if status.busy() => (icons::ARROW_CIRCLE_DOWN, t("Show progress"), Look::Tinted),
+                _ => (icons::ARROWS_CLOCKWISE, t("Check now"), Look::Tinted),
+            };
+            ui.add_enabled_ui(status != UpdateStatus::Checking, |ui| {
+                ui.spacing_mut().button_padding = vec2(14.0, 9.0);
+                labeled_button(ui, icon, &label, look).clicked()
+            }).inner
+        };
+        let activated = if ui.available_width() >= 440.0 {
+            trailing_row(ui, action, |ui| update_summary(ui, &status))
+        } else {
+            update_summary(ui, &status);
+            ui.add_space(12.0);
+            action(ui)
+        };
+        if activated {
+            match &status {
+                UpdateStatus::Available(_) => updates::install(app),
+                status if status.busy() => app.software_update.dialog = true,
+                _ => updates::check_now(app),
+            }
         }
         if let UpdateStatus::Available(release) = &status {
-            if !release.notes.is_empty() {
-                ui.add_space(4.0);
-                egui::ScrollArea::vertical().id_salt("update-notes").max_height(160.0).show(ui, |ui| {
-                    ui.label(theme::secondary(ui, release.notes.as_str(), Font::Callout));
-                });
-            }
+            ui.add_space(14.0);
+            ui.separator();
             ui.add_space(6.0);
-            ui.horizontal_wrapped(|ui| {
-                let download = labeled_button(ui, icons::DOWNLOAD_SIMPLE, &t("Download"), Look::Filled)
-                    .on_hover_text(updates::download_url(release));
-                if download.clicked() {
-                    updates::download(app, release);
-                }
-                link_button(ui, icons::ARROW_SQUARE_OUT, &t("Release notes"), &release.page_url, Some(&t("Opens the release on GitHub")));
+            ui.scope(|ui| {
+                ui.spacing_mut().interact_size.y = 40.0;
+                egui::CollapsingHeader::new(theme::text(t("What's new in this version"), Font::Headline))
+                    .id_salt("update-release-notes")
+                    .show(ui, |ui| {
+                        ui.add_space(8.0);
+                        if !release.notes.is_empty() {
+                            let prefix = format!("# Discophile {}\n\n", release.version);
+                            crate::ui::software_update::notes(app, ui, release.notes.strip_prefix(&prefix).unwrap_or(&release.notes));
+                            ui.add_space(12.0);
+                        }
+                        link_button(ui, icons::ARROW_SQUARE_OUT, &t("View on GitHub"), &release.page_url, Some(&t("Opens the release on GitHub")));
+                    });
             });
         }
-        ui.separator();
+    });
+    ui.add_space(10.0);
+    group(ui, |ui| {
         let mut automatic = app.settings.check_for_updates;
-        if toggle_row(ui, &mut automatic, &t("Check for updates automatically"), Some(&t("At launch, Discophile asks GitHub for the latest version. Nothing else is sent."))) {
+        if toggle_row(ui, &mut automatic, &t("Check for updates automatically"), Some(&t("Look for new versions when you open Discophile."))) {
             app.settings.check_for_updates = automatic;
             app.settings.save();
         }
+    });
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn update_summary(ui: &mut Ui, status: &crate::features::software_update::UpdateStatus) {
+    use crate::features::software_update::UpdateStatus;
+
+    let palette = Palette::of_ui(ui);
+    let current = env!("CARGO_PKG_VERSION");
+    let (icon, title, detail) = match status {
+        UpdateStatus::Available(release) => (icons::ARROW_CIRCLE_UP, t("Update available"), format!("{current} → {}", release.version)),
+        UpdateStatus::UpToDate => (icons::CHECK_CIRCLE, t("Discophile is up to date."), format!("Discophile {current}")),
+        UpdateStatus::Failed => (icons::WARNING_CIRCLE, t("Unable to check for updates."), t("Check your connection and try again.")),
+        UpdateStatus::Checking => (icons::ARROWS_CLOCKWISE, t("Checking for updates…"), format!("Discophile {current}")),
+        status if status.busy() => (icons::ARROW_CIRCLE_DOWN, t("Updating Discophile…"), t("Discophile will install and restart automatically.")),
+        _ => (icons::ARROWS_CLOCKWISE, t("Software updates"), format!("Discophile {current}")),
+    };
+    ui.horizontal(|ui| {
+        let (badge, _) = ui.allocate_exact_size(vec2(44.0, 44.0), Sense::hover());
+        ui.painter().rect_filled(badge, 12, palette.accent.gamma_multiply(0.12));
+        widgets::paint_icon(ui.painter(), badge.center(), icon, egui::FontId::proportional(24.0), palette.accent);
+        ui.add_space(4.0);
+        ui.vertical(|ui| {
+            ui.set_width(ui.available_width());
+            let response = ui.add(egui::Label::new(theme::text(title, Font::Title3)).wrap());
+            ui.ctx().accesskit_node_builder(response.id, |node| {
+                node.set_role(egui::Role::Status);
+                node.set_live(egui::accesskit::Live::Polite);
+            });
+            ui.add_space(2.0);
+            ui.add(egui::Label::new(theme::secondary(ui, detail, Font::Callout)).wrap());
+        });
     });
 }
 

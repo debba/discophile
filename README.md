@@ -137,8 +137,9 @@ that stays gapless inside an album.
   with shortcuts (⌘1 to ⌘0 for sections, ⌘F to search), light and dark appearance, and adjustable text size.
 - **Accessible.** Controls are labeled for screen readers, with visible focus for keyboard use.
 - **English and Italian**, following your system language or your choice.
-- **Updates.** Discophile can tell you when a new version is out and open the right download for your
-  computer.
+- **Updates.** A compact launch notification and a toolbar icon offer new versions. Click **Install and restart** to
+  download, verify and install the update. After restarting, a Markdown changelog shows the merged PRs
+  included in the release, including versions you skipped.
 
 ## Download
 
@@ -150,6 +151,10 @@ Get the latest version from [Releases](https://github.com/debba/discophile/relea
 | Windows 10 or later | `Discophile-<version>-windows-x86_64.zip` | Extract and run `Discophile.exe`. |
 | Linux (x86_64) | `Discophile-<version>-linux-x86_64.tar.gz` | Needs ALSA or PipeWire/PulseAudio and D-Bus. Includes a `.desktop` file and icon. |
 | Arch Linux | [`discophile-bin`](https://aur.archlinux.org/packages/discophile-bin) on the AUR | `yay -S discophile-bin` or `paru -S discophile-bin`. |
+
+Automatic updates require a writable installation folder (and the installed `.app` on macOS). System-managed
+Linux packages should be updated with their package manager. Dismissing the notification leaves the update icon
+available for the rest of the session. GitHub is linked from the bottom of the sidebar and **Settings → About**.
 
 **Web player.** The same app runs in the browser, self-hosted with Docker or Kubernetes. The image can also
 serve your servers from the player's own address, so you don't have to configure CORS:
@@ -181,7 +186,7 @@ The app contacts other services only for features you use, and only with what th
 | ChatGPT | Your request, the recent conversation and limited song metadata (title, artist, album, genre, year) under temporary IDs, with `store: false` | OpenAI |
 | Local model | Everything stays with the server address you configure | Your model server |
 | Online music information (off by default) | The name, title and artist of the item you open in About | MusicBrainz, Wikipedia |
-| Update check (can be turned off) | A request for the latest release; the user agent carries the app version | GitHub |
+| Updates and changelogs | Release metadata, and packages/checksums when you install; the user agent carries the app version. Automatic update checks can be turned off. | GitHub |
 | Agents (off by default) | Library metadata, to the agent you connect on this computer | The agent and its model provider |
 
 ## Build from source

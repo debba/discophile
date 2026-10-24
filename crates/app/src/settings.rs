@@ -40,8 +40,8 @@ pub struct Settings {
     pub mcp_port: u16,
     /// Settings > About: look for a newer GitHub release at launch (desktop).
     pub check_for_updates: bool,
-    /// The release whose sidebar notice was dismissed.
-    pub dismissed_update: Option<String>,
+    /// The installed version whose changelog has been read (desktop).
+    pub last_seen_version: Option<String>,
 }
 
 impl Default for Settings {
@@ -68,7 +68,7 @@ impl Default for Settings {
             mcp_enabled: false,
             mcp_port: 47_321,
             check_for_updates: true,
-            dismissed_update: None,
+            last_seen_version: None,
         }
     }
 }
@@ -95,5 +95,17 @@ impl Settings {
             crossfade: self.crossfade.then_some(self.crossfade_seconds.clamp(1.0, 12.0)),
             keep_album_gapless: self.keep_album_gapless,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn old_settings_do_not_treat_a_fresh_install_as_an_update() {
+        let settings: Settings = serde_json::from_str(r#"{"check_for_updates":false,"dismissed_update":"0.2.0"}"#).unwrap();
+        assert!(!settings.check_for_updates);
+        assert!(settings.last_seen_version.is_none());
     }
 }

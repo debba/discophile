@@ -52,6 +52,8 @@ pub fn tick(app: &mut App) {
 
 /// Modal windows and sheets, drawn after the main layout.
 pub fn windows(app: &mut App, ctx: &egui::Context) {
+    #[cfg(not(target_arch = "wasm32"))]
+    crate::ui::software_update::windows(app, ctx);
     library::windows(app, ctx);
     downloads::windows(app, ctx);
     discovery::windows(app, ctx);

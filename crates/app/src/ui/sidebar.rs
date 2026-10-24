@@ -16,8 +16,12 @@ struct Entry {
     label: String,
 }
 
+pub fn collapsed(app: &App) -> bool {
+    app.settings.sidebar_collapsed || app.ctx().content_rect().width() < 900.0
+}
+
 pub fn show(app: &mut App, ui: &mut Ui) {
-    let collapsed = app.settings.sidebar_collapsed;
+    let collapsed = collapsed(app);
     // The scroll area below narrows its content; collapsed icons use the sidebar's own centre line, like the
     // logo and the bottom controls.
     let center_x = ui.max_rect().center().x;
@@ -59,7 +63,7 @@ pub fn show(app: &mut App, ui: &mut Ui) {
     }
     main.push(Entry { route: Route::Radio, icon: icons::RADIO, label: t("Radio") });
 
-    egui::ScrollArea::vertical().auto_shrink([false, false]).max_height(ui.available_height() - 96.0).show(ui, |ui| {
+    egui::ScrollArea::vertical().auto_shrink([false, false]).max_height((ui.available_height() - if collapsed { 200.0 } else { 160.0 }).max(40.0)).show(ui, |ui| {
         for entry in &main {
             nav_item(app, ui, entry, &selected, collapsed, center_x);
         }
@@ -91,7 +95,19 @@ pub fn show(app: &mut App, ui: &mut Ui) {
     // Collapsed, every control sits on the same centre line as the nav icons.
     ui.with_layout(Layout::bottom_up(if collapsed { Align::Center } else { Align::Min }), |ui| {
         if collapsed {
-            if widgets::icon_button(ui, icons::SIDEBAR_SIMPLE, &t("Show sidebar"), 16.0).clicked() {
+            if widgets::icon_button(ui, icons::GITHUB_LOGO, &t("Discophile on GitHub"), 18.0).clicked() {
+                ui.ctx().open_url(egui::OpenUrl::new_tab(crate::platform::GITHUB));
+            }
+        } else {
+            let github = ui.add(egui::Button::new(theme::secondary(ui, format!("{}  GitHub  {}", icons::GITHUB_LOGO, icons::ARROW_SQUARE_OUT), Font::Callout)).frame(false)).on_hover_text(t("Discophile on GitHub"));
+            github.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, t("Discophile on GitHub")));
+            if github.clicked() { ui.ctx().open_url(egui::OpenUrl::new_tab(crate::platform::GITHUB)); }
+        }
+        ui.add_space(8.0);
+        ui.separator();
+        ui.add_space(8.0);
+        if collapsed {
+            if ui.ctx().content_rect().width() >= 900.0 && widgets::icon_button(ui, icons::SIDEBAR_SIMPLE, &t("Show sidebar"), 16.0).clicked() {
                 app.settings.sidebar_collapsed = false;
                 app.settings.save();
             }
@@ -114,38 +130,10 @@ pub fn show(app: &mut App, ui: &mut Ui) {
         if app.session.has_library() {
             downloaded_only_toggle(app, ui, collapsed);
         }
-        #[cfg(not(target_arch = "wasm32"))]
-        update_notice(app, ui, collapsed);
         ui.add_space(10.0);
         ui.separator();
         ui.add_space(10.0);
     });
-}
-
-/// A newer release, until it is dismissed: opens Settings > About.
-#[cfg(not(target_arch = "wasm32"))]
-fn update_notice(app: &mut App, ui: &mut Ui, collapsed: bool) {
-    let Some(version) = crate::features::software_update::notice(app).map(|r| r.version.clone()) else { return };
-    let label = discophile_core::l10n::tf("Discophile %@ is available", &[&version]);
-    let accent = Palette::of_ui(ui).accent;
-    let open = if collapsed {
-        widgets::icon_button_tinted(ui, icons::ARROW_CIRCLE_UP, &label, 17.0, Some(accent)).clicked()
-    } else {
-        ui.horizontal(|ui| {
-            let open = crate::ui::accounts::labeled_button(ui, icons::ARROW_CIRCLE_UP, &t("Update available"), crate::ui::accounts::Look::Tinted)
-                .on_hover_text(&label)
-                .clicked();
-            if widgets::icon_button(ui, icons::X, &t("Dismiss"), 12.0).clicked() {
-                app.settings.dismissed_update = Some(version.clone());
-                app.settings.save();
-            }
-            open
-        })
-        .inner
-    };
-    if open {
-        app.nav.push(Route::Settings(SettingsPage::About));
-    }
 }
 
 fn search_box(ui: &mut Ui, text: &mut String) -> egui::Response {
@@ -211,7 +199,7 @@ fn downloaded_only_toggle(app: &mut App, ui: &mut Ui, collapsed: bool) {
 
 const TOOLBAR_HEIGHT: f32 = 52.0;
 
-/// Back/forward on the left; GitHub, assistant and the library menu on the right.
+/// Back/forward on the left; updates, assistant and the library menu on the right.
 pub fn toolbar(app: &mut App, ui: &mut Ui) {
     // A fixed-height bar with its controls centred, so the space above and below them is equal.
     let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), TOOLBAR_HEIGHT), Sense::hover());
@@ -246,9 +234,8 @@ pub fn toolbar(app: &mut App, ui: &mut Ui) {
             }
         }
         ui.add_space(widgets::space::S);
-        if widgets::icon_button(ui, icons::GITHUB_LOGO, &t("Discophile on GitHub"), 19.0).clicked() {
-            ui.ctx().open_url(egui::OpenUrl::new_tab(crate::platform::GITHUB));
-        }
+        #[cfg(not(target_arch = "wasm32"))]
+        crate::ui::software_update::toolbar(app, ui);
     });
 }
 
