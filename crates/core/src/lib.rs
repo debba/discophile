@@ -42,6 +42,9 @@ pub mod connect;
 // External agents
 pub mod mcp;
 
+// Desktop updates
+pub mod updates;
+
 pub use error::{MusicError, MusicResult};
 pub use l10n::{count, t, tf};
 pub use models::*;

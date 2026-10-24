@@ -217,14 +217,17 @@ fn segmented(ui: &mut Ui, options: &[String], selected: usize) -> Option<usize> 
 
 /// A row with trailing controls on the right and wrapping text filling the remaining width.
 pub(crate) fn trailing_row<R>(ui: &mut Ui, trailing: impl FnOnce(&mut Ui) -> R, text: impl FnOnce(&mut Ui)) -> R {
-    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-        let result = trailing(ui);
-        ui.add_space(12.0);
-        ui.with_layout(Layout::top_down(Align::Min), |ui| {
-            ui.set_width(ui.available_width());
-            text(ui);
-        });
-        result
+    ui.horizontal(|ui| {
+        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+            let result = trailing(ui);
+            ui.add_space(12.0);
+            ui.with_layout(Layout::top_down(Align::Min), |ui| {
+                ui.set_width(ui.available_width());
+                text(ui);
+            });
+            result
+        })
+        .inner
     })
     .inner
 }
@@ -524,6 +527,9 @@ fn about(app: &mut App, ui: &mut Ui) {
         app.settings.save();
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
+    software_update(app, ui);
+
     widgets::section_heading(ui, &t("Meet the developer"), None);
     group(ui, |ui| {
         ui.label(theme::text("Andrea Debernardi", Font::Headline));
@@ -560,6 +566,62 @@ fn about(app: &mut App, ui: &mut Ui) {
     });
 
     ui.ctx().data_mut(|d| d.insert_temp(about_id(), state));
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn software_update(app: &mut App, ui: &mut Ui) {
+    use crate::features::software_update::{self as updates, UpdateStatus};
+
+    widgets::section_heading(ui, &t("Updates"), None);
+    group(ui, |ui| {
+        let status = app.software_update.status.clone();
+        let check = trailing_row(
+            ui,
+            |ui| ui.add_enabled(status != UpdateStatus::Checking, crate::ui::accounts::labeled(ui, icons::ARROWS_CLOCKWISE, &t("Check now"), Look::Tinted)).clicked(),
+            |ui| {
+                let (title, detail) = match &status {
+                    UpdateStatus::Idle => (t("Discophile can look for new versions on GitHub."), None),
+                    UpdateStatus::Checking => (t("Checking for updates…"), None),
+                    UpdateStatus::UpToDate => (t("Discophile is up to date."), None),
+                    UpdateStatus::Failed => (t("Unable to check for updates."), Some(t("Check your connection and try again."))),
+                    UpdateStatus::Available(release) => (
+                        l10n::tf("Discophile %@ is available", &[&release.version]),
+                        Some(l10n::tf("You have version %@.", &[&env!("CARGO_PKG_VERSION")])),
+                    ),
+                };
+                ui.label(theme::text(title, Font::Body));
+                if let Some(detail) = detail {
+                    ui.label(theme::secondary(ui, detail, Font::Footnote));
+                }
+            },
+        );
+        if check {
+            updates::check_now(app);
+        }
+        if let UpdateStatus::Available(release) = &status {
+            if !release.notes.is_empty() {
+                ui.add_space(4.0);
+                egui::ScrollArea::vertical().id_salt("update-notes").max_height(160.0).show(ui, |ui| {
+                    ui.label(theme::secondary(ui, release.notes.as_str(), Font::Callout));
+                });
+            }
+            ui.add_space(6.0);
+            ui.horizontal_wrapped(|ui| {
+                let download = labeled_button(ui, icons::DOWNLOAD_SIMPLE, &t("Download"), Look::Filled)
+                    .on_hover_text(updates::download_url(release));
+                if download.clicked() {
+                    updates::download(app, release);
+                }
+                link_button(ui, icons::ARROW_SQUARE_OUT, &t("Release notes"), &release.page_url, Some(&t("Opens the release on GitHub")));
+            });
+        }
+        ui.separator();
+        let mut automatic = app.settings.check_for_updates;
+        if toggle_row(ui, &mut automatic, &t("Check for updates automatically"), Some(&t("At launch, Discophile asks GitHub for the latest version. Nothing else is sent."))) {
+            app.settings.check_for_updates = automatic;
+            app.settings.save();
+        }
+    });
 }
 
 fn open_advanced(app: &mut App) {

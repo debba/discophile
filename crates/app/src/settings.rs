@@ -38,6 +38,10 @@ pub struct Settings {
     /// Settings > Agents: the MCP server on the loopback interface (desktop).
     pub mcp_enabled: bool,
     pub mcp_port: u16,
+    /// Settings > About: look for a newer GitHub release at launch (desktop).
+    pub check_for_updates: bool,
+    /// The release whose sidebar notice was dismissed.
+    pub dismissed_update: Option<String>,
 }
 
 impl Default for Settings {
@@ -63,6 +67,8 @@ impl Default for Settings {
             interface_scale: 1.0,
             mcp_enabled: false,
             mcp_port: 47_321,
+            check_for_updates: true,
+            dismissed_update: None,
         }
     }
 }

@@ -14,7 +14,7 @@ use tray_icon::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu
 
 use crate::nav::Route;
 
-pub const WEBSITE: &str = "https://github.com/debba/discophile";
+pub const WEBSITE: &str = "https://discophile.app";
 pub const ISSUES: &str = "https://github.com/debba/discophile/issues";
 
 #[derive(Clone, Debug, PartialEq)]

@@ -1,0 +1,252 @@
+# Builds Discophile for macOS (universal, signed and notarized), Windows and Linux, plus the web player's container
+# image and Helm chart. A pushed `v*` tag that matches the workspace version publishes a GitHub release (which the
+# app offers as an update), ghcr.io/<owner>/discophile-web and oci://ghcr.io/<owner>/charts/discophile-web.
+# Running it by hand builds the same files as workflow artifacts without publishing.
+#
+# macOS secrets (signing is skipped when they are missing):
+#   MACOS_CERTIFICATE_P12       base64 of the Developer ID Application certificate and key (.p12)
+#   MACOS_CERTIFICATE_PASSWORD  password of the .p12
+#   APPLE_API_KEY_P8            contents of the App Store Connect API key (AuthKey_XXXX.p8)
+#   APPLE_API_KEY_ID, APPLE_API_ISSUER_ID
+#
+# AUR (discophile-bin is updated only when the repository is public and these are set):
+#   AUR_SSH_PRIVATE_KEY         private key of an SSH key added to the AUR account
+#   AUR_USERNAME, AUR_EMAIL     author of the AUR commits
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: version
+        run: |
+          version=$(sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"/\1/p' Cargo.toml)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if [[ "$GITHUB_REF_TYPE" == "tag" && "$GITHUB_REF_NAME" != "v$version" ]]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match the workspace version $version"
+            exit 1
+          fi
+
+  macos:
+    needs: version
+    runs-on: macos-14
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+      MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+      APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+      APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+      APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+      - uses: Swatinem/rust-cache@v2
+      - name: Build
+        run: |
+          cargo build --release --locked -p discophile --target aarch64-apple-darwin
+          cargo build --release --locked -p discophile --target x86_64-apple-darwin
+          lipo -create -output target/Discophile \
+            target/aarch64-apple-darwin/release/Discophile target/x86_64-apple-darwin/release/Discophile
+      - name: Import the signing certificate
+        if: env.MACOS_CERTIFICATE_P12 != ''
+        run: |
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          password=$(uuidgen)
+          echo "$MACOS_CERTIFICATE_P12" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          security import "$RUNNER_TEMP/certificate.p12" -k "$keychain" -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$password" "$keychain"
+          # Keeps the existing keychains in the search list, one argument each.
+          # shellcheck disable=SC2046
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          identity=$(security find-identity -v -p codesigning "$keychain" | grep -o '"Developer ID Application: [^"]*"' | head -1 | tr -d '"')
+          echo "MACOS_SIGNING_IDENTITY=$identity" >> "$GITHUB_ENV"
+      - name: Prepare the notary key
+        if: env.APPLE_API_KEY_P8 != ''
+        run: |
+          echo "$APPLE_API_KEY_P8" > "$RUNNER_TEMP/AuthKey.p8"
+          {
+            echo "NOTARY_KEY_PATH=$RUNNER_TEMP/AuthKey.p8"
+            echo "NOTARY_KEY_ID=$APPLE_API_KEY_ID"
+            echo "NOTARY_ISSUER_ID=$APPLE_API_ISSUER_ID"
+          } >> "$GITHUB_ENV"
+      - name: Package
+        run: scripts/package-macos.sh target/Discophile "$VERSION" dist universal
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: dist/*.dmg
+
+  windows:
+    needs: version
+    runs-on: windows-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build
+        run: cargo build --release --locked -p discophile
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist/Discophile | Out-Null
+          Copy-Item target/release/Discophile.exe dist/Discophile/
+          Compress-Archive -Path dist/Discophile -DestinationPath "dist/Discophile-$env:VERSION-windows-x86_64.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: dist/*.zip
+
+  linux:
+    needs: version
+    # The oldest supported runner, so the binary runs on older glibc versions too.
+    runs-on: ubuntu-22.04
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install system libraries
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libasound2-dev libdbus-1-dev
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build
+        run: cargo build --release --locked -p discophile
+      - name: Package
+        run: |
+          dir=dist/Discophile
+          mkdir -p "$dir"
+          cp target/release/Discophile "$dir/discophile"
+          cp packaging/linux/discophile.desktop packaging/linux/discophile.png LICENSE "$dir/"
+          tar -C dist -czf "dist/Discophile-$VERSION-linux-x86_64.tar.gz" Discophile
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: dist/*.tar.gz
+
+  web-image:
+    needs: version
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        if: github.ref_type == 'tag'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/discophile-web
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable=${{ github.ref_type == 'tag' }}
+            type=sha
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.ref_type == 'tag' }}
+          build-args: VERSION=${{ env.VERSION }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  helm-chart:
+    needs: [version, web-image]
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - name: Package
+        run: |
+          helm lint deploy/helm/discophile-web
+          helm package deploy/helm/discophile-web --version "$VERSION" --app-version "$VERSION" -d dist
+      - name: Push
+        if: github.ref_type == 'tag'
+        run: |
+          echo "${{ github.token }}" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
+          helm push "dist/discophile-web-$VERSION.tgz" "oci://ghcr.io/${{ github.repository_owner }}/charts"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: helm
+          path: dist/*.tgz
+
+  release:
+    if: github.ref_type == 'tag'
+    needs: [version, macos, windows, linux, helm-chart]
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Publish
+        run: |
+          (cd dist && sha256sum -- * > SHA256SUMS.txt)
+          gh release create "$GITHUB_REF_NAME" dist/* --title "Discophile $VERSION" --generate-notes --verify-tag
+
+  aur:
+    if: github.ref_type == 'tag' && !github.event.repository.private
+    needs: [version, release]
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        if: env.AUR_SSH_PRIVATE_KEY != ''
+      - uses: actions/download-artifact@v4
+        if: env.AUR_SSH_PRIVATE_KEY != ''
+        with:
+          name: linux
+          path: dist
+      - name: Update the PKGBUILD
+        if: env.AUR_SSH_PRIVATE_KEY != ''
+        run: |
+          sum=$(sha256sum "dist/Discophile-$VERSION-linux-x86_64.tar.gz" | cut -d' ' -f1)
+          sed -i -e "s/^pkgver=.*/pkgver=$VERSION/" -e "s/^pkgrel=.*/pkgrel=1/" \
+            -e "s/^sha256sums=.*/sha256sums=('$sum')/" packaging/aur/discophile-bin/PKGBUILD
+      - uses: KSXGitHub/github-actions-deploy-aur@v4.2.0
+        if: env.AUR_SSH_PRIVATE_KEY != ''
+        with:
+          pkgname: discophile-bin
+          pkgbuild: packaging/aur/discophile-bin/PKGBUILD
+          test: true
+          commit_username: ${{ secrets.AUR_USERNAME }}
+          commit_email: ${{ secrets.AUR_EMAIL }}
+          ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          commit_message: Update to ${{ env.VERSION }}

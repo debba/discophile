@@ -48,6 +48,8 @@ pub struct App {
     pub info: info::InfoState,
     #[cfg(not(target_arch = "wasm32"))]
     pub mcp: features::mcp::McpState,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub software_update: features::software_update::UpdatesState,
     pub media_controls: Option<crate::platform::media_controls::MediaControls>,
     dark: Option<bool>,
     scale_applied: bool,
@@ -96,6 +98,8 @@ impl App {
             info: Default::default(),
             #[cfg(not(target_arch = "wasm32"))]
             mcp: Default::default(),
+            #[cfg(not(target_arch = "wasm32"))]
+            software_update: Default::default(),
             media_controls,
             dark: None,
             scale_applied: false,

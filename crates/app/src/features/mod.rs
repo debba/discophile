@@ -13,6 +13,8 @@ pub mod mentions;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod mcp;
 pub mod radio;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod software_update;
 
 use discophile_core::Song;
 
@@ -31,6 +33,8 @@ pub fn start(app: &mut App) {
     info::start(app);
     #[cfg(not(target_arch = "wasm32"))]
     mcp::start(app);
+    #[cfg(not(target_arch = "wasm32"))]
+    software_update::start(app);
 }
 
 /// Every frame, before drawing.

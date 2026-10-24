@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Discophile
+GenericName=Music Player
+Comment=Your music server, played like a record collection
+Comment[it]=Il tuo server musicale, ascoltato come una collezione di dischi
+Exec=discophile
+Icon=discophile
+Terminal=false
+Categories=AudioVideo;Audio;Player;
+Keywords=music;player;navidrome;subsonic;jellyfin;audiobookshelf;audiobooks;radio;lyrics;
+StartupWMClass=app.discophile.desktop

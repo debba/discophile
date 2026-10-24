@@ -108,5 +108,20 @@
   "Streamable HTTP configuration, as used by Cursor, VS Code and others.": "Configurazione Streamable HTTP, usata da Cursor, VS Code e altri.",
   "The agent server could not start.": "Impossibile avviare il server per gli agenti.",
   "This change is made on your music server and cannot be undone.": "La modifica viene fatta sul tuo server musicale e non si può annullare.",
-  "Through the mcp-remote bridge (needs Node.js), in claude_desktop_config.json.": "Tramite il ponte mcp-remote (richiede Node.js), in claude_desktop_config.json."
+  "Through the mcp-remote bridge (needs Node.js), in claude_desktop_config.json.": "Tramite il ponte mcp-remote (richiede Node.js), in claude_desktop_config.json.",
+  "Updates": "Aggiornamenti",
+  "Check now": "Controlla ora",
+  "Discophile can look for new versions on GitHub.": "Discophile può cercare nuove versioni su GitHub.",
+  "Checking for updates…": "Ricerca di aggiornamenti…",
+  "Discophile is up to date.": "Discophile è aggiornato.",
+  "Unable to check for updates.": "Impossibile cercare aggiornamenti.",
+  "Check your connection and try again.": "Controlla la connessione e riprova.",
+  "Discophile %@ is available": "Discophile %@ è disponibile",
+  "You have version %@.": "Hai la versione %@.",
+  "Release notes": "Note di rilascio",
+  "Opens the release on GitHub": "Apre la versione su GitHub",
+  "Check for updates automatically": "Cerca aggiornamenti automaticamente",
+  "At launch, Discophile asks GitHub for the latest version. Nothing else is sent.": "All'avvio, Discophile chiede a GitHub l'ultima versione. Non viene inviato nient'altro.",
+  "Update available": "Aggiornamento disponibile",
+  "Dismiss": "Ignora"
 }

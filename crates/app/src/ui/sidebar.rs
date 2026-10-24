@@ -114,10 +114,38 @@ pub fn show(app: &mut App, ui: &mut Ui) {
         if app.session.has_library() {
             downloaded_only_toggle(app, ui, collapsed);
         }
+        #[cfg(not(target_arch = "wasm32"))]
+        update_notice(app, ui, collapsed);
         ui.add_space(10.0);
         ui.separator();
         ui.add_space(10.0);
     });
+}
+
+/// A newer release, until it is dismissed: opens Settings > About.
+#[cfg(not(target_arch = "wasm32"))]
+fn update_notice(app: &mut App, ui: &mut Ui, collapsed: bool) {
+    let Some(version) = crate::features::software_update::notice(app).map(|r| r.version.clone()) else { return };
+    let label = discophile_core::l10n::tf("Discophile %@ is available", &[&version]);
+    let accent = Palette::of_ui(ui).accent;
+    let open = if collapsed {
+        widgets::icon_button_tinted(ui, icons::ARROW_CIRCLE_UP, &label, 17.0, Some(accent)).clicked()
+    } else {
+        ui.horizontal(|ui| {
+            let open = crate::ui::accounts::labeled_button(ui, icons::ARROW_CIRCLE_UP, &t("Update available"), crate::ui::accounts::Look::Tinted)
+                .on_hover_text(&label)
+                .clicked();
+            if widgets::icon_button(ui, icons::X, &t("Dismiss"), 12.0).clicked() {
+                app.settings.dismissed_update = Some(version.clone());
+                app.settings.save();
+            }
+            open
+        })
+        .inner
+    };
+    if open {
+        app.nav.push(Route::Settings(SettingsPage::About));
+    }
 }
 
 fn search_box(ui: &mut Ui, text: &mut String) -> egui::Response {
