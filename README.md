@@ -26,7 +26,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/now-playing.webp" alt="Now Playing with large artwork, playback controls and synced lyrics highlighting the current line">
+  <picture><source media="(prefers-color-scheme: light)" srcset="docs/screenshots/light/now-playing.webp"><img src="docs/screenshots/now-playing.webp" alt="Now Playing with large artwork, playback controls and synced lyrics highlighting the current line"></picture>
 </p>
 
 Discophile connects to the music you already host and makes it feel like a collection again: mixes built
@@ -53,7 +53,7 @@ month, **Still to discover** finds the ones you never played, and **Have 25 minu
 from first track to last. Pick up where you left off, even after a restart.
 
 <p align="center">
-  <img src="docs/screenshots/listen-now.webp" alt="Listen Now with Pick up where you left off, discovery mixes, listening statistics and album suggestions">
+  <picture><source media="(prefers-color-scheme: light)" srcset="docs/screenshots/light/listen-now.webp"><img src="docs/screenshots/listen-now.webp" alt="Listen Now with Pick up where you left off, discovery mixes, listening statistics and album suggestions"></picture>
 </p>
 
 ### Your whole library
@@ -65,8 +65,8 @@ and every view shows just what is saved on this computer.
 
 <table>
   <tr>
-    <td><img src="docs/screenshots/albums.webp" alt="The album grid with colorful covers"></td>
-    <td><img src="docs/screenshots/album.webp" alt="An album page with Play, Shuffle and the track list"></td>
+    <td><picture><source media="(prefers-color-scheme: light)" srcset="docs/screenshots/light/albums.webp"><img src="docs/screenshots/albums.webp" alt="The album grid with colorful covers"></picture></td>
+    <td><picture><source media="(prefers-color-scheme: light)" srcset="docs/screenshots/light/album.webp"><img src="docs/screenshots/album.webp" alt="An album page with Play, Shuffle and the track list"></picture></td>
   </tr>
 </table>
 
@@ -90,7 +90,7 @@ computer.
 biographies and album notes and, if you allow it, MusicBrainz and Wikipedia, with the sources linked.
 
 <p align="center">
-  <img src="docs/screenshots/assistant.webp" alt="The music assistant beside Listen Now, proposing a 17-song playlist called Rain at the Window">
+  <picture><source media="(prefers-color-scheme: light)" srcset="docs/screenshots/light/assistant.webp"><img src="docs/screenshots/assistant.webp" alt="The music assistant beside Listen Now, proposing a 17-song playlist called Rain at the Window"></picture>
 </p>
 
 ### Listening statistics
@@ -100,7 +100,7 @@ Time listened, plays, songs, artists, active days and your current streak for th
 your own history.
 
 <p align="center">
-  <img src="docs/screenshots/statistics.webp" alt="Listening statistics for the last 30 days: time listened, plays, songs, artists, active days, streak and minutes listened per day">
+  <picture><source media="(prefers-color-scheme: light)" srcset="docs/screenshots/light/statistics.webp"><img src="docs/screenshots/statistics.webp" alt="Listening statistics for the last 30 days: time listened, plays, songs, artists, active days, streak and minutes listened per day"></picture>
 </p>
 
 ### Audiobooks
@@ -112,8 +112,8 @@ your place.
 
 <table>
   <tr>
-    <td><img src="docs/screenshots/audiobooks.webp" alt="The audiobook library with covers, authors and durations"></td>
-    <td><img src="docs/screenshots/audiobook-player.webp" alt="An audiobook playing on chapter 13 of 34 with skip buttons, speed, sleep timer and bookmarks"></td>
+    <td><picture><source media="(prefers-color-scheme: light)" srcset="docs/screenshots/light/audiobooks.webp"><img src="docs/screenshots/audiobooks.webp" alt="The audiobook library with covers, authors and durations"></picture></td>
+    <td><picture><source media="(prefers-color-scheme: light)" srcset="docs/screenshots/light/audiobook-player.webp"><img src="docs/screenshots/audiobook-player.webp" alt="An audiobook playing on chapter 13 of 34 with skip buttons, speed, sleep timer and bookmarks"></picture></td>
   </tr>
 </table>
 
@@ -125,7 +125,7 @@ automatic mode with clipping prevention, a volume limit, gapless playback, and c
 that stays gapless inside an album.
 
 <p align="center">
-  <img src="docs/screenshots/equalizer.webp" alt="Equalizer and sound settings with the Loudness preset and its response curve">
+  <picture><source media="(prefers-color-scheme: light)" srcset="docs/screenshots/light/equalizer.webp"><img src="docs/screenshots/equalizer.webp" alt="Equalizer and sound settings with the Loudness preset and its response curve"></picture>
 </p>
 
 ### And also

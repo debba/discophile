@@ -13,7 +13,10 @@ def call(path, body=None, token=None, method=None):
         return json.loads(data) if data[:1] in (b"{", b"[") else None
 
 
-token = call("/login", {"username": "demo", "password": "demo-password"})["user"]["token"]
+import sys
+USER = sys.argv[1] if len(sys.argv) > 1 else "demo"
+PASSWORD = sys.argv[2] if len(sys.argv) > 2 else "demo-password"
+token = call("/login", {"username": USER, "password": PASSWORD})["user"]["token"]
 library = call("/api/libraries", token=token)["libraries"][0]["id"]
 for item in call(f"/api/libraries/{library}/items?limit=100", token=token)["results"]:
     title = item["media"]["metadata"]["title"]

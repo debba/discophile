@@ -112,7 +112,18 @@ cargo run -p discophile
 
 The covers use OFL fonts from [Google Fonts](https://github.com/google/fonts): Instrument Serif, Archivo Black,
 DM Serif Display, Unbounded, Bebas Neue and Inter. The demo profile is in English with the dark appearance.
-Capture the window at 1280 × 820 points and save the images as WebP in `docs/screenshots`.
+Capture the window at 1280 × 820 points and save the images as WebP in `docs/screenshots`, once with the dark
+appearance and once with `"appearance": "Light"` in the profile's `settings.json` for `docs/screenshots/light`. The
+README and the website pick the set that matches the reader's theme; the website uses 1600-pixel copies in
+`site/public/assets/screens/desktop` and `desktop/light`.
+
+The website's iPhone screenshots come from the iOS app (`../ios-app`) in the simulator, driven by the UI test in
+`scripts/screenshots/ios`, against the same demo servers and in both appearances. With the servers running, run
+`scripts/screenshots/ios/capture.sh`: it adds the validation build's `fixture-user`, builds the app for the
+simulator with ad-hoc signing (it needs a keychain identity for the Audiobookshelf token), captures 13 screens in
+dark and light, and writes them to `site/public/assets/screens` and `screens/light`. The assistant screens use
+Apple Intelligence in the simulator, so the Mac must support it; the answers vary from run to run. The web player shown on the Download page is
+captured by `scripts/screenshots/web_player.py` from the published container, with the same demo profile.
 
 ## Discophile Connect (planned)
 
