@@ -1,7 +1,7 @@
 "use client";
 
 import { DesktopShot, PhoneShot } from "@/components/DesktopShot";
-import { useEffect, useId, useRef, useSyncExternalStore } from "react";
+import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 
 export type Shot = [name: string, alt: string, caption?: string];
 export type Device = "iphone" | "desktop";
@@ -47,6 +47,20 @@ function onComputer() {
   return navigator.maxTouchPoints <= 1;
 }
 
+/** Picks the visitor's own device once per page, unless they already chose. */
+let detected = false;
+function detectDevice() {
+  if (detected) return;
+  detected = true;
+  if (onComputer()) setDevice("desktop", false);
+}
+
+function useDevice() {
+  const device = useSyncExternalStore(subscribe, () => current, () => "iphone" as Device);
+  useEffect(detectDevice, []);
+  return device;
+}
+
 /** Screenshots of the same feature on iPhone and on the desktop, with a switch between them. */
 export function DeviceShots({
   labels,
@@ -60,11 +74,8 @@ export function DeviceShots({
   layout?: PhoneLayout;
 }) {
   const id = useId();
-  const device = useSyncExternalStore(subscribe, () => current, () => "iphone" as Device);
+  const device = useDevice();
   const tabs = useRef<(HTMLButtonElement | null)[]>([]);
-  useEffect(() => {
-    if (onComputer()) setDevice("desktop", false);
-  }, []);
 
   const phones = iphone && (
     <div className={`phones ${layout}`}>
@@ -84,7 +95,7 @@ export function DeviceShots({
     tabs.current[index]?.focus();
   };
   return (
-    <div className="device-shots">
+    <div className="device-shots" data-switchable="">
       <div className="device-switch" role="tablist" aria-label={labels.group}>
         {options.map((option, index) => (
           <button
@@ -111,6 +122,62 @@ export function DeviceShots({
       <div id={`${id}-panel`} role="tabpanel" aria-labelledby={`${id}-${device}-tab`} className="device-panel">
         {device === "iphone" ? phones : windows}
       </div>
+    </div>
+  );
+}
+
+const ICONS: Record<Device, React.ReactNode> = {
+  iphone: <><rect x="7" y="2.5" width="10" height="19" rx="2.6" /><path d="M10.5 5h3" /></>,
+  desktop: <><rect x="4" y="4.5" width="16" height="11" rx="1.6" /><path d="M2 19h20" /></>,
+};
+
+/**
+ * One switch for the whole page on wide screens: a dock on the side that shows while screenshots are on
+ * screen, with an indicator that slides to the chosen device. Narrower screens keep a switch per section.
+ */
+export function DeviceDock({ labels }: { labels: { switch: string; iphone: string; desktop: string } }) {
+  const device = useDevice();
+  const [shown, setShown] = useState(false);
+  const buttons = useRef<(HTMLButtonElement | null)[]>([]);
+  const options: Device[] = ["iphone", "desktop"];
+
+  useEffect(() => {
+    const visible = new Set<Element>();
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) visible.add(entry.target);
+        else visible.delete(entry.target);
+      }
+      setShown(visible.size > 0);
+    }, { rootMargin: "-20% 0px -20% 0px" });
+    document.querySelectorAll(".device-shots[data-switchable]").forEach((element) => observer.observe(element));
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div className="device-dock" role="radiogroup" aria-label={labels.switch} data-device={device} data-shown={shown || undefined}>
+      <span className="device-dock-thumb" aria-hidden="true" />
+      {options.map((option, index) => (
+        <button
+          key={option}
+          ref={(element) => { buttons.current[index] = element; }}
+          type="button"
+          role="radio"
+          aria-checked={device === option}
+          tabIndex={device === option ? 0 : -1}
+          onClick={() => setDevice(option, true)}
+          onKeyDown={(event) => {
+            if (!["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) return;
+            event.preventDefault();
+            const next = (index + 1) % options.length;
+            setDevice(options[next], true);
+            buttons.current[next]?.focus();
+          }}
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{ICONS[option]}</svg>
+          <span>{option === "iphone" ? labels.iphone : labels.desktop}</span>
+        </button>
+      ))}
     </div>
   );
 }

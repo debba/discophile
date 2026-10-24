@@ -46,8 +46,8 @@ export const ui = {
     skip: "Skip to content",
     menu: "Menu",
     mainNav: "Main",
-    nav: { features: "Features", download: "Download", selfHosting: "Self-hosting", privacy: "Privacy" },
-    shots: { group: "Screenshots for", iphone: "iPhone", desktop: "Desktop" },
+    nav: { features: "Features", download: "Download", selfHosting: "Self-hosting", faq: "FAQ" },
+    shots: { group: "Screenshots for", switch: "Show screenshots for", iphone: "iPhone", desktop: "Desktop" },
     theme: { label: "Appearance", auto: "Automatic", light: "Light", dark: "Dark" },
     newsletter: {
       started: "Your download is starting.",
@@ -191,8 +191,8 @@ export const ui = {
     skip: "Vai al contenuto",
     menu: "Menu",
     mainNav: "Navigazione principale",
-    nav: { features: "Funzionalità", download: "Download", selfHosting: "Self-hosting", privacy: "Privacy" },
-    shots: { group: "Schermate per", iphone: "iPhone", desktop: "Desktop" },
+    nav: { features: "Funzionalità", download: "Download", selfHosting: "Self-hosting", faq: "FAQ" },
+    shots: { group: "Schermate per", switch: "Mostra le schermate per", iphone: "iPhone", desktop: "Desktop" },
     theme: { label: "Aspetto", auto: "Automatico", light: "Chiaro", dark: "Scuro" },
     newsletter: {
       started: "Il download sta per iniziare.",

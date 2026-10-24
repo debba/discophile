@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { SITE_URL } from "@/lib/seo";
 
-const PATHS = ["/", "/features", "/download", "/self-hosting", "/video", "/privacy", "/cookie-policy"];
+const PATHS = ["/", "/features", "/download", "/self-hosting", "/faq", "/video", "/privacy", "/cookie-policy"];
 
 /** Every page in both languages, each listing the other through hreflang alternates. */
 export default function sitemap(): MetadataRoute.Sitemap {

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Icon, type IconName } from "@/components/Icon";
 import { SiteFooter } from "@/components/SiteFooter";
-import { DeviceShots, type PhoneLayout, type Shot } from "@/components/Shots";
+import { DeviceDock, DeviceShots, type PhoneLayout, type Shot } from "@/components/Shots";
 import { localePath, ui, type Locale } from "@/lib/i18n";
 
 type Feature = {
@@ -258,6 +258,8 @@ export function FeaturesPage({ locale }: { locale: Locale }) {
           <h1>{c.title}</h1>
           <p className="lede">{c.lede}</p>
         </header>
+
+        <DeviceDock labels={labels} />
 
         {c.features.map((feature) => (
           <section

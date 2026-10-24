@@ -13,7 +13,7 @@ export function SiteFooter({ locale, current, note }: { locale: Locale; current?
   return (
     <footer className="site-footer">
       <div>
-        <a className="brand" href={localePath(locale, "/")}><img src="/assets/icon-72.png" alt="" width="28" height="28" /><span>Discophile</span></a>
+        <a className="brand" href={localePath(locale, "/")}><img src="/assets/icon-72.png" alt="" width="28" height="28" loading="lazy" /><span>Discophile</span></a>
         <p>{t.madeBy} <a href="https://debbaweb.it">Andrea Debernardi</a>.</p>
       </div>
       <nav className="footer-links" aria-label={t.nav}>
@@ -30,7 +30,7 @@ export function SiteFooter({ locale, current, note }: { locale: Locale; current?
           {PRODUCTS.map((product) => (
             <li key={product.name}>
               <a href={product.href} target="_blank" rel="noopener noreferrer">
-                <img src={`/assets/products/${product.icon}.svg`} alt="" width="36" height="36" />
+                <img src={`/assets/products/${product.icon}.svg`} alt="" width="36" height="36" loading="lazy" />
                 <span>
                   <strong>{product.name} <span aria-hidden="true">↗</span><span className="sr-only">{t.newTab}</span></strong>
                   <span>{t.products[product.icon]}</span>

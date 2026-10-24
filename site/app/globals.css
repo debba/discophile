@@ -58,7 +58,8 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 
-html { scroll-behavior: smooth; }
+/* The tonearm and the MacBook overhang the hero on purpose; clip them without making a scroll container */
+html { scroll-behavior: smooth; overflow-x: clip; }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 
 body {
@@ -111,6 +112,12 @@ p { margin: 0 0 1em; max-width: 34em; text-wrap: pretty; }
   display: inline-flex; align-items: center; gap: 10px;
   color: var(--ink); text-decoration: none;
   font: 700 1.3rem/1 var(--display); font-variation-settings: "wdth" 85;
+}
+/* The header brand never shrinks, or its name would spill over the first link */
+.top .brand { flex: none; }
+/* Just above the phone menu there is no room for the name next to every link: the icon stays, the name is for screen readers */
+@media (min-width: 721px) and (max-width: 820px) {
+  .top .brand span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 }
 .brand img { border-radius: 9px; box-shadow: 0 2px 8px rgb(var(--line-rgb) / 0.25); }
 .top nav { display: flex; gap: clamp(14px, 2.4vw, 30px); }
@@ -376,7 +383,7 @@ figcaption {
 
 .site-footer {
   max-width: var(--max); margin: 0 auto; padding: clamp(56px, 8vw, 96px) var(--gutter) 48px;
-  display: grid; grid-template-columns: 1fr auto; gap: 24px 48px; align-items: start;
+  display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 24px 48px; align-items: start;
   font-size: 0.95rem; color: var(--ink-soft);
 }
 .site-footer p { margin: 10px 0 0; max-width: none; }
@@ -403,10 +410,12 @@ figcaption {
 }
 
 /* Privacy policy page */
-.policy { max-width: 46rem; margin: 0 auto; padding: clamp(32px, 6vw, 72px) var(--gutter) 24px; }
-.policy h1 { font-size: clamp(2.6rem, 6vw, 4.6rem); }
+/* Policies line up with the other pages' headings (.page-head); the text keeps a readable width */
+.policy { max-width: var(--max); margin: 0 auto; padding: clamp(32px, 6vw, 72px) var(--gutter) 24px; }
+.policy > * { max-width: 46rem; }
+.policy h1 { font-size: clamp(2.8rem, 6.4vw, 5rem); max-width: 14em; }
 .policy h2 { font-size: clamp(1.5rem, 2.6vw, 1.9rem); margin-top: 2.2em; line-height: 1.1; }
-.policy p, .policy ul { max-width: none; }
+.policy p, .policy ul { max-width: 46rem; }
 .policy ul { padding-left: 1.2em; }
 .policy li { margin-bottom: 10px; }
 .policy li::marker { color: var(--raspberry); }
@@ -506,16 +515,17 @@ html:has(dialog[open]) { overflow: hidden; }
 
 /* Cookie banner: non-modal, the page stays usable */
 .cookie-banner {
-  position: fixed; z-index: 20; left: 16px; bottom: 16px;
-  width: min(440px, calc(100% - 32px)); max-height: calc(100dvh - 32px); overflow: auto;
-  padding: 22px 22px 20px; border-radius: 22px;
+  position: fixed; z-index: 20; right: 16px; bottom: 16px;
+  width: min(22rem, calc(100% - 32px)); max-height: calc(100dvh - 32px); overflow: auto;
+  padding: 22px 20px 20px; border-radius: 22px; text-align: center;
   background: var(--paper); color: var(--ink);
   box-shadow: 0 30px 60px -18px rgb(var(--shadow-rgb) / 0.5), 0 0 0 1px rgb(var(--line-rgb) / 0.12);
 }
-html:has(.cookie-banner) { scroll-padding-bottom: 300px; }
-.cookie-banner h2 { font-size: 1.5rem; margin: 0 0 8px; }
+/* Keyboard focus scrolls content clear of the card, so it never hides what has focus */
+html:has(.cookie-banner) { scroll-padding-bottom: 280px; }
+.cookie-banner h2 { font-size: 1.3rem; margin: 0 0 8px; }
 .cookie-banner h2:focus { outline: none; }
-.cookie-banner p { font-size: 0.95rem; margin-bottom: 12px; }
+.cookie-banner p { font-size: 0.9rem; line-height: 1.5; margin: 0 auto 12px; }
 .cookie-current { color: var(--ink-soft); }
 .cookie-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 .cookie-actions .button { flex: 1 1 auto; min-height: 44px; padding: 0 16px; font-size: 0.95rem; }
@@ -527,7 +537,9 @@ html:has(.cookie-banner) { scroll-padding-bottom: 300px; }
 }
 .policy tbody th { font-weight: 500; border-bottom: 1px solid rgb(var(--line-rgb) / 0.2); }
 .policy tr:last-child th { border-bottom: 0; }
-.policy code { font-size: 0.88em; overflow-wrap: anywhere; }
+.policy code { font-size: 0.88em; white-space: nowrap; }
+/* Short values like "13 months" stay on one line; the table scrolls sideways on phones */
+.policy td:last-child { white-space: nowrap; }
 /* Language switcher */
 .top nav { align-items: center; }
 .lang-switch { position: relative; }
@@ -575,7 +587,7 @@ html:has(.cookie-banner) { scroll-padding-bottom: 300px; }
 @keyframes sticker-slap { from { scale: 1.5; opacity: 0; rotate: -6deg; } }
 /* The play button sits in a starburst, like the stickers on new records */
 .hype-play {
-  position: relative; display: grid; place-items: center; width: 34px; height: 34px; padding-left: 2px; color: #fff;
+  position: relative; display: grid; place-items: center; width: 34px; height: 34px; color: #fff;
 }
 .hype-play::before {
   content: ""; position: absolute; inset: -2px; z-index: -1; background: var(--raspberry);
@@ -688,12 +700,14 @@ html[data-film] .record { animation-play-state: paused; }
 .hype-play::before { animation: spin 4s linear 1; }
 .film-grooves::before, .film-marquee { animation: none; }
 .hype-sticker { text-decoration: none; }
-.hype-sticker:hover { color: var(--paper); }
+/* Light text on the plum hover in both themes, like the Download button */
+.hype-sticker:hover, .hype-sticker:focus-visible { color: #fff; }
 .hype-label { white-space: normal; }
 .top nav > a, .footer-links > a, .link-button { min-height: 44px; display: inline-flex; align-items: center; }
 .lang-button { min-height: 44px; }
 .button { padding-block: 12px; }
-p, li, dd, a { overflow-wrap: anywhere; }
+/* break-word, not anywhere: long URLs still wrap, but text columns never shrink to a letter per line */
+p, li, dd, a { overflow-wrap: break-word; }
 .film-inner { width: min(92vw, max(280px, (100dvh - 220px) * 16 / 9)); min-width: 0; }
 .film-meta h1 { font-size: clamp(2rem, 4.6vw, 3.6rem); color: #ffd8e2; }
 .film-links { padding-top: 14px; }
@@ -705,11 +719,6 @@ p, li, dd, a { overflow-wrap: anywhere; }
 }
 html:has(.video-page) { overflow: hidden; }
 .video-page .film-close { text-decoration: none; }
-.cookie-banner {
-  position: relative; left: auto; bottom: auto; width: auto; max-width: var(--max);
-  max-height: none; margin: 16px var(--gutter); overflow: visible;
-}
-html:has(.cookie-banner) { scroll-padding-bottom: 24px; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
@@ -760,6 +769,48 @@ html:has(.cookie-banner) { scroll-padding-bottom: 24px; }
 .assistant .device-switch button { color: #f1dce6; }
 .assistant .device-switch button[aria-selected="true"] { background: #f26f96; color: var(--vinyl); }
 .device-panel { width: 100%; animation: panel-in 0.25s ease-out; }
+/* On wide screens one dock on the side switches every section, and the per-section switches step aside.
+   It sits just left of the content column, and slides in while screenshots are on screen. */
+.device-dock { display: none; }
+@media (min-width: 1340px) {
+  .device-shots[data-switchable] .device-switch { display: none; }
+  .device-dock {
+    --item: 64px;
+    position: fixed; z-index: 15; top: 50%; left: max(16px, calc((100vw - var(--max)) / 2 - 76px));
+    display: flex; flex-direction: column; gap: 4px; padding: 6px; border-radius: 32px;
+    background: color-mix(in srgb, var(--paper) 82%, transparent);
+    -webkit-backdrop-filter: blur(14px) saturate(1.4); backdrop-filter: blur(14px) saturate(1.4);
+    box-shadow: 0 22px 44px -18px rgb(var(--shadow-rgb) / 0.5), 0 0 0 1px rgb(var(--line-rgb) / 0.12);
+    translate: 0 -50%;
+    transition: opacity 0.3s, translate 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  /* Out of sight while no screenshots are on screen, but still focusable: tabbing into it brings it back */
+  .device-dock:not([data-shown]):not(:focus-within) { opacity: 0; translate: -14px -50%; pointer-events: none; }
+  .device-dock button {
+    position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+    width: 52px; height: var(--item); padding: 0; border: 0; border-radius: 26px; background: transparent;
+    font: 600 0.72rem/1 var(--body); letter-spacing: 0.01em; color: var(--ink-soft); cursor: pointer;
+    transition: color 0.2s;
+  }
+  .device-dock button:hover { color: var(--ink); }
+  .device-dock button[aria-checked="true"] { color: #fff; }
+  .device-dock button:focus-visible { outline: 2px solid var(--raspberry); outline-offset: 2px; }
+  /* The indicator slides between the two devices with a little overshoot */
+  .device-dock-thumb {
+    position: absolute; top: 6px; left: 6px; width: 52px; height: var(--item); border-radius: 26px;
+    /* Never lighter than --raspberry, so the white label keeps at least 5.28:1 */
+    background: linear-gradient(160deg, var(--raspberry), #a82352);
+    box-shadow: 0 10px 20px -8px rgb(199 45 98 / 0.7), inset 0 1px 0 rgb(255 255 255 / 0.25);
+    transition: translate 0.4s cubic-bezier(0.3, 1.4, 0.5, 1);
+  }
+  .device-dock[data-device="desktop"] .device-dock-thumb { translate: 0 calc(var(--item) + 4px); }
+}
+@media (forced-colors: active) {
+  .device-dock { border: 1px solid CanvasText; }
+  .device-dock-thumb { background: Highlight; }
+  .device-dock button[aria-checked="true"] { color: HighlightText; }
+}
+
 @keyframes panel-in { from { opacity: 0; translate: 0 8px; } }
 @media (prefers-reduced-motion: reduce) { .device-panel { animation: none; } }
 .phones.single { grid-template-columns: minmax(0, 300px); justify-content: center; }
@@ -796,6 +847,39 @@ html:has(.cookie-banner) { scroll-padding-bottom: 24px; }
 .compare td[data-value="yes"]::before { content: "✓ "; color: var(--raspberry); font-weight: 700; }
 .compare td[data-value="no"] { color: var(--ink-soft); }
 .compare tr:last-child th, .compare tr:last-child td { border-bottom: 0; }
+
+/* FAQ page: questions open in place, aligned with the page heading like Self-hosting */
+.faq { max-width: var(--max); margin: 0 auto; padding: clamp(24px, 4vw, 48px) var(--gutter) clamp(48px, 7vw, 90px); }
+.faq > section { max-width: 52rem; }
+.faq section + section { margin-top: clamp(40px, 6vw, 64px); }
+.faq h2 { font-size: clamp(1.7rem, 3vw, 2.3rem); margin-bottom: 0.4em; }
+.faq-item { border-bottom: 1.5px solid rgb(var(--line-rgb) / 0.16); scroll-margin-top: 24px; }
+.faq-item summary {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  min-height: 44px; padding: 16px 0; cursor: pointer; list-style: none;
+}
+.faq-item summary::-webkit-details-marker { display: none; }
+.faq-item summary h3 { margin: 0; font: 600 1.12rem/1.35 var(--body); letter-spacing: 0; }
+.faq-item summary:hover h3 { color: var(--link); }
+/* A plus that turns into a minus when the answer is open */
+.faq-item summary::after {
+  content: ""; flex: none; width: 28px; height: 28px; border-radius: 50%;
+  background:
+    linear-gradient(currentColor, currentColor) center / 12px 2px no-repeat,
+    linear-gradient(currentColor, currentColor) center / 2px 12px no-repeat,
+    var(--paper);
+  color: var(--raspberry); transition: rotate 0.2s;
+}
+.faq-item[open] summary::after {
+  background: linear-gradient(currentColor, currentColor) center / 12px 2px no-repeat, var(--paper);
+  rotate: 180deg;
+}
+.faq-answer { padding: 0 44px 18px 0; }
+.faq-answer p { max-width: none; color: var(--ink-soft); }
+.faq-answer p:last-child { margin-bottom: 0; }
+.faq-links { display: flex; flex-wrap: wrap; gap: 4px 24px; }
+.faq-links a, .faq-links .link-button { font-weight: 600; color: var(--link); }
+@media (forced-colors: active) { .faq-item summary::after { border: 1px solid CanvasText; } }
 
 /* Self-hosting page */
 /* Aligned with the page heading; the reading column stays narrow */
@@ -847,6 +931,8 @@ html:has(.cookie-banner) { scroll-padding-bottom: 24px; }
   background: rgb(43 13 34 / 0.35); backdrop-filter: blur(6px);
 }
 .macbook-menubar b { font-weight: 700; }
+/* The Apple menu, first in every Mac menu bar */
+.macbook-apple { flex: none; width: 1.5cqw; height: 1.5cqw; margin-top: -0.2cqw; }
 .macbook-clock { margin-left: auto; }
 .macbook-screen img {
   display: block; width: 82%; height: auto; margin-top: 2.6%;
@@ -1103,6 +1189,13 @@ html:has(.cookie-banner) { scroll-padding-bottom: 24px; }
     position: absolute; left: 0; right: auto; top: calc(100% + 8px); margin: 0;
     box-shadow: 0 24px 48px -16px rgb(var(--shadow-rgb) / 0.4), 0 0 0 1px rgb(var(--line-rgb) / 0.12);
   }
+}
+/* Header links never break mid-label; just above the phone menu the language button keeps only its flag to make room */
+.top nav > a { white-space: nowrap; }
+@media (min-width: 721px) and (max-width: 900px) {
+  .top { gap: 16px; }
+  .top nav, .nav-tools { gap: 12px; }
+  .nav-tools .lang-name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 }
 /* On the narrowest phones the language button keeps the flag; its name stays for screen readers */
 @media (max-width: 374px) {

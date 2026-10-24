@@ -36,3 +36,13 @@ export function WebShot({ name, alt }: { name: string; alt: string }) {
     </>
   );
 }
+
+/**
+ * Hero screenshots load lazily so only the visible theme is fetched, but lazy images wait for layout.
+ * This inline script runs while the page is parsed and preloads the theme's variant at high priority.
+ * The MacBook is hidden on narrow screens, so its preload only applies to wide ones.
+ */
+export function HeroPreload({ desktop, phone }: { desktop: string; phone: string }) {
+  const script = `(function(){var t=document.documentElement.dataset.theme,d=t?t==="dark":matchMedia("(prefers-color-scheme: dark)").matches,s=d?"":"light/";[["/assets/screens/desktop/"+s+${JSON.stringify(desktop)},"(min-width: 861px)"],["/assets/screens/"+s+${JSON.stringify(phone)},""]].forEach(function(p){var l=document.createElement("link");l.rel="preload";l.as="image";l.href=p[0]+".webp${V}";l.fetchPriority="high";if(p[1])l.media=p[1];document.head.appendChild(l)})})()`;
+  return <script dangerouslySetInnerHTML={{ __html: script }} />;
+}

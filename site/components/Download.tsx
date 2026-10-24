@@ -94,7 +94,7 @@ export function DownloadProvider({ locale, release, children }: { locale: Locale
       >
         <div className="sheet-head">
           <div className="sheet-title">
-            <img src="/assets/icon-72.png" alt="" width={44} height={44} />
+            <img src="/assets/icon-72.png" alt="" width={44} height={44} loading="lazy" />
             <h2 id="download-title">{started ? ui[locale].newsletter.started : t.title}</h2>
           </div>
           <button type="button" className="dialog-close" onClick={close}>

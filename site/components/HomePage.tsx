@@ -1,11 +1,12 @@
-import { DesktopShot, PhoneShot } from "@/components/DesktopShot";
+import { DesktopShot, HeroPreload, PhoneShot } from "@/components/DesktopShot";
 import type { ReactNode } from "react";
 import { DownloadButton } from "@/components/Download";
 import { HeroVideo } from "@/components/HeroVideo";
 import { Icon, type IconName } from "@/components/Icon";
 import { SiteFooter } from "@/components/SiteFooter";
+import { SpinningRecord } from "@/components/SpinningRecord";
 import { StructuredData } from "@/components/StructuredData";
-import { DeviceShots, type Shot } from "@/components/Shots";
+import { DeviceDock, DeviceShots, type Shot } from "@/components/Shots";
 import { TestFlightButton } from "@/components/TestFlight";
 import { localePath, ui, type Locale } from "@/lib/i18n";
 
@@ -207,6 +208,7 @@ export function HomePage({ locale }: { locale: Locale }) {
     <>
       <StructuredData locale={locale} />
       <main id="main" tabIndex={-1}>
+        <HeroPreload desktop="now-playing" phone="now-playing" />
         <section className="hero">
           <div className="hero-copy">
             <h1>{c.title}</h1>
@@ -226,7 +228,7 @@ export function HomePage({ locale }: { locale: Locale }) {
           </div>
           <div className="turntable stage" aria-hidden="true">
             <div className="deck">
-              <div className="record"><div className="label" /></div>
+              <SpinningRecord />
               <svg className="tonearm" viewBox="0 0 1000 1000">
                 <g className="arm">
                   <path d="M902 436L823 657" fill="none" stroke="#f6e9ef" strokeWidth="40" strokeLinecap="round" />
@@ -242,6 +244,7 @@ export function HomePage({ locale }: { locale: Locale }) {
               <div className="macbook-lid">
                 <div className="macbook-screen">
                   <div className="macbook-menubar">
+                    <svg className="macbook-apple" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/></svg>
                     <b>Discophile</b><span>File</span><span>Controls</span><span>Go</span><span>Window</span><span>Help</span>
                     <span className="macbook-clock">9:41</span>
                   </div>
@@ -255,6 +258,8 @@ export function HomePage({ locale }: { locale: Locale }) {
             </figure>
           </div>
         </section>
+
+        <DeviceDock labels={labels} />
 
         <section className="feature" id="listen" aria-labelledby="listen-title">
           <div className="feature-copy">
@@ -319,7 +324,7 @@ export function HomePage({ locale }: { locale: Locale }) {
         </section>
 
         <section className="release" id="release" aria-labelledby="release-title">
-          <img src="/assets/icon-192.png" alt="" width={96} height={96} />
+          <img src="/assets/icon-192.png" alt="" width={96} height={96} loading="lazy" />
           <h2 id="release-title">{c.release.title}</h2>
           <p>{c.release.body}</p>
           <ul className="servers" aria-label={c.release.servers}>

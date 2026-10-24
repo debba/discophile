@@ -14,7 +14,7 @@ export function SiteHeader({ locale }: { locale: Locale }) {
     { href: localePath(locale, "/features"), label: t.nav.features },
     { href: localePath(locale, "/download"), label: t.nav.download },
     { href: localePath(locale, "/self-hosting"), label: t.nav.selfHosting },
-    { href: localePath(locale, "/privacy"), label: t.nav.privacy },
+    { href: localePath(locale, "/faq"), label: t.nav.faq },
   ];
   const [open, setOpen] = useState(false);
   const toggleRef = useRef<HTMLButtonElement>(null);

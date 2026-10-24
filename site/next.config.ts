@@ -2,6 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // A lockfile in the home folder would otherwise be taken as the workspace root.
+  turbopack: { root: import.meta.dirname },
   async redirects() {
     return [
       { source: "/index.html", destination: "/", permanent: true },
@@ -15,6 +17,11 @@ const nextConfig: NextConfig = {
       {
         source: "/assets/:path*",
         headers: [{ key: "Cache-Control", value: "public, max-age=604800, stale-while-revalidate=86400" }],
+      },
+      // Screenshots are always linked with a ?v= version (see DesktopShot), so a URL never changes content.
+      {
+        source: "/assets/screens/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
       },
       // Videos keep Vercel's default and revalidate on every load, as on the Tabularis site.
       {
