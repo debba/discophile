@@ -48,12 +48,12 @@ const COPY: Record<Locale, Copy> = {
           {
             id: "account",
             q: "Do I need a Discophile account?",
-            a: ["No. There is no Discophile account and no Discophile server. The app connects directly to the servers you add, with the credentials you already use for them."],
+            a: ["No account is required to listen. The app connects directly to your servers with their existing credentials. Discophile Connect is optional: its Free plan syncs one selected connection and preferences across two trusted desktop computers. Paid plans add more computers, backups, remote control and Continue here."],
           },
           {
             id: "free",
             q: "Is it free?",
-            a: ["The apps for Mac, Windows and Linux and the web player are free and open source. The iPhone app is coming soon to the App Store, and you can try the beta now."],
+            a: ["The desktop apps and web player are free and open source. Optional Connect has a Free plan and paid plans from €2.99/month or €24.99/year, activated by email without automatic payment. The iPhone app is coming soon to the App Store; you can try the beta now."],
             links: [{ label: "Source code on GitHub", href: REPO_URL }],
           },
         ],
@@ -166,12 +166,12 @@ const COPY: Record<Locale, Copy> = {
           {
             id: "account",
             q: "Devo creare un account Discophile?",
-            a: ["No. Non esistono un account né un server Discophile. L'app si collega direttamente ai server che aggiungi, con le credenziali che usi già."],
+            a: ["Per ascoltare non serve un account. L’app si collega direttamente ai tuoi server con le credenziali esistenti. Discophile Connect è facoltativo: il piano Free sincronizza una connessione selezionata e le preferenze tra due computer desktop fidati. I piani a pagamento aggiungono più computer, backup, telecomando e Continua qui."],
           },
           {
             id: "free",
             q: "È gratis?",
-            a: ["Le app per Mac, Windows e Linux e il player web sono gratuiti e open source. L'app per iPhone arriva presto sull'App Store, e puoi già provare la beta."],
+            a: ["Le app desktop e il player web sono gratuiti e open source. Connect, facoltativo, offre un piano Free e piani a pagamento da 2,99 €/mese o 24,99 €/anno, attivati via email senza pagamenti automatici. L’app iPhone arriva presto sull’App Store; puoi già provare la beta."],
             links: [{ label: "Codice sorgente su GitHub", href: REPO_URL }],
           },
         ],

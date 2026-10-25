@@ -92,9 +92,45 @@ fn target_path(executable: &Path) -> Result<PathBuf, String> {
     }
 }
 
+// AppImage names intentionally omit "linux-": older tarball updaters must keep selecting the archive.
+fn appimage_asset<'a>(release: &'a Release, arch: &str) -> Option<&'a discophile_core::updates::Asset> {
+    let name = format!("Discophile-{}-{arch}.AppImage", release.version);
+    release.assets.iter().find(|asset| asset.name == name)
+}
+
+fn stage_appimage(archive: &Path, staged: &Path) -> Result<(), String> {
+    use std::io::Read;
+    let mut input = std::fs::File::open(archive).map_err(error)?;
+    let mut header = [0; 11];
+    input.read_exact(&mut header).map_err(error)?;
+    if &header[..4] != b"\x7fELF" || &header[8..11] != b"AI\x02" {
+        return Err("The package is not a type 2 AppImage.".into());
+    }
+    let length = std::fs::metadata(archive).map_err(error)?.len();
+    if length > MAX_DOWNLOAD {
+        return Err("The update package is too large.".into());
+    }
+    std::fs::copy(archive, staged).map_err(error)?;
+    std::fs::File::open(staged).map_err(error)?.sync_all().map_err(error)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(staged, std::fs::Permissions::from_mode(0o755)).map_err(error)?;
+    }
+    Ok(())
+}
+
 /// Reports bytes on the task channel; disk work and archive validation run off the UI thread.
 pub async fn prepare(release: &Release, progress: impl Fn(Progress)) -> Result<PreparedUpdate, String> {
-    let asset = release.asset_for(std::env::consts::OS, std::env::consts::ARCH).ok_or("There is no update package for this computer.")?;
+    #[cfg(target_os = "linux")]
+    let appimage = std::env::var_os("APPIMAGE").map(PathBuf::from);
+    #[cfg(not(target_os = "linux"))]
+    let appimage: Option<PathBuf> = None;
+    let asset = if appimage.is_some() {
+        appimage_asset(release, std::env::consts::ARCH)
+    } else {
+        release.asset_for(std::env::consts::OS, std::env::consts::ARCH)
+    }.ok_or("There is no update package for this computer.")?;
     let manifest = release
         .assets
         .iter()
@@ -103,7 +139,8 @@ pub async fn prepare(release: &Release, progress: impl Fn(Progress)) -> Result<P
     if !release_url(&asset.url) || !release_url(&manifest.url) {
         return Err("The update package is not hosted in the Discophile release repository.".into());
     }
-    let target = target_path(&std::env::current_exe().map_err(error)?.canonicalize().map_err(error)?)?;
+    let executable = appimage.clone().map_or_else(std::env::current_exe, Ok).map_err(error)?;
+    let target = target_path(&executable.canonicalize().map_err(error)?)?;
     let directory = tempfile::Builder::new()
         .prefix(".discophile-update-")
         .tempdir_in(target.parent().ok_or("Invalid installation path.")?)
@@ -159,7 +196,13 @@ pub async fn prepare(release: &Release, progress: impl Fn(Progress)) -> Result<P
     let staging_root = directory.path().to_path_buf();
     let version = release.version.clone();
     let installed = target.clone();
-    tokio::task::spawn_blocking(move || unpack(&archive, &unpacked, &staging_root, &version, &installed)).await.map_err(error)??;
+    tokio::task::spawn_blocking(move || {
+        if appimage.is_some() {
+            stage_appimage(&archive, &unpacked)
+        } else {
+            unpack(&archive, &unpacked, &staging_root, &version, &installed)
+        }
+    }).await.map_err(error)??;
     Ok(PreparedUpdate { directory, target, staged })
 }
 
@@ -311,6 +354,28 @@ const HELPER: &str = include_str!("updater/install.ps1");
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn appimage_updates_select_the_image_and_validate_its_header() {
+        use discophile_core::updates::Asset;
+        let mut release = Release { version: "0.1.3".into(), page_url: String::new(), notes: String::new(), assets: vec![] };
+        for name in ["Discophile-0.1.3-linux-x86_64.tar.gz", "Discophile-0.1.3-x86_64.AppImage"] {
+            release.assets.push(Asset { name: name.into(), url: String::new(), size: 0 });
+        }
+        assert!(appimage_asset(&release, "x86_64").unwrap().name.ends_with(".AppImage"));
+        assert!(release.asset_for("linux", "x86_64").unwrap().name.ends_with(".tar.gz"));
+        assert!(appimage_asset(&release, "aarch64").is_none());
+        let temp = tempfile::tempdir().unwrap();
+        let archive = temp.path().join("image");
+        let staged = temp.path().join("staged");
+        std::fs::write(&archive, b"not an image").unwrap();
+        assert!(stage_appimage(&archive, &staged).is_err());
+        assert!(!staged.exists());
+        let image = b"\x7fELF\x02\x01\x01\x00AI\x02payload";
+        std::fs::write(&archive, image).unwrap();
+        stage_appimage(&archive, &staged).unwrap();
+        assert_eq!(std::fs::read(staged).unwrap(), image);
+    }
 
     #[test]
     fn checksum_requires_exact_filename_and_sha256() {

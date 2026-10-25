@@ -21,7 +21,7 @@ export default function Privacy() {
         <h1>Privacy policy</h1>
         <p className="updated">Last updated: October 24, 2026</p>
 
-        <p className="policy-summary">Discophile has no account system and no server of its own. On iPhone, on your computer and in the web player, it connects directly to the music and audiobook servers you choose. Your listening history stays on your device, and the apps contain no advertising, analytics or tracking.</p>
+        <p className="policy-summary">Discophile connects directly to the music and audiobook servers you choose. No account is required for listening. Discophile Connect is an optional account and encrypted desktop service. The apps contain no advertising, analytics or tracking.</p>
 
         <p>This policy covers Discophile for iPhone, Discophile for Mac, Windows and Linux (the desktop app), the web player you can host yourself, and this website. Unless a section says otherwise, it applies to all of them.</p>
 
@@ -30,11 +30,15 @@ export default function Privacy() {
 
         <h2>Your servers and library</h2>
         <p>Discophile is a client for Subsonic and OpenSubsonic, Navidrome, Jellyfin and Audiobookshelf servers, and for internet radio stations you add. It sends requests directly to the addresses you enter, to browse your library, stream and download audio, load artwork and lyrics, manage playlists and favorites, and sync audiobook positions. The operator of each server decides what that server records, for example in its access logs.</p>
-        <p>Passwords, API keys and access tokens are stored in the iOS Keychain on iPhone, and in the system keychain on the desktop (Keychain on macOS, Credential Manager on Windows, Secret Service on Linux, or a file only your user account can read when no keychain is available). The web player keeps them in the browser&apos;s local storage for its address. They are sent only to the server they belong to. Connections use HTTPS by default; plain HTTP is used only when you explicitly allow it for a trusted local server.</p>
+        <p>Passwords, API keys and access tokens are stored in the iOS Keychain on iPhone, and in the system keychain on the desktop (Keychain on macOS, Credential Manager on Windows, Secret Service on Linux, or a file only your user account can read when no keychain is available). The web player keeps them in the browser&apos;s local storage for its address. Outside the optional encrypted Connect sync described below, they are sent only to the server they belong to. Connections use HTTPS by default; plain HTTP is used only when you explicitly allow it for a trusted local server.</p>
 
         <h2>Data kept on your device</h2>
         <p>To build Listen Now, discovery mixes, album suggestions and listening statistics, Discophile records what you play on that device, separately for each library. Daily listening is kept for 400 days. Saved queues, selections, assistant chats, downloaded music and audiobooks, and cached lyrics are also stored on the device.</p>
         <p>On iPhone, listening history, statistics, assistant chats and downloads are stored in protected files that are excluded from device backups. Ordinary preferences may be included in your backups according to your Apple device settings. On the desktop, the same data lives in the app&apos;s data folder for your user account, shown in Settings, and is included in any backup you make of that folder. The web player keeps it in the browser&apos;s storage. You can review or clear listening history in Settings.</p>
+
+        <h2>Discophile Connect</h2>
+        <p>On desktop, signing in shares your account identity, profile picture and plan with the Connect instance you choose. Pairing trusted computers uploads selected connection settings, optional preferences, backups and playback messages encrypted with your private recovery code. The instance stores ciphertext and service metadata such as paired devices, timestamps, storage sizes and your plan; it does not receive the decryption key or audio files. Only paired computers can decrypt this data. Keep your recovery code privately: signing in cannot recover a lost code.</p>
+        <p>You can review and revoke access, export encrypted data or delete your cloud vault from Connect. Revoking a device requires sharing a new recovery code with the remaining trusted computers. New connections are shared only after you select them. These services are optional and are not yet integrated into the iPhone app or web player. See the <a href="https://connect.discophile.app/privacy">Connect privacy policy</a> for account and service details.</p>
 
         <h2>Music assistant and optional AI</h2>
         <p><b>On this iPhone</b> uses Apple Intelligence on supported devices. Requests are processed on the device, and Discophile never switches to a cloud service automatically.</p>

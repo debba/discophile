@@ -92,3 +92,9 @@ the button that opened it) and the banner. Text links use `--link`, since
 
 `tools/og-source.html` is the source of `public/assets/og.png`; open it in a browser
 at 1200x630 to capture it.
+
+## Desktop releases and Connect
+
+`lib/releases.ts` reads the latest published GitHub release. The Linux download dialog offers the Debian package, AppImage and tarball when their assets exist; earlier releases still work. Names follow `discophile_VERSION_amd64.deb`, `Discophile-VERSION-x86_64.AppImage` and `Discophile-VERSION-linux-x86_64.tar.gz`. The AppImage name preserves compatibility with older desktop tarball updaters. Publish the desktop release before rebuilding the production site so its static pages immediately contain the new assets (otherwise the hourly cache refresh picks them up).
+
+Home and Download present optional desktop Connect plans and link to the Connect service for activation by email. Keep the plan copy, FAQ and privacy pages in both languages consistent with the deployed service. iPhone and browser Connect integration is not advertised as available.

@@ -60,12 +60,14 @@ in a single keychain item. `DISCOPHILE_SECRETS=keychain` or `DISCOPHILE_SECRETS=
 ## Releases
 
 Pushing a `v*` tag runs `.github/workflows/release.yml`. It builds a universal macOS disk image (signed with
-Developer ID and notarized), a Windows zip and a Linux tarball, then publishes them as a GitHub release. The app
+Developer ID and notarized), a Windows zip and Linux tarball, Debian and AppImage packages, then publishes them as a GitHub release. The app
 compares that release with its own version and offers the matching download. The same run pushes the web player
 image to `ghcr.io/<owner>/discophile-web` (tags `X.Y.Z`, `X.Y` and `latest`, for amd64 and arm64) and the Helm
 chart to `oci://ghcr.io/<owner>/charts/discophile-web`, with the chart and app version set from the tag; the
 chart archive is attached to the release too. Both use the workflow's `GITHUB_TOKEN`, so no extra secrets are
 needed. The first time, check in the package settings on GitHub that both packages are public.
+
+Linux packages use `scripts/package-linux.sh` on Ubuntu 22.04 (x86_64, glibc 2.35 baseline). Debian linked dependencies are generated with `dpkg-shlibdeps`; runtime window-system dependencies are explicit. AppImage dependencies are bundled with a version- and checksum-pinned linuxdeploy. CI installs the Debian package and launches both packaged apps under Xvfb before publishing. AppImage filenames omit `linux-` so pre-0.1.3 tarball updaters keep selecting their compatible archive; AppImage installations select and replace the complete image instead.
 
 On Arch Linux, the AUR package [`discophile-bin`](https://aur.archlinux.org/packages/discophile-bin) repackages the
 Linux tarball. Its PKGBUILD is `packaging/aur/discophile-bin/PKGBUILD`; for every tag the workflow sets the

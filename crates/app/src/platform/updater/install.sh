@@ -4,6 +4,9 @@ launch() {
     if [ "$platform" = macos ]; then
         /usr/bin/open -n "$target"
     else
+        if [ "$platform" = linux ] && [ -n "${APPIMAGE:-}" ]; then
+            unset APPIMAGE APPDIR ARGV0 OWD LD_LIBRARY_PATH LD_PRELOAD
+        fi
         "$target" </dev/null >/dev/null 2>&1 &
         child=$!
         sleep 1

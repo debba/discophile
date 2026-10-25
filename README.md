@@ -148,7 +148,9 @@ Get the latest version from [Releases](https://github.com/debba/discophile/relea
 | --- | --- | --- |
 | macOS 11 or later | `Discophile-<version>-macos-universal.dmg` | Apple silicon and Intel. Signed and notarized: open the disk image and drag Discophile to Applications. |
 | Windows 10 or later | `Discophile-<version>-windows-x86_64.zip` | Extract and run `Discophile.exe`. |
-| Linux (x86_64) | `Discophile-<version>-linux-x86_64.tar.gz` | Needs ALSA or PipeWire/PulseAudio and D-Bus. Includes a `.desktop` file and icon. |
+| Debian / Ubuntu (x86_64) | `discophile_<version>_amd64.deb` | Install with `sudo apt install ./discophile_<version>_amd64.deb`. |
+| Linux AppImage (x86_64) | `Discophile-<version>-x86_64.AppImage` | Make executable and launch. Requires glibc 2.35+. Without FUSE use `--appimage-extract-and-run`. |
+| Linux archive (x86_64) | `Discophile-<version>-linux-x86_64.tar.gz` | Needs ALSA or PipeWire/PulseAudio and D-Bus. Includes a `.desktop` file and icon. |
 | Arch Linux | [`discophile-bin`](https://aur.archlinux.org/packages/discophile-bin) on the AUR | `yay -S discophile-bin` or `paru -S discophile-bin`. |
 
 Automatic updates require a writable installation folder (and the installed `.app` on macOS). System-managed

@@ -1,3 +1,4 @@
+import { ConnectOverview } from "@/components/ConnectOverview";
 import { DesktopShot, WebShot } from "@/components/DesktopShot";
 import type { ReactNode } from "react";
 import { DownloadButton } from "@/components/Download";
@@ -44,14 +45,14 @@ const COPY: Record<Locale, Copy> = {
         <><b>System media controls</b>: Now Playing on macOS, the media overlay on Windows and MPRIS on Linux, plus a tray menu to keep listening with the window closed.</>,
         <><b>A full menu bar on the Mac</b>, with shortcuts for every section, Back and Forward, and Settings.</>,
         <><b>A local model or ChatGPT</b> for the assistant, and <b>agents</b> such as Claude through MCP, only on your computer.</>,
-        <><b>Updates</b>: Discophile tells you when a new version is out and opens the right download.</>,
+        <><b>Updates</b>: Install verified updates from the app. Debian / Ubuntu and Arch packages are updated through the package manager.</>,
       ],
       alt: "Discophile on a Mac, playing Discophile by Mina Sol with synced lyrics",
     },
     downloads: {
       mac: { title: "Mac", needs: "macOS 11 or later, Apple silicon and Intel", body: "Signed and notarized by Apple. Open the disk image and drag Discophile to Applications." },
       windows: { title: "Windows", needs: "Windows 10 or later, 64-bit", body: <>Extract the zip and run <code>Discophile.exe</code>.</> },
-      linux: { title: "Linux", needs: "x86_64, with PipeWire, PulseAudio or ALSA", body: <>Extract the archive and run <code>discophile</code>. A <code>.desktop</code> file and icon are included.</> },
+      linux: { title: "Linux", needs: "x86_64 · Ubuntu 22.04 or equivalent, glibc 2.35+", body: <>Choose a Debian / Ubuntu package, a portable AppImage, or the tar archive. The download window includes instructions for each format.</> },
       aur: <>On Arch Linux, install <a href={AUR_URL}>discophile-bin</a> from the AUR:</>,
       button: { mac: "Download for Mac", windows: "Download for Windows", linux: "Download for Linux" },
       fallback: "Releases on GitHub",
@@ -107,14 +108,14 @@ const COPY: Record<Locale, Copy> = {
         <><b>Controlli multimediali di sistema</b>: In riproduzione su macOS, l&apos;overlay multimediale su Windows e MPRIS su Linux, più un menu nell&apos;area di notifica per continuare ad ascoltare a finestra chiusa.</>,
         <><b>Una barra dei menu completa sul Mac</b>, con scorciatoie per ogni sezione, Indietro e Avanti, e Impostazioni.</>,
         <><b>Un modello locale o ChatGPT</b> per l&apos;assistente, e <b>agenti</b> come Claude tramite MCP, solo sul tuo computer.</>,
-        <><b>Aggiornamenti</b>: Discophile ti avvisa quando esce una nuova versione e apre il download giusto.</>,
+        <><b>Aggiornamenti</b>: Installa gli aggiornamenti verificati dall’app. I pacchetti Debian / Ubuntu e Arch si aggiornano con il gestore di pacchetti.</>,
       ],
       alt: "Discophile su un Mac mentre riproduce Discophile di Mina Sol con i testi sincronizzati",
     },
     downloads: {
       mac: { title: "Mac", needs: "macOS 11 o successivi, Apple silicon e Intel", body: "Firmato e autenticato da Apple. Apri l'immagine disco e trascina Discophile in Applicazioni." },
       windows: { title: "Windows", needs: "Windows 10 o successivi, 64 bit", body: <>Estrai lo zip e avvia <code>Discophile.exe</code>.</> },
-      linux: { title: "Linux", needs: "x86_64, con PipeWire, PulseAudio o ALSA", body: <>Estrai l&apos;archivio e avvia <code>discophile</code>. Sono inclusi un file <code>.desktop</code> e l&apos;icona.</> },
+      linux: { title: "Linux", needs: "x86_64 · Ubuntu 22.04 o equivalente, glibc 2.35+", body: <>Scegli il pacchetto Debian / Ubuntu, l&apos;AppImage portatile o l&apos;archivio tar. Nella finestra di download trovi le istruzioni per ogni formato.</> },
       aur: <>Su Arch Linux installa <a href={AUR_URL}>discophile-bin</a> da AUR:</>,
       button: { mac: "Scarica per Mac", windows: "Scarica per Windows", linux: "Scarica per Linux" },
       fallback: "Release su GitHub",
@@ -212,6 +213,8 @@ export async function DownloadPage({ locale }: { locale: Locale }) {
             ))}
           </div>
         </section>
+
+        <ConnectOverview locale={locale} />
 
         <section className="feature device" id="browser" aria-labelledby="browser-title">
           <div className="feature-copy">

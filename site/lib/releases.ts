@@ -7,16 +7,20 @@ export const AUR_URL = "https://aur.archlinux.org/packages/discophile-bin";
 
 export type Platform = "mac" | "windows" | "linux";
 
+export type DownloadFormat = Platform | "deb" | "appimage";
+
 export type Release = {
   version: string;
   page: string;
-  files: Partial<Record<Platform, { name: string; url: string; size: number }>>;
+  files: Partial<Record<DownloadFormat, { name: string; url: string; size: number }>>;
 };
 
-const PATTERNS: Record<Platform, RegExp> = {
+const PATTERNS: Record<DownloadFormat, RegExp> = {
   mac: /-macos-universal\.dmg$/,
   windows: /-windows-x86_64\.zip$/,
   linux: /-linux-x86_64\.tar\.gz$/,
+  deb: /^discophile_[0-9.]+_amd64\.deb$/,
+  appimage: /^Discophile-[0-9.]+-x86_64\.AppImage$/,
 };
 
 export async function latestRelease(): Promise<Release | null> {
@@ -32,7 +36,7 @@ export async function latestRelease(): Promise<Release | null> {
       assets: { name: string; browser_download_url: string; size: number }[];
     };
     const files: Release["files"] = {};
-    for (const platform of Object.keys(PATTERNS) as Platform[]) {
+    for (const platform of Object.keys(PATTERNS) as DownloadFormat[]) {
       const asset = json.assets.find((a) => PATTERNS[platform].test(a.name));
       if (asset) files[platform] = { name: asset.name, url: asset.browser_download_url, size: asset.size };
     }

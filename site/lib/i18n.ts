@@ -85,11 +85,15 @@ export const ui = {
         windows: [["Portable zip", "64-bit, Windows 10 or later"]],
         linux: [["Tarball", "x86_64, with a .desktop file and icon"]],
       },
+      linuxPackages: {
+        deb: ["Debian / Ubuntu", "x86_64 · install with sudo apt install ./discophile_VERSION_amd64.deb"],
+        appimage: ["AppImage", "x86_64 · make executable and launch; no installation"],
+      },
       aur: ["AUR", "Arch Linux and derivatives"],
       tips: {
         mac: "Signed and notarized by Apple. Open the disk image and drag Discophile to Applications.",
         windows: "Extract the zip and run Discophile.exe. Windows may ask you to confirm the first launch.",
-        linux: "Extract the archive and run discophile. It plays through PipeWire, PulseAudio or ALSA.",
+        linux: "Ubuntu 22.04 or equivalent, glibc 2.35+. AppImage: chmod +x, then launch (without FUSE: --appimage-extract-and-run). Tarball: extract and run discophile. Audio through PipeWire, PulseAudio or ALSA.",
       },
       unavailable: "This file isn't in the latest release yet. Every file is on GitHub.",
       iphone: "On iPhone?",
@@ -230,11 +234,15 @@ export const ui = {
         windows: [["Zip portatile", "64 bit, Windows 10 o successivi"]],
         linux: [["Archivio tar", "x86_64, con file .desktop e icona"]],
       },
+      linuxPackages: {
+        deb: ["Debian / Ubuntu", "x86_64 · installa con sudo apt install ./discophile_VERSION_amd64.deb"],
+        appimage: ["AppImage", "x86_64 · rendi eseguibile e avvia; senza installazione"],
+      },
       aur: ["AUR", "Arch Linux e derivate"],
       tips: {
         mac: "Firmato e autenticato da Apple. Apri l'immagine disco e trascina Discophile in Applicazioni.",
         windows: "Estrai lo zip e avvia Discophile.exe. Windows potrebbe chiederti di confermare il primo avvio.",
-        linux: "Estrai l'archivio e avvia discophile. Riproduce tramite PipeWire, PulseAudio o ALSA.",
+        linux: "Ubuntu 22.04 o equivalente, glibc 2.35+. AppImage: chmod +x, poi avvia (senza FUSE: --appimage-extract-and-run). Archivio tar: estrai e avvia discophile. Audio tramite PipeWire, PulseAudio o ALSA.",
       },
       unavailable: "Questo file non è ancora nell'ultima versione. Tutti i file sono su GitHub.",
       iphone: "Su iPhone?",

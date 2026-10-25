@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { trackEvent } from "@/lib/analytics";
 import { localePath, ui, type Locale } from "@/lib/i18n";
-import { RELEASES_URL, megabytes, type Platform, type Release } from "@/lib/releases";
+import { RELEASES_URL, megabytes, type DownloadFormat, type Platform, type Release } from "@/lib/releases";
 import { TestFlightButton } from "@/components/TestFlight";
 
 const PLATFORMS: Platform[] = ["mac", "windows", "linux"];
@@ -76,8 +76,10 @@ export function DownloadProvider({ locale, release, children }: { locale: Locale
     }
   };
 
-  const file = release?.files[platform];
-  const [label, detail] = t.options[platform][0];
+  const formats: DownloadFormat[] = platform === "linux"
+    ? (["deb", "appimage", "linux"] as const).filter((format) => !!release?.files[format])
+    : [platform];
+  if (formats.length === 0) formats.push(platform);
 
   return (
     <DownloadContext.Provider value={{ open, detected, locale }}>
@@ -142,29 +144,37 @@ export function DownloadProvider({ locale, release, children }: { locale: Locale
 
           <div id="download-panel" role="tabpanel" aria-labelledby={`download-tab-${platform}`}>
             <ul className="download-options">
-              <li>
-                <div>
-                  <strong>{label}</strong>
-                  <span>{detail}{file && <> · <span className="nowrap">{megabytes(file.size)}</span></>}</span>
-                </div>
-                {file ? (
-                  <a
-                    className="button primary"
-                    href={file.url}
-                    onClick={() => {
-                      trackEvent("Download", "File", platform);
-                      setStarted({ url: file.url, name: file.name });
-                      requestAnimationFrame(() => thanksRef.current?.focus());
-                    }}
-                    aria-label={`${t.file} ${file.name}`}
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M5 21h14" /></svg>
-                    {file.name.endsWith(".tar.gz") ? ".tar.gz" : `.${file.name.split(".").pop()}`}
-                  </a>
-                ) : (
-                  <a className="button" href={release?.page ?? RELEASES_URL}>GitHub</a>
-                )}
-              </li>
+              {formats.map((format) => {
+                const file = release?.files[format];
+                const [label, detail] = format === "deb" || format === "appimage"
+                  ? t.linuxPackages[format]
+                  : t.options[format][0];
+                return (
+                  <li key={format}>
+                    <div>
+                      <strong>{label}</strong>
+                      <span>{detail}{file && <> · <span className="nowrap">{megabytes(file.size)}</span></>}</span>
+                    </div>
+                    {file ? (
+                      <a
+                        className="button primary"
+                        href={file.url}
+                        onClick={() => {
+                          trackEvent("Download", "File", format);
+                          setStarted({ url: file.url, name: file.name });
+                          requestAnimationFrame(() => thanksRef.current?.focus());
+                        }}
+                        aria-label={`${t.file} ${file.name}`}
+                      >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M5 21h14" /></svg>
+                        {file.name.endsWith(".tar.gz") ? ".tar.gz" : `.${file.name.split(".").pop()}`}
+                      </a>
+                    ) : (
+                      <a className="button" href={release?.page ?? RELEASES_URL}>GitHub</a>
+                    )}
+                  </li>
+                );
+              })}
               {platform === "linux" && (
                 <li className="download-command">
                   <div>
@@ -180,7 +190,7 @@ export function DownloadProvider({ locale, release, children }: { locale: Locale
                 </li>
               )}
             </ul>
-            <p className="download-tip">{file ? t.tips[platform] : t.unavailable}</p>
+            <p className="download-tip">{formats.some((format) => release?.files[format]) ? t.tips[platform] : t.unavailable}</p>
             <p className="sr-only" role="status">{copied ? t.copied : ""}</p>
           </div>
         </div>

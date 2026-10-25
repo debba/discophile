@@ -1,3 +1,4 @@
+import { ConnectOverview } from "@/components/ConnectOverview";
 import { DesktopShot, HeroPreload, PhoneShot } from "@/components/DesktopShot";
 import type { ReactNode } from "react";
 import { DownloadButton } from "@/components/Download";
@@ -30,7 +31,7 @@ type Copy = {
 const COPY: Record<Locale, Copy> = {
   en: {
     title: "Your music server, played like a record collection.",
-    lede: "Discophile plays your Navidrome, Subsonic and Jellyfin libraries on iPhone, Mac, Windows, Linux and in the browser. Audiobookshelf audiobooks and internet radio live in the same app. No Discophile account, no tracking.",
+    lede: "Discophile plays your Navidrome, Subsonic and Jellyfin libraries on iPhone, Mac, Windows, Linux and in the browser. Audiobookshelf audiobooks and internet radio live in the same app. No account required, no tracking. Optional Connect keeps your desktop computers in sync.",
     download: { any: "Get Discophile", mac: "Download for Mac", windows: "Download for Windows", linux: "Download for Linux" },
     free: <><b>Free for Mac, Windows and Linux.</b> Open source, signed and ready to download.</>,
     soon: <><b>Coming soon to the App Store.</b> For iPhone with iOS 17 or later, in English and Italian.</>,
@@ -110,7 +111,7 @@ const COPY: Record<Locale, Copy> = {
   },
   it: {
     title: "La tua musica. Il tuo mondo. Premi play.",
-    lede: "La tua libreria merita il palco. Ascolta la musica di Navidrome, Subsonic e Jellyfin su iPhone, Mac, Windows, Linux e nel browser, ritrova i tuoi audiolibri di Audiobookshelf e accendi le radio che ami. Tutto in Discophile, senza creare un altro account e senza tracciamento.",
+    lede: "La tua libreria merita il palco. Ascolta la musica di Navidrome, Subsonic e Jellyfin su iPhone, Mac, Windows, Linux e nel browser, ritrova i tuoi audiolibri di Audiobookshelf e accendi le radio che ami. Tutto in Discophile, senza account obbligatorio e senza tracciamento. Connect sincronizza i tuoi computer, se lo desideri.",
     download: { any: "Scarica Discophile", mac: "Scarica per Mac", windows: "Scarica per Windows", linux: "Scarica per Linux" },
     free: <><b>Gratis per Mac, Windows e Linux.</b> Open source, firmato e pronto da scaricare.</>,
     soon: <><b>Presto sull&apos;App Store.</b> Per iPhone con iOS 17 o versioni successive, in italiano e in inglese.</>,
@@ -322,6 +323,8 @@ export function HomePage({ locale }: { locale: Locale }) {
         <section className="privacy" aria-label={c.privacy.label}>
           <p>{c.privacy.text}</p>
         </section>
+
+        <ConnectOverview locale={locale} />
 
         <section className="release" id="release" aria-labelledby="release-title">
           <img src="/assets/icon-192.png" alt="" width={96} height={96} loading="lazy" />

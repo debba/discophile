@@ -127,22 +127,39 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install system libraries
-        run: sudo apt-get update && sudo apt-get install -y pkg-config libasound2-dev libdbus-1-dev
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libasound2-dev libdbus-1-dev dpkg-dev desktop-file-utils libxkbcommon-x11-0 libxcursor1 libxi6 libxrandr2 libxinerama1 libegl1 libgl1-mesa-dri xvfb
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Build
         run: cargo build --release --locked -p discophile
       - name: Package
+        run: scripts/package-linux.sh target/release/Discophile "$VERSION" dist
+      - name: Verify Linux packages
         run: |
-          dir=dist/Discophile
-          mkdir -p "$dir"
-          cp target/release/Discophile "$dir/discophile"
-          cp packaging/linux/discophile.desktop packaging/linux/discophile.png LICENSE "$dir/"
-          tar -C dist -czf "dist/Discophile-$VERSION-linux-x86_64.tar.gz" Discophile
+          desktop-file-validate packaging/linux/discophile.desktop
+          dpkg-deb --info "dist/discophile_${VERSION}_amd64.deb"
+          sudo apt-get install -y "./dist/discophile_${VERSION}_amd64.deb"
+          # Exercise both package launchers with a software-rendered display.
+          verify_launch() {
+            set +e
+            timeout 15s xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1 "$@" > "$RUNNER_TEMP/linux-launch.log" 2>&1
+            result=$?
+            set -e
+            cat "$RUNNER_TEMP/linux-launch.log"
+            [[ $result == 124 ]] || { echo "::error::GUI exited early ($result)"; exit 1; }
+          }
+          verify_launch /usr/bin/discophile
+          image=$(realpath "dist/Discophile-$VERSION-x86_64.AppImage")
+          mkdir "$RUNNER_TEMP/appimage-check"
+          (cd "$RUNNER_TEMP/appimage-check" && "$image" --appimage-extract >/dev/null)
+          verify_launch "$RUNNER_TEMP/appimage-check/squashfs-root/AppRun"
       - uses: actions/upload-artifact@v4
         with:
           name: linux
-          path: dist/*.tar.gz
+          path: |
+            dist/*.tar.gz
+            dist/*.deb
+            dist/*.AppImage
 
   web-image:
     needs: version
