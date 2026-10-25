@@ -502,9 +502,11 @@ impl eframe::App for App {
                 });
             }
 
-            if !self.settings.introduction_completed {
+            if ui::welcome::choosing_account(&ctx) {
+                egui::CentralPanel::default().frame(Frame::new().fill(palette.background)).show(root, |ui| ui::welcome::account_choice(self, ui));
+            } else if !self.settings.introduction_completed {
                 egui::CentralPanel::default().frame(Frame::new().fill(palette.background)).show(root, |ui| ui::welcome::introduction(self, ui));
-            } else if !self.has_any_source() {
+            } else if !self.has_any_source() && !matches!(self.nav.current, Route::Settings(_)) {
                 egui::CentralPanel::default().frame(Frame::new().fill(palette.background)).show(root, |ui| ui::welcome::welcome(self, ui));
             } else {
                 egui::Panel::bottom("player-bar")

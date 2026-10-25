@@ -1,5 +1,11 @@
 {
   "Discophile Connect": "Discophile Connect",
+  "Choose how to get started": "Scegli come iniziare",
+  "Sign in to see your Connect account and plan, or use Discophile on its own.": "Accedi per vedere il tuo account e il piano Connect, oppure usa Discophile senza account.",
+  "You can sign in later in Settings.": "Puoi accedere in seguito dalle Impostazioni.",
+  "Connect server": "Server Connect",
+  "Continue without an account": "Continua senza un account",
+  "Use another Connect server": "Usa un altro server Connect",
   "An optional account for Discophile services on a Connect instance. Discophile works fully without it.": "Un account facoltativo per i servizi Discophile su un’istanza Connect. Discophile funziona completamente anche senza.",
   "Standalone use and direct connections to your own servers never need a Connect account, and your plan never limits local playback.": "L’uso autonomo e le connessioni dirette ai tuoi server non richiedono mai un account Connect, e il tuo piano non limita mai la riproduzione locale.",
   "Nothing from your libraries is synchronized yet. Discophile reads only your account name, email address and plan.": "Per ora nulla delle tue librerie viene sincronizzato. Discophile legge solo il nome, l’indirizzo email e il piano del tuo account.",

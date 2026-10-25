@@ -8,6 +8,17 @@ need one, and a plan never limits local playback.
 The official instance is `https://connect.discophile.app`. You can use any other instance compatible with
 version 1 of the Discophile Connect protocol, such as one you run yourself.
 
+## First launch
+
+The three introduction pages lead to **Choose how to get started**. **Skip** goes directly to that choice.
+Choose **Sign in to Discophile Connect** or **Continue without an account**; either path continues to
+connecting your libraries. Signing in later is always possible in Settings. **Back** returns to the last
+introduction page and cancels a pending sign-in.
+
+The official instance is selected by default. Expand **Use another Connect server** to enter a compatible
+instance, choose **Use this address**, then sign in through your browser. The same address validation and
+sign-in flow apply as in Settings.
+
 ## Choose the instance
 
 Open **Settings → Discophile Connect**. The **Instance** section shows the instance in use: its name, when it

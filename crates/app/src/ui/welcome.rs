@@ -35,7 +35,7 @@ fn page_id() -> egui::Id {
     egui::Id::unique("introduction-page")
 }
 
-/// The three-page introduction. Arrow keys change pages; Skip and Get started finish it.
+/// The three-page introduction. Skip and Get started lead to the optional account choice on desktop.
 pub fn introduction(app: &mut App, ui: &mut Ui) {
     let ctx = ui.ctx().clone();
     let mut page = ctx.data(|d| d.get_temp::<usize>(page_id())).unwrap_or(0).min(2);
@@ -130,9 +130,13 @@ pub fn introduction(app: &mut App, ui: &mut Ui) {
     });
 
     if finish {
-        app.settings.introduction_completed = true;
-        app.settings.save();
-        page = 0;
+        if crate::platform::IS_WEB || crate::features::connect::is_signed_in(app) {
+            finish_onboarding(app);
+            page = 0;
+        } else {
+            ctx.data_mut(|d| d.insert_temp(connect_id(), true));
+            page = 2;
+        }
     }
     ctx.data_mut(|d| d.insert_temp(page_id(), page));
 }
@@ -214,10 +218,75 @@ pub fn welcome(app: &mut App, ui: &mut Ui) {
             });
             ui.add_space(8.0);
             ui.label(theme::secondary(ui, t("Subsonic, Navidrome, Jellyfin, Audiobookshelf and Internet Radio."), Font::Footnote));
+            if !crate::platform::IS_WEB {
+                ui.add_space(16.0);
+                if ui.link(t("Discophile Connect")).clicked() {
+                    app.nav.push(crate::nav::Route::Settings(crate::nav::SettingsPage::Connect));
+                }
+            }
             ui.add_space(28.0);
         });
     });
     explore_window(ui.ctx());
+}
+
+fn connect_id() -> egui::Id {
+    egui::Id::unique("welcome-connect")
+}
+
+pub fn choosing_account(ctx: &egui::Context) -> bool {
+    !crate::platform::IS_WEB && ctx.data(|d| d.get_temp::<bool>(connect_id())).unwrap_or(false)
+}
+
+fn finish_onboarding(app: &mut App) {
+    app.ctx().data_mut(|d| d.insert_temp(connect_id(), false));
+    app.settings.introduction_completed = true;
+    app.settings.save();
+}
+
+/// A single account decision after the slides; either path continues to library setup.
+pub fn account_choice(app: &mut App, ui: &mut Ui) {
+    if crate::features::connect::is_signed_in(app) {
+        finish_onboarding(app);
+        ui.ctx().request_repaint();
+        return;
+    }
+    egui::ScrollArea::vertical().id_salt("account-choice").auto_shrink([false, false]).show(ui, |ui| {
+        centered_column(ui, 620.0, |ui| {
+            ui.add_space(36.0);
+            let palette = Palette::of_ui(ui);
+            ui.label(theme::icon_filled(icons::USER_CIRCLE, 48.0).color(palette.accent));
+            ui.add_space(16.0);
+            ui.label(theme::text(t("Choose how to get started"), Font::LargeTitle));
+            ui.add_space(8.0);
+            ui.add(egui::Label::new(theme::secondary(
+                ui,
+                t("Sign in to see your Connect account and plan, or use Discophile on its own."),
+                Font::Body,
+            )).wrap());
+            ui.add_space(28.0);
+            crate::ui::connect::onboarding(app, ui);
+            ui.add_space(8.0);
+            if wide_action(ui, None, &t("Continue without an account"), None, true).clicked() {
+                if app.connect.sign_in.is_some() {
+                    crate::features::connect::cancel_sign_in(app);
+                }
+                finish_onboarding(app);
+            }
+            ui.add_space(8.0);
+            ui.label(theme::secondary(ui, t("You can sign in later in Settings."), Font::Footnote));
+            ui.add_space(20.0);
+            ui.vertical_centered(|ui| {
+                if widgets::action_button(ui, t("Back"), true).clicked() {
+                    if app.connect.sign_in.is_some() {
+                        crate::features::connect::cancel_sign_in(app);
+                    }
+                    ui.ctx().data_mut(|d| d.insert_temp(connect_id(), false));
+                }
+            });
+            ui.add_space(28.0);
+        });
+    });
 }
 
 /// A full-width call to action in the iOS `ActionStyle`, with centered text and optional symbols.

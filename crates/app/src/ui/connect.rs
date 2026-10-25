@@ -25,6 +25,54 @@ pub fn settings(app: &mut App, ui: &mut Ui) {
     footer(ui, &t("Nothing from your libraries is synchronized yet. Discophile reads only your account name, email address and plan."));
 }
 
+pub fn onboarding(app: &mut App, ui: &mut Ui) {
+    ui.label(theme::secondary(ui, t("Connect server"), Font::Footnote));
+    ui.label(theme::text(app.connect.origin.to_string(), Font::Callout));
+    egui::CollapsingHeader::new(t("Use another Connect server"))
+        .id_salt("onboarding-connect-instance")
+        .default_open(!app.connect.origin.is_official())
+        .show(ui, |ui| instance_section(app, ui));
+    ui.add_space(20.0);
+    #[cfg(not(target_arch = "wasm32"))]
+    sign_in_actions(app, ui);
+    if let Some(error) = app.connect.error.clone() {
+        ui.add_space(8.0);
+        error_text(ui, &error);
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn sign_in_actions(app: &mut App, ui: &mut Ui) {
+    if let Some(url) = app.connect.sign_in.as_ref().map(|s| s.url.clone()) {
+        ui.horizontal_wrapped(|ui| {
+            ui.spinner();
+            let text = if url.is_some() {
+                t("Finish signing in in your browser. Discophile receives the answer on this computer.")
+            } else {
+                t("Contacting the instance…")
+            };
+            ui.label(theme::secondary(ui, text, Font::Callout));
+        });
+        ui.horizontal_wrapped(|ui| {
+            if let Some(url) = &url
+                && ui.link(t("Open the sign-in page again")).clicked()
+            {
+                ui.ctx().open_url(egui::OpenUrl::new_tab(url));
+            }
+            if ui.button(t("Cancel")).clicked() {
+                feature::cancel_sign_in(app);
+            }
+        });
+    } else {
+        let ready = !app.connect.busy && !app.connect.checking_instance;
+        if ui.add_enabled_ui(ready, |ui| {
+            crate::ui::welcome::wide_action(ui, Some(icons::USER_CIRCLE), &t("Sign in to Discophile Connect"), None, false)
+        }).inner.clicked() {
+            feature::sign_in(app);
+        }
+    }
+}
+
 fn error_text(ui: &mut Ui, text: &str) {
     let palette = Palette::of_ui(ui);
     ui.add(egui::Label::new(theme::text(format!("{}  {text}", icons::WARNING_CIRCLE), Font::Callout).color(palette.danger)).wrap());
@@ -165,7 +213,6 @@ mod desktop {
     use crate::theme::{self, Font, Palette, icons};
     use crate::ui::accounts::{Look, labeled};
     use crate::ui::settings::{footer, group, value_row};
-    use crate::ui::widgets;
 
     pub(super) fn account_controls(app: &mut App, ui: &mut Ui) {
         let state = &app.connect;
@@ -173,30 +220,12 @@ mod desktop {
         let account = state.account.clone();
         let info = state.server_info.clone();
         let busy = state.busy;
-        let pending = state.sign_in.as_ref().map(|s| s.url.clone());
+        let pending = state.sign_in.is_some();
         let error = state.error.clone();
         let notice = state.notice.clone();
         group(ui, |ui| {
-            if let Some(url) = pending {
-                ui.horizontal_wrapped(|ui| {
-                    ui.spinner();
-                    let text = if url.is_some() {
-                        t("Finish signing in in your browser. Discophile receives the answer on this computer.")
-                    } else {
-                        t("Contacting the instance…")
-                    };
-                    ui.label(theme::secondary(ui, text, Font::Callout));
-                });
-                ui.horizontal_wrapped(|ui| {
-                    if let Some(url) = &url
-                        && ui.link(t("Open the sign-in page again")).clicked()
-                    {
-                        ui.ctx().open_url(egui::OpenUrl::new_tab(url));
-                    }
-                    if ui.button(t("Cancel")).clicked() {
-                        feature::cancel_sign_in(app);
-                    }
-                });
+            if pending {
+                super::sign_in_actions(app, ui);
             } else if signed_in {
                 match &account {
                     Some(account) => account_details(ui, account, info.as_ref()),
@@ -237,9 +266,7 @@ mod desktop {
                     .wrap(),
                 );
                 ui.add_space(8.0);
-                if ui.add_enabled_ui(!busy, |ui| widgets::action_button(ui, t("Sign in to Discophile Connect"), false)).inner.clicked() {
-                    feature::sign_in(app);
-                }
+                super::sign_in_actions(app, ui);
             }
             if let Some(error) = &error {
                 ui.add_space(6.0);
