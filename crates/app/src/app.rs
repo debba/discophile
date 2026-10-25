@@ -539,12 +539,25 @@ impl eframe::App for App {
 
         let background = root.scope(|root| {
             #[cfg(not(target_arch = "wasm32"))]
-            if (!self.settings.introduction_completed || !self.has_any_source() || self.nav.now_playing)
-                && self.software_update.available.is_some() {
-                egui::Panel::top("update-banner").frame(Frame::new().fill(palette.background)).show(root, |ui| {
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| ui::software_update::toolbar(self, ui));
-                    ui::software_update::launch_notice(self, ui);
-                });
+            {
+                let profile_toolbar = self.settings.introduction_completed
+                    && !ui::welcome::choosing_account(&ctx)
+                    && ((!self.has_any_source() && !matches!(self.nav.current, Route::Settings(_))) || self.nav.now_playing);
+                if profile_toolbar || ((!self.settings.introduction_completed || !self.has_any_source() || self.nav.now_playing)
+                    && self.software_update.available.is_some()) {
+                    egui::Panel::top("account-toolbar")
+                        .frame(Frame::new().fill(palette.background).inner_margin(Margin::symmetric(ui::widgets::PAGE_MARGIN as i8, 8)))
+                        .show(root, |ui| {
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                if profile_toolbar {
+                                    ui::connect::toolbar(self, ui);
+                                    ui.add_space(ui::widgets::space::S);
+                                }
+                                ui::software_update::toolbar(self, ui);
+                            });
+                            ui::software_update::launch_notice(self, ui);
+                        });
+                }
             }
 
             if ui::welcome::choosing_account(&ctx) {

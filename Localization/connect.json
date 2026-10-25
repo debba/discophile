@@ -160,5 +160,16 @@
   "Recovery keys are saved in this computer's protected secrets file.": "Le chiavi di recupero sono salvate nel file protetto dei segreti di questo computer.",
   "Set device volume": "Imposta il volume del dispositivo",
   "Seek on device": "Vai alla posizione sul dispositivo",
-  "Access tokens use this computer's secrets store. Signing out removes them and revokes Discophile's access on the instance.": "I token di accesso usano l’archivio dei segreti di questo computer. Uscendo vengono rimossi e l’accesso di Discophile all’istanza viene revocato."
+  "Access tokens use this computer's secrets store. Signing out removes them and revokes Discophile's access on the instance.": "I token di accesso usano l’archivio dei segreti di questo computer. Uscendo vengono rimossi e l’accesso di Discophile all’istanza viene revocato.",
+  "Sign in": "Accedi",
+  "Signing in…": "Accesso in corso…",
+  "Profile: %@": "Profilo: %@",
+  "Plan: %@": "Piano: %@",
+  "Manage profile": "Gestisci profilo",
+  "Connect settings": "Impostazioni Connect",
+  "Refresh account": "Aggiorna account",
+  "Your account": "Il tuo account",
+  "Account details unavailable": "Dettagli dell’account non disponibili",
+  "Refreshing account…": "Aggiornamento dell’account…",
+  "Already have a Connect account? Sign in": "Hai già un account Connect? Accedi"
 }

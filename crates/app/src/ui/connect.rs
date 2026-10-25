@@ -1,5 +1,5 @@
 //! Settings > Discophile Connect: the instance (the official one or a custom address) and the optional
-//! account with its plan. Nothing is synchronized yet, and the account never restricts local playback.
+//! account with its plan. The account never restricts local playback.
 
 use discophile_core::l10n::t;
 use egui::{Ui, vec2};
@@ -13,6 +13,10 @@ use crate::ui::widgets;
 
 #[cfg(not(target_arch = "wasm32"))]
 mod services;
+#[cfg(not(target_arch = "wasm32"))]
+mod profile;
+#[cfg(not(target_arch = "wasm32"))]
+pub use profile::toolbar;
 
 pub fn settings(app: &mut App, ui: &mut Ui) {
     ui.add(egui::Label::new(theme::text(
@@ -325,7 +329,7 @@ mod desktop {
     }
 
     /// Plan names are product names, identical in every language.
-    fn tier_label(tier: &Tier, name: &str) -> String {
+    pub(super) fn tier_label(tier: &Tier, name: &str) -> String {
         match tier {
             Tier::Free => "Free".into(),
             Tier::Connect => "Connect".into(),

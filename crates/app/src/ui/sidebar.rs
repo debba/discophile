@@ -199,7 +199,7 @@ fn downloaded_only_toggle(app: &mut App, ui: &mut Ui, collapsed: bool) {
 
 const TOOLBAR_HEIGHT: f32 = 52.0;
 
-/// Back/forward on the left; updates, assistant and the library menu on the right.
+/// Back/forward on the left; profile, libraries, assistant and updates on the right.
 pub fn toolbar(app: &mut App, ui: &mut Ui) {
     // A fixed-height bar with its controls centred, so the space above and below them is equal.
     let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), TOOLBAR_HEIGHT), Sense::hover());
@@ -223,7 +223,12 @@ pub fn toolbar(app: &mut App, ui: &mut Ui) {
     });
     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
         ui.add_space(widgets::PAGE_MARGIN);
-        account_menu(app, ui);
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            crate::ui::connect::toolbar(app, ui);
+            ui.add_space(widgets::space::S);
+        }
+        library_menu(app, ui);
         ui.add_space(widgets::space::S);
         if app.session.has_library() {
             let unread = assistant::unread_count(app);
@@ -239,41 +244,65 @@ pub fn toolbar(app: &mut App, ui: &mut Ui) {
     });
 }
 
-fn account_menu(app: &mut App, ui: &mut Ui) {
+fn library_menu(app: &mut App, ui: &mut Ui) {
     let palette = Palette::of_ui(ui);
     let label = app.session.active_account().filter(|_| ui.available_width() > 360.0).map(|account| {
         let name = account.display_name();
         let short: String = name.chars().take(28).collect();
-        format!("{}  {}{}  {}", icons::USER_CIRCLE, short, if name.chars().count() > 28 { "…" } else { "" }, icons::CARET_DOWN)
+        format!("{}{}", short, if name.chars().count() > 28 { "…" } else { "" })
     });
-    let text = match label {
-        Some(label) => theme::text(label, Font::Callout).color(palette.text),
-        None => theme::icon(icons::USER_CIRCLE, 22.0).color(palette.accent),
+    let symbol = theme::icon(icons::BOOKS, 17.0).color(palette.secondary);
+    let button = match label {
+        Some(label) => egui::Button::new((symbol, theme::text(label, Font::Callout).color(palette.text))),
+        None => egui::Button::new(symbol),
     };
-    let button = egui::Button::new(text).fill(palette.surface_raised).corner_radius(CornerRadius::same(8));
-    egui::containers::menu::MenuButton::from_button(button).ui(ui, |ui| {
-        ui.set_min_width(240.0);
+    let button = button
+        .right_text(theme::icon(icons::CARET_DOWN, 11.0).color(palette.secondary))
+        .gap(widgets::space::XS).fill(palette.surface).stroke(egui::Stroke::new(1.0, palette.separator))
+        .corner_radius(CornerRadius::same(10)).min_size(vec2(0.0, widgets::CONTROL));
+    let response = ui.scope(|ui| {
+        ui.spacing_mut().button_padding.x = widgets::space::S;
+        ui.add(button)
+    }).inner;
+    if response.clicked() {
+        response.request_focus();
+    }
+    egui::Popup::menu(&response).align(egui::emath::RectAlign::BOTTOM_END).gap(8.0).width(312.0)
+        .frame(widgets::account_menu_frame(ui)).show(|ui| {
+        ui.set_width(296.0);
+        ui.spacing_mut().item_spacing = vec2(8.0, 2.0);
+        ui.spacing_mut().button_padding = vec2(12.0, 8.0);
+        egui::Frame::new().inner_margin(egui::Margin::symmetric(12, 8)).show(ui, |ui| {
+            ui.label(theme::text(t("Switch library"), Font::Headline));
+        });
         if !app.session.accounts.is_empty() {
-            ui.label(theme::secondary(ui, t("Switch library"), Font::Footnote));
             let active = app.session.account_key();
             let accounts: Vec<(String, String, String)> =
                 app.session.accounts.iter().map(|a| (a.id(), a.display_name(), a.credentials.username.clone())).collect();
             for (id, name, user) in accounts {
-                let label = if id == active { format!("{}  {name}", icons::CHECK) } else { format!("      {name} · {user}") };
-                if ui.button(label).clicked() {
+                let current = id == active;
+                let short: String = name.chars().take(32).collect();
+                let label = format!("{}{}", short, if name.chars().count() > 32 { "…" } else { "" });
+                let response = widgets::account_menu_action(ui, icons::BOOKS, &label, current.then_some(icons::CHECK), current.then_some(palette.accent))
+                    .on_hover_text(format!("{name} · {user}"));
+                if response.clicked() {
                     session::switch_account(app, &id);
                     ui.close();
                 }
             }
+            ui.add_space(widgets::space::S);
             ui.separator();
+            ui.add_space(widgets::space::S);
         }
-        if ui.button(format!("{}  {}", icons::PLUS_CIRCLE, t("Add account"))).clicked() {
+        if widgets::account_menu_action(ui, icons::PLUS_CIRCLE, &t("Add account"), None, None).clicked() {
             app.sheets.add_account = true;
             ui.close();
         }
-        if ui.button(format!("{}  {}", icons::GEAR_SIX, t("Settings"))).clicked() {
+        if widgets::account_menu_action(ui, icons::GEAR_SIX, &t("Settings"), None, None).clicked() {
             app.nav.push(Route::Settings(SettingsPage::General));
             ui.close();
         }
     });
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, ui.is_enabled(), t("Switch library")));
+    response.on_hover_text(t("Switch library"));
 }

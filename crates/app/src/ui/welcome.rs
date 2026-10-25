@@ -35,7 +35,7 @@ fn page_id() -> egui::Id {
     egui::Id::unique("introduction-page")
 }
 
-/// The three-page introduction. Skip and Get started lead to the optional account choice on desktop.
+/// The three-page introduction, with immediate sign-in for returning desktop users.
 pub fn introduction(app: &mut App, ui: &mut Ui) {
     let ctx = ui.ctx().clone();
     let mut page = ctx.data(|d| d.get_temp::<usize>(page_id())).unwrap_or(0).min(2);
@@ -117,6 +117,20 @@ pub fn introduction(app: &mut App, ui: &mut Ui) {
             }
         }
         if page == 0 {
+            #[cfg(not(target_arch = "wasm32"))]
+            if !crate::features::connect::is_signed_in(app) {
+                ui.vertical_centered(|ui| {
+                    let label = t("Already have a Connect account? Sign in");
+                    let button = egui::Button::new(theme::text(label, Font::Callout).color(palette.accent))
+                        .frame(false).min_size(vec2(0.0, 32.0));
+                    if ui.add(button).clicked() {
+                        ctx.data_mut(|d| d.insert_temp(connect_id(), true));
+                    }
+                });
+            } else {
+                ui.add_space(32.0);
+            }
+            #[cfg(target_arch = "wasm32")]
             ui.add_space(32.0);
         } else {
             ui.vertical_centered(|ui| {
@@ -244,7 +258,7 @@ fn finish_onboarding(app: &mut App) {
     app.settings.save();
 }
 
-/// A single account decision after the slides; either path continues to library setup.
+/// The optional account decision, also reachable from the first slide.
 pub fn account_choice(app: &mut App, ui: &mut Ui) {
     if crate::features::connect::is_signed_in(app) {
         finish_onboarding(app);

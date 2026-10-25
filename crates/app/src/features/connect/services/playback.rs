@@ -707,6 +707,7 @@ mod tests {
                 name: "Test".into(),
                 email: None,
                 email_verified: true,
+                avatar_url: None,
             },
             plan: Plan {
                 tier: Tier::Connect,

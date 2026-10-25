@@ -1,6 +1,6 @@
 //! Requests to a Connect instance: discovery, the token endpoint (code exchange and refresh), revocation and
-//! the account. Redirects are never followed, every URL must belong to the instance's origin before
-//! anything is sent, and response bodies are bounded.
+//! the account. Redirects are never followed, bearer tokens stay on the instance's origin, and response
+//! bodies are bounded. External HTTPS profile pictures are fetched without credentials.
 //!
 //! Refresh tokens rotate: the caller refreshes at most once at a time and stores the credential returned
 //! by [`ConnectClient::refresh`] before using it. [`ConnectError::SignInRequired`] means the delegation ended
@@ -21,6 +21,7 @@ use crate::oauth;
 
 /// Largest accepted response body.
 pub const MAX_RESPONSE_BYTES: usize = 262_144;
+pub const MAX_AVATAR_BYTES: usize = 524_288;
 /// Longest accepted access token lifetime; longer values are shortened.
 const MAX_EXPIRES_IN_SECS: f64 = 366.0 * 24.0 * 3600.0;
 
@@ -115,7 +116,7 @@ impl ConnectClient {
         request: reqwest::RequestBuilder,
         url: &Url,
     ) -> Result<Reply, ConnectError> {
-        self.send_bounded(request, url, MAX_RESPONSE_BYTES).await
+        self.send_bounded(request.header(ACCEPT, "application/json"), url, MAX_RESPONSE_BYTES).await
     }
 
     async fn send_bounded(
@@ -125,7 +126,6 @@ impl ConnectClient {
         limit: usize,
     ) -> Result<Reply, ConnectError> {
         let response = request
-            .header(ACCEPT, "application/json")
             .send()
             .await
             .map_err(|_| ConnectError::Network)?;
@@ -209,6 +209,7 @@ impl ConnectClient {
                 self.http
                     .post(url.clone())
                     .bearer_auth(&credential.access_token)
+                    .header(ACCEPT, "application/json")
                     .header(CONTENT_TYPE, "application/json")
                     .body(body),
                 &url,
@@ -372,6 +373,26 @@ impl ConnectClient {
         }
         Ok(account)
     }
+
+    /// Profile pictures never receive a bearer token outside the Connect instance, and never follow redirects.
+    pub async fn avatar(&self, info: &ServerInfo, credential: &ConnectCredential, url: &Url) -> Result<Vec<u8>, ConnectError> {
+        check_binding(info, credential)?;
+        if !info.is_consistent() || !url.username().is_empty() || url.password().is_some() || url.fragment().is_some()
+            || (url.scheme() != "https" && !info.origin.owns(url)) {
+            return Err(ConnectError::OriginMismatch);
+        }
+        let request = self.avatar_request(info, credential, url);
+        let reply = self.send_bounded(request, url, MAX_AVATAR_BYTES).await?;
+        if !reply.ok() {
+            return Err(reply.api_failure());
+        }
+        Ok(reply.body)
+    }
+
+    fn avatar_request(&self, info: &ServerInfo, credential: &ConnectCredential, url: &Url) -> reqwest::RequestBuilder {
+        let request = self.http.get(url.clone()).header(ACCEPT, "image/png, image/jpeg, image/webp");
+        if info.origin.owns(url) { request.bearer_auth(&credential.access_token) } else { request }
+    }
 }
 
 /// A credential is used only with the instance (origin and identifier) that issued it.
@@ -405,6 +426,29 @@ mod tests {
     fn credential(info: &ServerInfo) -> ConnectCredential {
         let tokens = TokenSet { access_token: "dca_old".into(), refresh_token: "dcr_old+/=".into(), scopes: vec![], expires_at: 0 };
         ConnectCredential::new(info.origin.clone(), info.instance_id.clone(), "u_6sQb2kL8wN4tR1".into(), DESKTOP_CLIENT_ID.into(), tokens)
+    }
+
+    #[tokio::test]
+    async fn profile_images_keep_bearer_tokens_on_the_instance_and_reject_redirects_and_oversized_bodies() {
+        let (server, _, info) = instance().await;
+        let credential = credential(&info);
+        let client = ConnectClient::new();
+        let own = info.origin.url("/api/v1/account/avatar?v=1");
+        server.set_handler(|request| {
+            assert_eq!(request.header("Authorization"), Some("Bearer dca_old"));
+            (200, "image-bytes".into())
+        });
+        assert_eq!(client.avatar(&info, &credential, &own).await.unwrap(), b"image-bytes");
+        let external = Url::parse("https://avatars.githubusercontent.com/u/1").unwrap();
+        let request = client.avatar_request(&info, &credential, &external).build().unwrap();
+        assert!(request.headers().get("Authorization").is_none());
+        server.set_handler(|_| (302, "https://example.com/avatar".into()));
+        assert_eq!(client.avatar(&info, &credential, &own).await.unwrap_err(), ConnectError::Redirected);
+        server.set_handler(|_| (200, "x".repeat(MAX_AVATAR_BYTES + 1)));
+        assert_eq!(client.avatar(&info, &credential, &own).await.unwrap_err(), ConnectError::InvalidResponse);
+        let other = TestServer::start(|_| (200, String::new())).await;
+        assert_eq!(client.avatar(&info, &credential, &other.base).await.unwrap_err(), ConnectError::OriginMismatch);
+        assert!(other.requests().is_empty());
     }
 
     #[tokio::test]

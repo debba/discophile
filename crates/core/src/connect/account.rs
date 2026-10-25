@@ -32,6 +32,19 @@ pub struct Account {
     pub email: Option<String>,
     #[serde(default)]
     pub email_verified: bool,
+    /// Selected profile picture. Same-origin URLs need the account bearer token; external HTTPS URLs do not.
+    #[serde(default, deserialize_with = "optional_picture")]
+    pub avatar_url: Option<String>,
+}
+
+impl Account {
+    pub fn avatar_url(&self, origin: &super::instance::InstanceOrigin) -> Option<url::Url> {
+        let value = self.avatar_url.as_ref().filter(|value| value.len() <= 2048)?;
+        let url = url::Url::parse(value).ok()?;
+        (url.username().is_empty() && url.password().is_none() && url.fragment().is_none()
+            && (url.scheme() == "https" || origin.owns(&url)))
+            .then_some(url)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -248,6 +261,11 @@ fn string_or_empty<'de, D: Deserializer<'de>>(deserializer: D) -> Result<String,
     Ok(Option::<String>::deserialize(deserializer)?.unwrap_or_default())
 }
 
+fn optional_picture<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<String>, D::Error> {
+    let value = Value::deserialize(deserializer)?;
+    Ok(value.as_str().filter(|value| value.len() <= 2048).map(str::to_string))
+}
+
 /// Entitlements without a string `id` are skipped; a limit that is not a positive integer is ignored.
 fn entitlements<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<Entitlement>, D::Error> {
     let values = Option::<Vec<Value>>::deserialize(deserializer)?.unwrap_or_default();
@@ -321,6 +339,24 @@ pub(crate) mod tests {
         assert_eq!(known[0].1.limit, Some(10));
         let info = info(json!({"account": {"version": 1}}));
         assert!(known.iter().all(|(_, e)| e.status(&info) == EntitlementStatus::Planned));
+    }
+
+    #[test]
+    fn optional_profile_picture_requires_a_safe_url() {
+        let origin = InstanceOrigin::official();
+        let mut account = parse(&example()).unwrap().account;
+        assert!(account.avatar_url(&origin).is_none());
+        for value in ["https://connect.discophile.app/api/v1/account/avatar?v=1", "https://avatars.githubusercontent.com/u/1?v=4"] {
+            account.avatar_url = Some(value.into());
+            assert_eq!(account.avatar_url(&origin).unwrap().as_str(), value);
+        }
+        for value in ["javascript:alert(1)", "http://other.example/avatar", "https://user:password@example.com/a", "https://example.com/a#fragment"] {
+            account.avatar_url = Some(value.into());
+            assert!(account.avatar_url(&origin).is_none());
+        }
+        let mut malformed = example();
+        malformed["account"]["avatarUrl"] = json!(42);
+        assert!(parse(&malformed).unwrap().account.avatar_url.is_none());
     }
 
     #[test]

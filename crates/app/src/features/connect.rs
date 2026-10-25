@@ -26,6 +26,8 @@ use crate::tasks::update;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod services;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod profile;
 
 const CONFIG_KEY: &str = "connect";
 const CREDENTIAL_SECRET: &str = "connect";
@@ -42,6 +44,8 @@ struct ConnectConfig {
 
 #[derive(Default)]
 pub struct ConnectState {
+    #[cfg(not(target_arch = "wasm32"))]
+    pub profile: profile::ProfilePicture,
     #[cfg(not(target_arch = "wasm32"))]
     pub services: services::ServicesState,
     pub origin: InstanceOrigin,
@@ -126,7 +130,10 @@ fn store_credential(app: &mut App, credential: ConnectCredential) {
 /// Forgets the credential and account on this computer and returns the credential for revocation.
 fn clear_credential(app: &mut App) -> Option<ConnectCredential> {
     #[cfg(not(target_arch = "wasm32"))]
-    { app.connect.services = Default::default(); }
+    {
+        app.connect.services = Default::default();
+        app.connect.profile = Default::default();
+    }
     app.connect.account = None;
     let previous = app.connect.credential.take();
     if previous.is_some() {
@@ -355,6 +362,7 @@ fn on_redirect(
                 Ok((credential, account)) => {
                     store_credential(app, credential);
                     app.connect.account = Some(account);
+                    profile::refresh(app);
                 }
                 Err(ConnectError::Cancelled) => {}
                 // The account named another instance: an inconsistent instance, not a change since sign-in.
@@ -492,6 +500,8 @@ fn on_step(app: &mut App, generation: u64, retried: bool, result: Result<Step, C
             remember_server_info(app, info);
             app.connect.busy = false;
             app.connect.account = Some(account);
+            #[cfg(not(target_arch = "wasm32"))]
+            profile::refresh(app);
         }
         // Refused after a rotation, or the instance identifier changed at the same origin (a different
         // instance): delete the tokens, revoke them there best effort, and ask to sign in again.

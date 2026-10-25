@@ -25,6 +25,25 @@ pub const CONTROL_SMALL: f32 = 30.0;
 pub const CONTROL: f32 = 36.0;
 pub const CONTROL_LARGE: f32 = 44.0;
 
+pub fn account_menu_frame(ui: &Ui) -> egui::Frame {
+    let palette = Palette::of_ui(ui);
+    egui::Frame::popup(ui.style()).fill(palette.surface).stroke(Stroke::new(1.0, palette.separator))
+        .corner_radius(14).inner_margin(Margin::same(8))
+}
+
+/// Full-width account menu action with separate symbol and trailing indicator columns.
+pub fn account_menu_action(ui: &mut Ui, icon: &str, label: &str, trailing: Option<&str>, tint: Option<Color32>) -> Response {
+    let palette = Palette::of_ui(ui);
+    let symbol = theme::icon(icon, 17.0).color(tint.unwrap_or(palette.secondary));
+    let text = theme::text(label, Font::Callout).color(tint.unwrap_or(palette.text));
+    let button = egui::Button::new((symbol, text))
+        .right_text(theme::icon(trailing.unwrap_or(""), 13.0).color(palette.secondary))
+        .gap(space::M).frame(false).truncate().corner_radius(8).min_size(vec2(ui.available_width(), 38.0));
+    let response = ui.add(button);
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, ui.is_enabled(), label));
+    response
+}
+
 /// A modal dialog with sheet-like padding and corners. Use instead of `egui::Modal::new`, whose
 /// default popup frame has menu-sized margins that crowd dialog content against the edges.
 pub fn modal(ctx: &egui::Context, id: egui::Id) -> egui::Modal {
