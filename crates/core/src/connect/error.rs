@@ -42,6 +42,8 @@ pub enum ConnectError {
     /// `403` from the API.
     #[error("insufficient scope")]
     InsufficientScope,
+    #[error("Connect service rejected the operation: {0}")]
+    Service(String),
     #[error("rate limited")]
     RateLimited { retry_after: Option<u64> },
     /// `5xx`, `server_error` or `temporarily_unavailable`. Tokens are kept.

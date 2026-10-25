@@ -1,7 +1,7 @@
 # Discophile Connect
 
 Discophile Connect is an optional account for Discophile services. In this version, signing in shows your
-account and plan in Discophile for computers. **Nothing from your libraries is synchronized yet**, and
+account and plan in Discophile for computers. You can separately pair computers and enable encrypted synchronization;
 Discophile works fully without an account: standalone use and direct connections to your own servers never
 need one, and a plan never limits local playback.
 
@@ -54,7 +54,7 @@ If the browser did not open, choose **Open the sign-in page again**. **Cancel** 
 ends by itself after five minutes. A custom instance works the same way: the page you sign in on, and the ways
 to sign in, are the instance's own.
 
-Discophile uses OAuth with PKCE and asks for `account:read offline_access`. It never sees your password.
+Discophile uses OAuth with PKCE and asks for `account:read offline_access`, plus `connect:manage` when services are advertised. It never sees your password.
 
 ## What Discophile reads and stores
 
@@ -62,18 +62,14 @@ After signing in, Discophile reads your account name, email address and plan (it
 its expiry date and the benefits it includes) and shows them in **Account**. **Refresh** reads them again, and
 **Manage account** opens the instance's account page when it offers one.
 
-Benefits that need features Discophile does not have yet, such as paired devices, encrypted synchronization,
-configuration backups, remote control and playback handoff, are marked **Planned · not available yet** (or
-**Not supported by this version of Discophile yet** when an instance already offers them). They are not
-available in this version, whatever your plan.
+Availability follows the instance capabilities and installed client version. Account-only instances continue to work; optional Supporter recognition and previews remain planned.
 
 - Access tokens are stored only in this computer's keychain (or, when no keychain is available, in a file only
   you can read). Each sign-in belongs to one instance address and one account on it.
 - The chosen instance address is saved with Discophile's other settings.
-- Nothing from your libraries, servers, credentials, listening history or playback is sent to the instance.
+- Before pairing, no library or playback data is sent. After opting in, selected configuration and playback messages reach the instance only as authenticated ciphertext; audio files are never uploaded.
 
-Discophile contacts the instance only when you choose it, sign in, refresh your account, or sign out, and at
-start while you are signed in, to refresh your account.
+Discophile contacts the instance when you choose it, sign in, refresh or sign out. Once paired, the running desktop app polls for services approximately every three seconds, with additional encrypted writes for shared changes and playback controls.
 
 ## Sign out and revoke access
 
@@ -85,3 +81,55 @@ page on the instance.
 Changing the instance revokes access on the previous instance in the same way. If you remove Discophile's
 access from the instance's account page yourself, Discophile notices the next time it reads your account and
 asks you to sign in again.
+
+## Pair computers and synchronize
+
+In **Settings → Discophile Connect**, sign in and allow Connect services. Older account-only
+authorizations need a new sign-in. Create a recovery code on your first computer, save it
+privately, and confirm you saved it before creating the encrypted vault. On another computer,
+sign into the same instance/account and enter the recovery code from the trusted computer.
+Pairing copies the shared connections; local connections and downloads are preserved.
+
+Choose the connections to share and whether to synchronize language and appearance. Volume,
+effects, downloads, local paths and AI credentials stay on each computer. Audiobookshelf
+shares connection details but needs its own sign-in on every computer; its refresh tokens
+are never copied. An HTTP or localhost server address may need adjusting on another computer.
+Automatic synchronization detects concurrent changes and asks which shared configuration
+to use. Removing a shared record never deletes another computer's local downloads.
+
+Free includes 2 paired devices and 1 selected connection. Connect and Supporter include 10
+devices, selected connections, encrypted configuration backups (up to 64 snapshots for 30 days),
+remote controls and **Continue here**. Prices and manual email activation are shown under
+**Plans and pricing**. No payment or automatic renewal is enabled.
+
+## Remote control and Continue here
+
+Paired computers poll while the app is open. A sleeping, closed or unreachable destination
+cannot receive a transfer. Both computers need the same library configured and the destination
+must reach its music server; Connect never relays audio. Use a paired device's Play, Pause,
+Previous, Next, volume and seek controls, or **Continue here** to bring its queue and position
+to this computer. Queues are limited to 200 tracks. Audiobooks need separate authorization and
+the book available in the destination's loaded library or downloads.
+
+The source keeps playing until the destination confirms that playback is ready. Failed or
+expired transfers do not stop the source. A new playback action on the source invalidates
+an old transfer acknowledgement. Volume stays specific to the destination computer.
+
+## Recovery, revocation and backups
+
+Only the recovery code and trusted computers can decrypt the shared configuration. Connect
+cannot recover it through a password reset or social login. The code includes historical
+keys needed for retained backups; never email it to Discophile. The app shows whether keys
+use the system keychain or its protected local secrets file (including development builds).
+
+Revoking a device blocks it immediately. Rotate the encryption key from a remaining trusted
+computer, and transfer the updated recovery code privately to the others. They can continue
+after importing it. Previously downloaded data cannot be erased from a revoked computer.
+
+Backups contain configurations, not audio. Review a snapshot and restore it locally before
+publishing it to other computers. Export and cloud deletion remain available on every tier,
+including through the account dashboard when no trusted computer is available. Deleting
+cloud data preserves local copies, libraries and downloads.
+
+The [public service protocol](../connect/protocol/services.md) describes encrypted envelopes,
+limits and compatibility. iPhone services are not enabled in this release.

@@ -2,7 +2,7 @@
 //! Browsers have no keychain; the web build keeps secrets in this site's local storage and says so in Settings.
 
 #[cfg(not(target_arch = "wasm32"))]
-pub use native::{delete, get, set};
+pub use native::{delete, get, set, using_keychain};
 
 /// Every secret lives in one keychain item holding a JSON map, read once per run and cached. macOS asks for
 /// permission per item whenever the binary's signature changes (every rebuild), so one item means at most
@@ -100,6 +100,8 @@ mod native {
             Some(value)
         })
     }
+
+    pub fn using_keychain() -> bool { with_store(|store| store.keychain) }
 
     pub fn set(name: &str, value: &str) {
         with_store(|store| {

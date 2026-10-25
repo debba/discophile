@@ -119,10 +119,12 @@ pub fn on_replaced(app: &mut App) {
 }
 
 pub fn skip_forward(app: &mut App) {
+    app.player.control_generation += 1;
     playback::skip(app, true);
 }
 
 pub fn skip_backward(app: &mut App) {
+    app.player.control_generation += 1;
     playback::skip(app, false);
 }
 
@@ -157,11 +159,13 @@ pub fn current_chapter(app: &App) -> Option<String> {
 
 /// Seeks on the whole book's timeline (`seconds` as reported by `now_playing`), across files.
 pub fn seek(app: &mut App, seconds: f64) {
+    app.player.control_generation += 1;
     playback::seek(app, seconds);
 }
 
 /// Play/pause that also restarts a finished book and reloads a failed file.
 pub fn toggle(app: &mut App) {
+    app.player.control_generation += 1;
     playback::toggle(app);
 }
 
@@ -195,6 +199,11 @@ pub fn start_book(app: &mut App, id: &str, position: Option<f64>) {
 }
 
 /// Whether `id` is the book in the player.
+pub fn cancel_pending_start(app: &mut App) {
+    app.audiobooks.starting = None;
+    app.audiobooks.start_generation += 1;
+}
+
 pub fn is_current(app: &App, id: &str) -> bool {
     playing_book(app).as_deref() == Some(id)
 }

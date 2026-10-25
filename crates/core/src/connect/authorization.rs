@@ -33,7 +33,7 @@ pub fn authorization_url(info: &ServerInfo, redirect: &Url, state: &str, challen
         ("response_type", "code"),
         ("client_id", DESKTOP_CLIENT_ID),
         ("redirect_uri", redirect.as_str()),
-        ("scope", SCOPE),
+        ("scope", if info.scopes_supported.iter().any(|s| s == "connect:manage") { "account:read offline_access connect:manage" } else { SCOPE }),
         ("state", state),
         ("code_challenge", challenge),
         ("code_challenge_method", "S256"),

@@ -41,6 +41,8 @@ pub fn start(app: &mut App) {
 
 /// Every frame, before drawing.
 pub fn tick(app: &mut App) {
+    #[cfg(not(target_arch = "wasm32"))]
+    connect::services::tick(app);
     library::tick(app);
     downloads::tick(app);
     discovery::tick(app);

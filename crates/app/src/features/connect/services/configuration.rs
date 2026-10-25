@@ -1,0 +1,279 @@
+use crate::{
+    app::App,
+    platform::{secrets, storage},
+    theme::Appearance,
+};
+use discophile_core::audiobookshelf::AudiobookshelfAccount;
+use discophile_core::l10n::{self, Language, t};
+use discophile_core::{InternetRadioStation, ServerAccount, validate_server};
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
+
+#[derive(Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Configuration {
+    pub version: u32,
+    pub connections: Vec<SharedConnection>,
+    pub preferences: Option<SharedPreferences>,
+}
+
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "camelCase", deny_unknown_fields)]
+pub enum SharedConnection {
+    Music {
+        account: ServerAccount,
+    },
+    /// Tokens are intentionally excluded: refresh tokens cannot safely be cloned between computers.
+    Audiobookshelf {
+        account: AudiobookshelfAccount,
+    },
+    Radio {
+        station: InternetRadioStation,
+    },
+}
+
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SharedPreferences {
+    pub language: Option<Language>,
+    pub appearance: Appearance,
+}
+
+impl SharedConnection {
+    pub fn id(&self) -> String {
+        match self {
+            Self::Music { account } => account.id(),
+            Self::Audiobookshelf { account } => format!("abs:{}", account.id()),
+            Self::Radio { station } => format!("radio:{}", station.id),
+        }
+    }
+    pub fn label(&self) -> String {
+        match self {
+            Self::Music { account } => format!(
+                "{} · {}",
+                account.display_name(),
+                account.credentials.server
+            ),
+            Self::Audiobookshelf { account } => format!(
+                "{} · {}",
+                account.display_name(),
+                t("Sign in separately on each computer")
+            ),
+            Self::Radio { station } => station.name.clone(),
+        }
+    }
+}
+
+pub fn choices(app: &App) -> Vec<SharedConnection> {
+    let audiobook = app
+        .audiobooks
+        .account
+        .clone()
+        .or_else(|| storage::load("connect/audiobookshelf-template"));
+    app.session
+        .accounts
+        .iter()
+        .cloned()
+        .map(|account| SharedConnection::Music { account })
+        .chain(
+            audiobook
+                .into_iter()
+                .map(|account| SharedConnection::Audiobookshelf { account }),
+        )
+        .chain(
+            app.radio
+                .stations
+                .iter()
+                .cloned()
+                .map(|station| SharedConnection::Radio { station }),
+        )
+        .collect()
+}
+
+pub fn snapshot(app: &App) -> Configuration {
+    let state = &app.connect.services;
+    let mut connections: Vec<_> = choices(app)
+        .into_iter()
+        .filter(|c| state.selected.contains(&c.id()))
+        .collect();
+    connections.sort_by_key(SharedConnection::id);
+    Configuration {
+        version: 1,
+        connections,
+        preferences: state.preferences.then_some(SharedPreferences {
+            language: app.settings.language,
+            appearance: app.settings.appearance,
+        }),
+    }
+}
+
+pub fn hash(configuration: &Configuration) -> String {
+    use sha2::{Digest, Sha256};
+    hex_string(&Sha256::digest(
+        serde_json::to_vec(configuration).unwrap_or_default(),
+    ))
+}
+fn hex_string(bytes: &[u8]) -> String {
+    bytes.iter().map(|b| format!("{b:02x}")).collect()
+}
+
+impl Configuration {
+    pub fn validate(&self) -> bool {
+        if self.version != 1 || self.connections.len() > 100 {
+            return false;
+        }
+        let mut ids = BTreeSet::new();
+        self.connections.iter().all(|connection| {
+            if !ids.insert(connection.id()) {
+                return false;
+            }
+            match connection {
+                SharedConnection::Music { account } => {
+                    let c = &account.credentials;
+                    validate_server(c.server.as_str(), c.server.scheme() == "http").is_ok()
+                        && !c.username.is_empty()
+                        && c.username.len() <= 1000
+                        && !c.password.is_empty()
+                        && c.password.len() <= 16_384
+                }
+                SharedConnection::Audiobookshelf { account } => {
+                    validate_server(account.server.as_str(), account.server.scheme() == "http")
+                        .is_ok()
+                }
+                SharedConnection::Radio { station } => InternetRadioStation::new(
+                    Some(station.id),
+                    &station.name,
+                    station.stream_url.as_str(),
+                    station.allow_http,
+                )
+                .is_ok(),
+            }
+        })
+    }
+}
+
+/// Import merges additions/updates; removing a cloud record never deletes local copies or downloads.
+pub fn import(app: &mut App, configuration: &Configuration) -> bool {
+    if !configuration.validate() {
+        return false;
+    }
+    for connection in &configuration.connections {
+        match connection {
+            SharedConnection::Music { account } => {
+                crate::session::store_account(app, account.clone());
+                if app.session.active.is_none() {
+                    crate::session::switch_account(app, &account.id());
+                } else if app.session.active.as_deref() == Some(&account.id()) {
+                    app.session.client = Some(discophile_core::client::MusicClient::new(
+                        account.credentials.clone(),
+                    ));
+                }
+            }
+            SharedConnection::Radio { station } => {
+                let mut form = crate::features::radio::StationForm::editing(station);
+                crate::features::radio::save_form(app, &mut form);
+            }
+            SharedConnection::Audiobookshelf { account } => {
+                if app.audiobooks.account.as_ref().map(|a| a.id()) != Some(account.id()) {
+                    let form = &mut app.audiobooks.form;
+                    form.server = account.server.to_string();
+                    form.username = account.username.clone();
+                    form.name = account.name.clone().unwrap_or_default();
+                    form.allow_http = account.server.scheme() == "http";
+                    form.prefilled = true;
+                    storage::save("connect/audiobookshelf-template", account);
+                    app.connect.services.notice = Some(t(
+                        "The Audiobookshelf connection was copied. Sign in separately on this computer to authorize it.",
+                    ));
+                }
+            }
+        }
+    }
+    if app.connect.services.preferences
+        && let Some(preferences) = &configuration.preferences
+    {
+        app.settings.language = preferences.language;
+        app.settings.appearance = preferences.appearance;
+        app.settings.save();
+        l10n::set_language(app.settings.effective_language());
+    }
+    let max = super::connection_limit(app);
+    app.connect.services.selected = configuration
+        .connections
+        .iter()
+        .take(max)
+        .map(SharedConnection::id)
+        .collect();
+    true
+}
+
+pub fn export_encrypted(app: &mut App) {
+    let Some(vault) = app.connect.services.vault.as_ref() else {
+        return;
+    };
+    let Some(envelope) = vault.envelope.as_ref() else {
+        return;
+    };
+    let text = serde_json::to_vec_pretty(envelope).unwrap_or_default();
+    app.tasks.spawn(async move {
+        if let Some(path) = rfd::AsyncFileDialog::new()
+            .set_file_name("discophile-encrypted-configuration.json")
+            .save_file()
+            .await
+        {
+            let _ = path.write(&text).await;
+        }
+        crate::tasks::update(|_: &mut App| {})
+    });
+}
+
+pub fn save_private(name: &str, identity: &super::Identity) {
+    if let Ok(text) = serde_json::to_string(identity) {
+        secrets::set(name, &text);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use discophile_core::{Credentials, MusicProvider};
+    fn account(user: &str) -> ServerAccount {
+        ServerAccount::new(Credentials::simple("https://music.example.invalid", user, "fixture", false, MusicProvider::Subsonic).unwrap(), user)
+    }
+    fn shared(account: ServerAccount) -> Configuration {
+        Configuration { version: 1, connections: vec![SharedConnection::Music { account }], preferences: Some(SharedPreferences { language: None, appearance: Appearance::Dark }) }
+    }
+    #[test]
+    fn import_preserves_local_connections_and_device_specific_settings() {
+        let mut app = App::connect_test_app();
+        app.settings.appearance = Appearance::Light;
+        app.settings.volume = 0.25;
+        let local = account("local"); let remote = account("remote");
+        app.session.accounts.push(local.clone()); app.session.active = Some(local.id());
+        assert!(import(&mut app, &shared(remote.clone())));
+        assert_eq!(app.session.accounts.len(), 2);
+        assert_eq!(app.session.active, Some(local.id()));
+        assert_eq!(app.settings.volume, 0.25);
+        assert_eq!(app.settings.appearance, Appearance::Light);
+        assert!(app.connect.services.selected.contains(&remote.id()));
+        assert!(import(&mut app, &Configuration { version: 1, connections: vec![], preferences: None }));
+        assert_eq!(app.session.accounts.len(), 2, "cloud removal must preserve local connections and downloads");
+        assert!(app.connect.services.selected.is_empty());
+    }
+    #[test]
+    fn synchronized_records_are_canonical_and_invalid_records_are_rejected() {
+        let mut app = App::connect_test_app();
+        let a = account("a"); let b = account("b");
+        app.connect.services.selected = [a.id(), b.id()].into_iter().collect();
+        app.session.accounts = vec![a.clone(), b.clone()];
+        let first = hash(&snapshot(&app));
+        app.session.accounts.reverse();
+        assert_eq!(hash(&snapshot(&app)), first);
+        let mut invalid = shared(a.clone());
+        invalid.connections.push(SharedConnection::Music { account: a });
+        assert!(!invalid.validate(), "duplicate connection identifiers are ambiguous");
+        let mut invalid_account = b;
+        invalid_account.credentials.server = url::Url::parse("file:///private").unwrap();
+        assert!(!shared(invalid_account).validate());
+    }
+}

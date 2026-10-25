@@ -22,7 +22,7 @@ pub const OFFLINE_SCOPE: &str = "offline_access";
 /// The native client identifier of Discophile for computers.
 pub const DESKTOP_CLIENT_ID: &str = "discophile-desktop";
 /// Capabilities, with their versions, that this version of Discophile implements.
-pub const IMPLEMENTED_CAPABILITIES: &[(&str, u64)] = &[(ACCOUNT_CAPABILITY, ACCOUNT_CAPABILITY_VERSION)];
+pub const IMPLEMENTED_CAPABILITIES: &[(&str, u64)] = &[(ACCOUNT_CAPABILITY, ACCOUNT_CAPABILITY_VERSION), ("devices", 1), ("sync", 1), ("backup", 1), ("remote", 1), ("handoff", 1)];
 const MAX_ID_CHARS: usize = 128;
 const MAX_NAME_CHARS: usize = 100;
 
@@ -265,7 +265,7 @@ pub(crate) mod tests {
         assert_eq!(info.dashboard.as_ref().map(Url::as_str), Some("https://connect.discophile.app/account"));
         assert!(info.capability_usable("account"));
         assert!(info.has_capability("sync", 3) && info.has_capability("sync", 1) && !info.has_capability("sync", 4));
-        assert!(!info.capability_usable("sync"));
+        assert!(info.capability_usable("sync"));
         assert!(!info.capabilities.contains_key("odd"));
         assert_eq!(info.account_url().as_str(), "https://connect.discophile.app/api/v1/account");
         assert!(info.check_desktop_sign_in().is_ok());

@@ -365,7 +365,7 @@ pub(crate) mod tests {
     fn available_needs_the_capability_and_this_client() {
         let entitlement = Entitlement { id: "sync.connections".into(), limit: None, available: true };
         assert_eq!(entitlement.status(&info(json!({"account": {"version": 1}}))), EntitlementStatus::Planned);
-        assert_eq!(entitlement.status(&info(json!({"account": {"version": 1}, "sync": {"version": 1}}))), EntitlementStatus::NotInThisVersion);
+        assert_eq!(entitlement.status(&info(json!({"account": {"version": 1}, "sync": {"version": 1}}))), EntitlementStatus::Included);
         let unavailable = Entitlement { available: false, ..entitlement };
         assert_eq!(unavailable.status(&info(json!({"sync": {"version": 1}}))), EntitlementStatus::Planned);
     }

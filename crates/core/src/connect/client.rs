@@ -110,27 +110,129 @@ impl ConnectClient {
         Self { http }
     }
 
-    async fn send(&self, request: reqwest::RequestBuilder, url: &Url) -> Result<Reply, ConnectError> {
-        let response = request.header(ACCEPT, "application/json").send().await.map_err(|_| ConnectError::Network)?;
+    async fn send(
+        &self,
+        request: reqwest::RequestBuilder,
+        url: &Url,
+    ) -> Result<Reply, ConnectError> {
+        self.send_bounded(request, url, MAX_RESPONSE_BYTES).await
+    }
+
+    async fn send_bounded(
+        &self,
+        request: reqwest::RequestBuilder,
+        url: &Url,
+        limit: usize,
+    ) -> Result<Reply, ConnectError> {
+        let response = request
+            .header(ACCEPT, "application/json")
+            .send()
+            .await
+            .map_err(|_| ConnectError::Network)?;
         let status = response.status().as_u16();
         // Browsers follow redirects themselves; a different final URL means one happened.
         if (300..400).contains(&status) || response.url() != url {
             return Err(ConnectError::Redirected);
         }
-        let retry_after = response.headers().get(RETRY_AFTER).and_then(|v| v.to_str().ok()).and_then(|v| v.trim().parse().ok());
-        if response.content_length().is_some_and(|length| length > MAX_RESPONSE_BYTES as u64) {
+        let retry_after = response
+            .headers()
+            .get(RETRY_AFTER)
+            .and_then(|v| v.to_str().ok())
+            .and_then(|v| v.trim().parse().ok());
+        if response
+            .content_length()
+            .is_some_and(|length| length > limit as u64)
+        {
             return Err(ConnectError::InvalidResponse);
         }
         let mut body = Vec::new();
         let mut stream = response.bytes_stream();
         while let Some(chunk) = stream.next().await {
             let chunk = chunk.map_err(|_| ConnectError::Network)?;
-            if body.len() + chunk.len() > MAX_RESPONSE_BYTES {
+            if body.len() + chunk.len() > limit {
                 return Err(ConnectError::InvalidResponse);
             }
             body.extend_from_slice(&chunk);
         }
-        Ok(Reply { status, body, retry_after })
+        Ok(Reply {
+            status,
+            body,
+            retry_after,
+        })
+    }
+
+    pub async fn catalog(
+        &self,
+        info: &ServerInfo,
+    ) -> Result<super::services::Catalog, ConnectError> {
+        if !info.is_consistent() {
+            return Err(ConnectError::OriginMismatch);
+        }
+        let url = info.origin.url("/api/v1/plans");
+        let reply = self.send(self.http.get(url.clone()), &url).await?;
+        if !reply.ok() {
+            return Err(reply.api_failure());
+        }
+        let catalog: super::services::Catalog =
+            serde_json::from_slice(&reply.body).map_err(|_| ConnectError::InvalidResponse)?;
+        if catalog.currency != "EUR"
+            || catalog.activation != "email"
+            || catalog.tiers.len() > 20
+            || catalog.contact.len() > 254
+            || catalog.contact.contains(['\r', '\n', '?', '&'])
+        {
+            return Err(ConnectError::InvalidResponse);
+        }
+        Ok(catalog)
+    }
+
+    pub async fn service(
+        &self,
+        info: &ServerInfo,
+        credential: &ConnectCredential,
+        operation: &serde_json::Value,
+    ) -> Result<serde_json::Value, ConnectError> {
+        check_binding(info, credential)?;
+        if !info.is_consistent() {
+            return Err(ConnectError::OriginMismatch);
+        }
+        if !info.capability_usable("devices") {
+            return Err(ConnectError::NotOffered);
+        }
+        let url = info.origin.url("/api/v1/connect");
+        let body = serde_json::to_vec(operation).map_err(|_| ConnectError::InvalidResponse)?;
+        if body.len() > 524_288 {
+            return Err(ConnectError::Unavailable);
+        }
+        let reply = self
+            .send_bounded(
+                self.http
+                    .post(url.clone())
+                    .bearer_auth(&credential.access_token)
+                    .header(CONTENT_TYPE, "application/json")
+                    .body(body),
+                &url,
+                4_194_304,
+            )
+            .await?;
+        if !reply.ok() {
+            if matches!(reply.status, 400 | 403 | 404 | 409) {
+                let code = reply.error_code().unwrap_or_default();
+                if [
+                    "forbidden",
+                    "invalid_input",
+                    "revision_conflict",
+                    "not_found",
+                    "operation_conflict",
+                ]
+                .contains(&code.as_str())
+                {
+                    return Err(ConnectError::Service(code));
+                }
+            }
+            return Err(reply.api_failure());
+        }
+        serde_json::from_slice(&reply.body).map_err(|_| ConnectError::InvalidResponse)
     }
 
     async fn post_form(&self, info: &ServerInfo, url: &Url, fields: &[(&str, &str)]) -> Result<Reply, ConnectError> {

@@ -196,6 +196,8 @@ pub fn prepared(
     result: MusicResult<(Option<AudiobookProgress>, AudiobookPlaybackSession)>,
 ) {
     let current = app.audiobooks.starting.as_ref().is_some_and(|(_, g)| *g == request.generation);
+    #[cfg(not(target_arch = "wasm32"))]
+    let current = current && crate::features::connect::services::audiobook_start_allowed(app);
     if current {
         app.audiobooks.starting = None;
     }
@@ -219,6 +221,8 @@ pub fn prepared(
                 .unwrap_or(session.current_time);
             let book = merged_book(app, request.book);
             begin(app, book, session, request.account, request.connection, false, resume);
+            #[cfg(not(target_arch = "wasm32"))]
+            crate::features::connect::services::audiobook_prepared(app);
         }
         Err(error) => {
             if current {

@@ -24,6 +24,9 @@ use crate::app::App;
 use crate::platform::{self, MaybeSend, secrets, storage};
 use crate::tasks::update;
 
+#[cfg(not(target_arch = "wasm32"))]
+pub mod services;
+
 const CONFIG_KEY: &str = "connect";
 const CREDENTIAL_SECRET: &str = "connect";
 
@@ -39,6 +42,8 @@ struct ConnectConfig {
 
 #[derive(Default)]
 pub struct ConnectState {
+    #[cfg(not(target_arch = "wasm32"))]
+    pub services: services::ServicesState,
     pub origin: InstanceOrigin,
     /// The last validated discovery document of `origin`.
     pub server_info: Option<ServerInfo>,
@@ -120,6 +125,8 @@ fn store_credential(app: &mut App, credential: ConnectCredential) {
 
 /// Forgets the credential and account on this computer and returns the credential for revocation.
 fn clear_credential(app: &mut App) -> Option<ConnectCredential> {
+    #[cfg(not(target_arch = "wasm32"))]
+    { app.connect.services = Default::default(); }
     app.connect.account = None;
     let previous = app.connect.credential.take();
     if previous.is_some() {
@@ -536,6 +543,9 @@ pub fn error_message(error: &ConnectError) -> String {
         NotOffered => "This instance does not offer accounts for Discophile for computers.",
         SignInRequired | Unauthorized | RefreshNotRotated => "Your Discophile Connect session has ended. Sign in again.",
         InsufficientScope => "Discophile is not allowed to read your account. Sign in again and allow access.",
+        Service(code) if code == "revision_conflict" => "Connect changed on another device. Refresh and review the configuration or recovery code before continuing.",
+        Service(code) if code == "not_found" => "The Connect device or backup is unavailable. Refresh and try again.",
+        Service(_) => "Connect could not complete this operation. Check your plan, paired devices and selected connections, then refresh.",
         RateLimited { .. } => "The instance received too many requests. Try again in a few minutes.",
         ServerUnavailable(_) => "The instance is temporarily unavailable. Try again later.",
         Rejected(_) => "The instance refused the sign-in request. Try again, or check that it supports Discophile for computers.",

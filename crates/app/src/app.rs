@@ -69,6 +69,51 @@ pub struct App {
 }
 
 impl App {
+    #[cfg(test)]
+    pub(crate) fn connect_test_app() -> Self {
+        let ctx = egui::Context::default();
+        let (tasks, updates) = Tasks::new(ctx);
+        Self {
+            tasks,
+            updates,
+            settings: Settings::default(),
+            session: Session::default(),
+            player: Player::new(Box::new(crate::audio::NullOutput::default()), 1.0),
+            artwork: ArtworkCache::default(),
+            nav: Nav::default(),
+            sheets: Sheets::default(),
+            alert: None,
+            toast: None,
+            library: Default::default(),
+            downloads: Default::default(),
+            discovery: Default::default(),
+            audiobooks: Default::default(),
+            radio: Default::default(),
+            assistant: Default::default(),
+            effects: Default::default(),
+            lyrics: Default::default(),
+            info: Default::default(),
+            connect: Default::default(),
+            #[cfg(not(target_arch = "wasm32"))]
+            mcp: Default::default(),
+            #[cfg(not(target_arch = "wasm32"))]
+            software_update: Default::default(),
+            media_controls: None,
+            dark: None,
+            scale_applied: false,
+            #[cfg(not(target_arch = "wasm32"))]
+            awake: None,
+            #[cfg(not(target_arch = "wasm32"))]
+            tray: None,
+            #[cfg(target_os = "macos")]
+            menu_bar: None,
+            #[cfg(not(target_arch = "wasm32"))]
+            can_hide_window: false,
+            #[cfg(not(target_arch = "wasm32"))]
+            quitting: false,
+        }
+    }
+
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         let ctx = cc.egui_ctx.clone();
         theme::install_fonts(&ctx);

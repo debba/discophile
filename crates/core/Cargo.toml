@@ -22,6 +22,8 @@ hex = "0.4"
 base64 = "0.22"
 sha2 = "0.10"
 percent-encoding = "2"
+aes-gcm = "0.10"
+zeroize = { version = "1", features = ["derive"] }
 # RS256 verification of ChatGPT identity tokens (assistant::chatgpt).
 rsa = { version = "0.9", default-features = false, features = ["std", "u64_digit", "sha2"] }
 

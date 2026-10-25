@@ -48,6 +48,8 @@ struct ResumeState {
 }
 
 pub struct Player {
+    /// Changes whenever a transport action invalidates an outstanding Connect handoff.
+    pub control_generation: u64,
     pub output: Box<dyn AudioOutput>,
     pub queue: PlaybackQueue,
     pub mode: Mode,
@@ -75,6 +77,7 @@ impl Player {
         let mut output = output;
         output.set_volume(volume);
         Self {
+            control_generation: 0,
             output,
             queue: PlaybackQueue::new(),
             mode: Mode::Idle,
@@ -155,6 +158,7 @@ pub fn play_songs(app: &mut App, songs: Vec<Song>, index: usize, shuffled: bool)
 }
 
 pub fn play_songs_with_context(app: &mut App, songs: Vec<Song>, index: usize, shuffled: bool, context: Option<PlayContext>) {
+    app.player.control_generation += 1;
     if songs.is_empty() {
         app.player.error = Some(l10n::music_error(MusicError::EmptyQueue));
         return;
@@ -207,6 +211,7 @@ fn load_current(app: &mut App, start_at: f64, autoplay: bool) {
 }
 
 pub fn play(app: &mut App) {
+    app.player.control_generation += 1;
     if app.player.mode == Mode::Audiobook {
         if !app.player.status.playing {
             features::audiobooks::toggle(app);
@@ -227,6 +232,7 @@ pub fn output_play(app: &mut App) {
 }
 
 pub fn pause(app: &mut App) {
+    app.player.control_generation += 1;
     if app.player.mode == Mode::Audiobook {
         if app.player.status.playing {
             features::audiobooks::toggle(app);
@@ -254,6 +260,7 @@ pub fn toggle(app: &mut App) {
 }
 
 pub fn stop(app: &mut App) {
+    app.player.control_generation += 1;
     if app.player.mode == Mode::Audiobook {
         features::audiobooks::on_replaced(app);
     }
@@ -266,6 +273,7 @@ pub fn stop(app: &mut App) {
 }
 
 pub fn next(app: &mut App) {
+    app.player.control_generation += 1;
     match app.player.mode {
         Mode::Music => {
             if app.player.queue.advance(false) {
@@ -279,6 +287,7 @@ pub fn next(app: &mut App) {
 
 /// Restarts the song after three seconds, otherwise goes to the previous one.
 pub fn previous(app: &mut App) {
+    app.player.control_generation += 1;
     match app.player.mode {
         Mode::Music => {
             if app.player.position() > 3.0 || !app.player.queue.previous() {
@@ -293,6 +302,7 @@ pub fn previous(app: &mut App) {
 }
 
 pub fn seek(app: &mut App, seconds: f64) {
+    app.player.control_generation += 1;
     if app.player.mode == Mode::Audiobook {
         return features::audiobooks::seek(app, seconds);
     }
@@ -311,6 +321,24 @@ pub fn seek(app: &mut App, seconds: f64) {
     app.player.output.set_next(None);
 }
 
+/// Starts an already validated Connect queue directly at its transferred offset.
+pub fn play_transferred(
+    app: &mut App,
+    songs: Vec<Song>,
+    index: usize,
+    repeat: RepeatMode,
+    position: f64,
+    playing: bool,
+) {
+    app.player.control_generation += 1;
+    leave_current_content(app);
+    app.player.queue.replace(songs, index, false);
+    app.player.queue.repeat_mode = repeat;
+    app.player.shuffled = false;
+    app.player.mode = Mode::Music;
+    load_current(app, position, playing);
+}
+
 pub fn set_volume(app: &mut App, volume: f32) {
     let volume = volume.clamp(0.0, 1.0);
     app.player.volume = volume;
@@ -320,6 +348,7 @@ pub fn set_volume(app: &mut App, volume: f32) {
 
 /// Podcast and audiobook speed.
 pub fn set_rate(app: &mut App, rate: f32) {
+    app.player.control_generation += 1;
     app.player.rate = rate.clamp(0.5, 4.0);
     let applies = match app.player.mode {
         Mode::Audiobook => true,
@@ -380,6 +409,7 @@ pub fn move_in_queue(app: &mut App, from: usize, to: usize) {
 }
 
 pub fn play_radio(app: &mut App, station: InternetRadioStation) {
+    app.player.control_generation += 1;
     leave_current_content(app);
     app.player.queue = PlaybackQueue::new();
     app.player.mode = Mode::Radio;

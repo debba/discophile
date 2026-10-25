@@ -31,8 +31,7 @@
 
 Discophile connects to the music you already host and makes it feel like a collection again: mixes built
 from your own listening, whole albums picked for the time you have, synced lyrics, a ten-band equalizer, and
-a music assistant that only suggests songs you can play right now. There is no Discophile account, no
-backend and no analytics. The app talks to your servers and to nothing else unless you turn it on.
+a music assistant that only suggests songs you can play right now. A Discophile Connect account is optional; there is no tracking or analytics. The app talks to your servers and to nothing else unless you turn it on.
 
 ## Works with
 
@@ -173,7 +172,7 @@ storage.
 ## Privacy
 
 Discophile works without any account and collects nothing. The optional [Discophile Connect](docs/CONNECT.md)
-account is used only after you sign in, and synchronizes nothing yet. Passwords and tokens are stored in your system's
+account is used only after you sign in. Pairing and synchronization are separately enabled in Settings; selected configurations and playback messages are encrypted before transmission. Passwords and tokens are stored in your system's
 keychain (Keychain on macOS, Credential Manager on Windows, Secret Service on Linux, or a file only you can read
 when no keychain is available), and your listening history stays on your computer.
 
@@ -189,7 +188,7 @@ The app contacts other services only for features you use, and only with what th
 | Online music information (off by default) | The name, title and artist of the item you open in About | MusicBrainz, Wikipedia |
 | Updates and changelogs | Release metadata, and packages/checksums when you install; the user agent carries the app version. Automatic update checks can be turned off. | GitHub |
 | Agents (off by default) | Library metadata, to the agent you connect on this computer | The agent and its model provider |
-| Discophile Connect (optional) | When you choose an instance or sign in: the sign-in through your browser, then requests for your account name, email address and plan. Nothing from your libraries. | The Connect instance you choose (`connect.discophile.app` by default) |
+| Discophile Connect (optional) | When you choose an instance or sign in: the sign-in through your browser, then requests for your account name, email address and plan. After pairing: encrypted selected connection settings, optional language/appearance, configuration snapshots and playback messages. Audio files are never sent to Connect. | The Connect instance you choose (`connect.discophile.app` by default) |
 
 ## Build from source
 

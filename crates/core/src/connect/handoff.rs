@@ -1,9 +1,8 @@
-//! Playback handoff draft: transport-agnostic messages for moving playback between devices, in the
+//! Playback handoff: transport-agnostic messages for moving playback between devices, in the
 //! spirit of Spotify Connect (desktop → phone, phone → desktop, browser → desktop).
 //!
-//! The handoff transport is not implemented yet. It will follow the Discophile Connect protocol's future
-//! `handoff` capability, which needs its own reviewed specification; until then nothing sends or receives
-//! these messages. A snapshot never contains passwords or tokens: the receiving device must already have
+//! The native app carries these messages through authenticated encrypted Connect envelopes.
+//! A snapshot never contains passwords or tokens: the receiving device must already have
 //! the same library configured, matched by `account_key`.
 
 use serde::{Deserialize, Serialize};

@@ -8,11 +8,11 @@
 //! - [`account`]: the account, its plan and entitlements.
 //! - [`client`]: the HTTP requests, with [`ConnectError`].
 //!
-//! Version 1 synchronizes nothing: no library, credential or playback data is sent to an instance, and a
+//! The optional native services extension encrypts selected configuration and playback messages. A
 //! plan never restricts local playback or direct connections to the person's own servers. Changing instance
 //! requires a new sign-in; tokens and identifiers are never sent to another origin.
 //!
-//! [`handoff`] keeps the draft playback handoff messages; their transport is not implemented yet.
+//! [`handoff`] defines playback messages; [`vault`] authenticates their encrypted transport.
 
 pub mod account;
 pub mod authorization;
@@ -22,6 +22,8 @@ pub mod discovery;
 mod error;
 pub mod handoff;
 pub mod instance;
+pub mod vault;
+pub mod services;
 
 pub use account::{Account, AccountInfo, Entitlement, EntitlementKind, EntitlementStatus, Plan, PlanSource, Tier};
 pub use authorization::AuthorizationRequest;

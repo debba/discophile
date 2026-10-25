@@ -11,6 +11,9 @@ use crate::ui::accounts::{Look, labeled};
 use crate::ui::settings::{footer, group};
 use crate::ui::widgets;
 
+#[cfg(not(target_arch = "wasm32"))]
+mod services;
+
 pub fn settings(app: &mut App, ui: &mut Ui) {
     ui.add(egui::Label::new(theme::text(
         t("An optional account for Discophile services on a Connect instance. Discophile works fully without it."),
@@ -18,11 +21,13 @@ pub fn settings(app: &mut App, ui: &mut Ui) {
     )).wrap());
     instance_section(app, ui);
     account_section(app, ui);
+    #[cfg(not(target_arch = "wasm32"))]
+    services::settings(app, ui);
     footer(
         ui,
         &t("Standalone use and direct connections to your own servers never need a Connect account, and your plan never limits local playback."),
     );
-    footer(ui, &t("Nothing from your libraries is synchronized yet. Discophile reads only your account name, email address and plan."));
+    footer(ui, &t("Connect synchronizes only the connections and shared preferences you select. Your audio files stay on your servers and computers."));
 }
 
 pub fn onboarding(app: &mut App, ui: &mut Ui) {
@@ -279,7 +284,7 @@ mod desktop {
         });
         footer(
             ui,
-            &t("Access tokens are stored only in this computer's keychain. Signing out removes them and revokes Discophile's access on the instance."),
+            &t("Access tokens use this computer's secrets store. Signing out removes them and revokes Discophile's access on the instance."),
         );
     }
 
@@ -338,13 +343,16 @@ mod desktop {
         })
     }
 
-    fn entitlement_label(kind: EntitlementKind, limit: Option<u64>) -> String {
+    pub(super) fn entitlement_label(kind: EntitlementKind, limit: Option<u64>) -> String {
         match kind {
             EntitlementKind::DevicesPaired => match limit {
                 Some(limit) => count("Up to %lld paired playback devices", limit.min(i64::MAX as u64) as i64),
                 None => t("Paired playback devices"),
             },
-            EntitlementKind::SyncConnections => t("Encrypted synchronization of library connections"),
+            EntitlementKind::SyncConnections => match limit {
+                Some(limit) => discophile_core::l10n::tf("Encrypted synchronization of up to %lld server connections", &[&limit]),
+                None => t("Encrypted synchronization of library connections"),
+            },
             EntitlementKind::SyncPreferences => t("Encrypted synchronization of chosen preferences"),
             EntitlementKind::BackupConfiguration => t("Encrypted configuration backups"),
             EntitlementKind::PlaybackRemote => t("Remote control"),

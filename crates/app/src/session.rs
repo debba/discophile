@@ -112,7 +112,7 @@ pub fn add_account(
     });
 }
 
-fn store_account(app: &mut App, account: ServerAccount) {
+pub(crate) fn store_account(app: &mut App, account: ServerAccount) {
     let id = account.id();
     secrets::set(&format!("account:{id}"), &account.credentials.password);
     if let Some(existing) = app.session.accounts.iter_mut().find(|a| a.id() == id) {
