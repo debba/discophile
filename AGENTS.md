@@ -13,7 +13,7 @@ Discophile desktop and web: a Rust port of `../ios-app` (SwiftUI). English is th
 - `site`: the discophile.app website (Next.js on Vercel, its own `package.json`); see `site/README.md`.
 - `Localization/*.json`: `{"English key": "Italian text"}`. `strings.json` comes from the iOS app; add new keys to
   the file owned by your area (`core`, `desktop`, `library`, `player`, `settings`, `assistant`, `audiobooks`,
-  `discovery`). Plural forms go in `plurals.json`. Use `t("English text")`, `tf(key, &[&arg])`, `count(key, n)`.
+  `discovery`, `connect`). Plural forms go in `plurals.json`. Use `t("English text")`, `tf(key, &[&arg])`, `count(key, n)`.
 
 ## Commands
 

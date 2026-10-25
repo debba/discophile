@@ -84,10 +84,18 @@ queue, lyrics and the assistant, and modal windows instead of sheets.
   to the interface thread with `Tasks::send` and answered through a oneshot channel. `ToolCall::is_destructive`
   calls wait for the dialog drawn by `ui::agents::confirmation`.
 
-## Discophile Connect (planned)
+## Discophile Connect
 
-`discophile_core::connect` defines the device handoff protocol (Spotify Connect style). Devices
-exchange `ConnectMessage` JSON over a WebSocket after discovery via mDNS (`_discophile._tcp`).
-A `PlaybackSnapshot` carries the queue, position and play state but never credentials; the target
-must have the same library configured (`account_key`). Transfer: the active device sends `Transfer`,
-the target starts playing at `position_at(now)`, replies `TransferComplete`, and the sender pauses.
+`discophile_core::connect` implements the client side of the Connect protocol version 1: `instance`
+(canonical origins, `https` only except the loopback `http` exception), `discovery` (`ServerInfo`, bound to the
+origin), `authorization` (PKCE and the `/connect/callback` loopback redirect), `credential` (tokens with
+redacted `Debug`, the origin and account namespace), `account` (plan and entitlements) and `client`
+(`ConnectClient`, no redirects, bounded bodies). The shared loopback parsing is in `discophile_core::oauth`.
+`features/connect.rs` keeps the chosen instance in storage and the credential in secrets; refreshes run one at
+a time and a rotated credential is stored before the account is read with it. `ui/connect.rs` is
+Settings > Discophile Connect; see [CONNECT.md](CONNECT.md).
+
+`connect::handoff` keeps the draft playback handoff messages (`ConnectMessage`, `PlaybackSnapshot`). Their
+transport is not implemented; it will follow the protocol's future `handoff` capability. A snapshot carries
+the queue, position and play state but never credentials; the target must have the same library configured
+(`account_key`).

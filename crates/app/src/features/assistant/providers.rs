@@ -434,18 +434,18 @@ fn on_redirect(
     });
 }
 
-/// The loopback listener of a sign-in. Requests are read one at a time with a short timeout; anything
-/// that is not the exact OAuth redirect is closed without a reply.
+/// The loopback listener of a sign-in (`platform::loopback`), with ChatGPT's callback validation.
 #[cfg(not(target_arch = "wasm32"))]
 mod loopback {
-    use std::io::{Read, Write};
     use std::net::TcpListener;
-    use std::sync::atomic::{AtomicBool, Ordering};
-    use std::time::{Duration, Instant};
+    use std::sync::atomic::AtomicBool;
+    use std::time::Duration;
 
     use discophile_core::assistant::AssistantError;
     use discophile_core::assistant::chatgpt::oauth;
     use url::Url;
+
+    use crate::platform::loopback::{self as shared, Wait};
 
     pub enum End {
         Code {
@@ -460,51 +460,18 @@ mod loopback {
     }
 
     pub fn wait(listener: TcpListener, redirect: &Url, state: &str, saved_client: Option<&str>, cancel: &AtomicBool) -> End {
-        if listener.set_nonblocking(true).is_err() {
-            return End::Failed;
+        let timeout = Duration::from_secs(oauth::SIGN_IN_TIMEOUT_SECS);
+        let accept = |url: &Url| match oauth::callback(url, redirect, state, saved_client) {
+            Ok((code, client_id)) => Some(End::Code { code, client_id }),
+            Err(AssistantError::Cancelled) => Some(End::Denied),
+            Err(_) => None,
+        };
+        match shared::wait(listener, redirect, timeout, cancel, accept) {
+            Wait::Done(end) => end,
+            Wait::TimedOut => End::TimedOut,
+            Wait::Stopped => End::Stopped,
+            Wait::Failed => End::Failed,
         }
-        let deadline = Instant::now() + Duration::from_secs(oauth::SIGN_IN_TIMEOUT_SECS);
-        loop {
-            if cancel.load(Ordering::Relaxed) {
-                return End::Stopped;
-            }
-            if Instant::now() >= deadline {
-                return End::TimedOut;
-            }
-            match listener.accept() {
-                Ok((mut stream, _)) => {
-                    let Some(raw) = read_request(&mut stream) else { continue };
-                    let Some(url) = oauth::parse_loopback_request(&raw, redirect) else { continue };
-                    let end = match oauth::callback(&url, redirect, state, saved_client) {
-                        Ok((code, client_id)) => End::Code { code, client_id },
-                        Err(AssistantError::Cancelled) => End::Denied,
-                        Err(_) => continue,
-                    };
-                    let _ = stream.write_all(oauth::loopback_response().as_bytes());
-                    let _ = stream.flush();
-                    return end;
-                }
-                Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => std::thread::sleep(Duration::from_millis(100)),
-                Err(_) => return End::Failed,
-            }
-        }
-    }
-
-    fn read_request(stream: &mut std::net::TcpStream) -> Option<Vec<u8>> {
-        stream.set_nonblocking(false).ok()?;
-        stream.set_read_timeout(Some(Duration::from_secs(5))).ok()?;
-        let mut raw = Vec::new();
-        let mut buffer = [0u8; 4096];
-        while !oauth::loopback_request_complete(&raw) {
-            match stream.read(&mut buffer) {
-                Ok(0) | Err(_) => return None,
-                Ok(n) => raw.extend_from_slice(&buffer[..n]),
-            }
-            if raw.len() > oauth::LOOPBACK_MAX_REQUEST_BYTES {
-                return None;
-            }
-        }
-        Some(raw)
     }
 }
 

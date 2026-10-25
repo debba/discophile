@@ -13,6 +13,8 @@ pub mod window;
 pub mod tray;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod http_server;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod loopback;
 #[cfg(target_os = "macos")]
 pub mod menu_bar;
 #[cfg(not(target_arch = "wasm32"))]

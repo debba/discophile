@@ -8,7 +8,7 @@ use discophile_core::l10n;
 use egui::{CornerRadius, Frame, Margin};
 
 use crate::artwork::ArtworkCache;
-use crate::features::{self, assistant, audiobooks, discovery, downloads, effects, info, library, lyrics, radio};
+use crate::features::{self, assistant, audiobooks, connect, discovery, downloads, effects, info, library, lyrics, radio};
 use crate::nav::{Nav, Route, SettingsPage, SidePanel};
 use crate::player::{self, Player};
 use crate::session::Session;
@@ -46,6 +46,8 @@ pub struct App {
     pub effects: effects::EffectsState,
     pub lyrics: lyrics::LyricsState,
     pub info: info::InfoState,
+    /// The optional Discophile Connect account.
+    pub connect: connect::ConnectState,
     #[cfg(not(target_arch = "wasm32"))]
     pub mcp: features::mcp::McpState,
     #[cfg(not(target_arch = "wasm32"))]
@@ -96,6 +98,7 @@ impl App {
             effects: Default::default(),
             lyrics: Default::default(),
             info: Default::default(),
+            connect: Default::default(),
             #[cfg(not(target_arch = "wasm32"))]
             mcp: Default::default(),
             #[cfg(not(target_arch = "wasm32"))]

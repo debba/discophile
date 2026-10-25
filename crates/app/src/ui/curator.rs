@@ -25,7 +25,7 @@ fn same_songs(a: &[Song], b: &[Song]) -> bool {
 }
 
 /// "12 Oct 2026".
-fn date_label(millis: i64) -> String {
+pub(crate) fn date_label(millis: i64) -> String {
     let Some(date) = Local.timestamp_millis_opt(millis).single() else { return String::new() };
     const EN: [&str; 12] = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const IT: [&str; 12] = ["gen", "feb", "mar", "apr", "mag", "giu", "lug", "ago", "set", "ott", "nov", "dic"];

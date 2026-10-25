@@ -172,7 +172,8 @@ storage.
 
 ## Privacy
 
-Discophile has no server of its own and collects nothing. Passwords and tokens are stored in your system's
+Discophile works without any account and collects nothing. The optional [Discophile Connect](docs/CONNECT.md)
+account is used only after you sign in, and synchronizes nothing yet. Passwords and tokens are stored in your system's
 keychain (Keychain on macOS, Credential Manager on Windows, Secret Service on Linux, or a file only you can read
 when no keychain is available), and your listening history stays on your computer.
 
@@ -188,6 +189,7 @@ The app contacts other services only for features you use, and only with what th
 | Online music information (off by default) | The name, title and artist of the item you open in About | MusicBrainz, Wikipedia |
 | Updates and changelogs | Release metadata, and packages/checksums when you install; the user agent carries the app version. Automatic update checks can be turned off. | GitHub |
 | Agents (off by default) | Library metadata, to the agent you connect on this computer | The agent and its model provider |
+| Discophile Connect (optional) | When you choose an instance or sign in: the sign-in through your browser, then requests for your account name, email address and plan. Nothing from your libraries. | The Connect instance you choose (`connect.discophile.app` by default) |
 
 ## Build from source
 
@@ -205,7 +207,8 @@ cd crates/app && trunk serve             # http://127.0.0.1:8080
 cd crates/app && trunk build --release   # static files in dist/
 ```
 
-To self-host the web player with Docker or Helm, see [docs/WEB.md](docs/WEB.md). Tests, project layout, releases
+To self-host the web player with Docker or Helm, see [docs/WEB.md](docs/WEB.md). To change the Discophile Connect
+instance, sign in or sign out, see [docs/CONNECT.md](docs/CONNECT.md). Tests, project layout, releases
 and how the screenshots are made are in
 [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md). The architecture is described in
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).

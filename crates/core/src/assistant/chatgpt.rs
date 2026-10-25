@@ -13,9 +13,6 @@
 
 use std::fmt;
 
-use base64::Engine;
-use base64::engine::general_purpose::{GeneralPurpose, GeneralPurposeConfig};
-use base64::engine::{DecodePaddingMode, general_purpose};
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -235,7 +232,11 @@ impl PkceRequest {
 
 pub mod oauth {
     use super::*;
-    use percent_encoding::{AsciiSet, NON_ALPHANUMERIC, percent_decode_str, utf8_percent_encode};
+    pub(crate) use crate::oauth::{encode, form};
+    pub use crate::oauth::{
+        LOOPBACK_MAX_REQUEST_BYTES, base64_url, challenge, decode_base64_url, loopback_request_complete,
+        loopback_response,
+    };
 
     pub const RESOURCE: &str = "https://api.openai.com/v1";
     pub const SCOPES: &str =
@@ -245,48 +246,8 @@ pub mod oauth {
     pub const CALLBACK_PATH: &str = "/auth/callback";
     /// Sign-in attempts are abandoned after five minutes.
     pub const SIGN_IN_TIMEOUT_SECS: u64 = 300;
-    /// Largest accepted loopback request.
-    pub const LOOPBACK_MAX_REQUEST_BYTES: usize = 16_384;
     /// Simultaneous loopback connections accepted while signing in.
     pub const LOOPBACK_MAX_CONNECTIONS: usize = 8;
-
-    /// Unreserved characters stay; everything else, including `+` and spaces, is percent-encoded.
-    const COMPONENT: &AsciiSet = &NON_ALPHANUMERIC
-        .remove(b'-')
-        .remove(b'.')
-        .remove(b'_')
-        .remove(b'~');
-
-    pub(crate) fn encode(text: &str) -> String {
-        utf8_percent_encode(text, COMPONENT).to_string()
-    }
-
-    /// `name=value` pairs sorted by name and percent-encoded, as Discophile sends forms and queries.
-    pub(crate) fn form(fields: &[(&str, &str)]) -> String {
-        let mut fields = fields.to_vec();
-        fields.sort_by(|a, b| a.0.cmp(b.0));
-        fields
-            .iter()
-            .map(|(k, v)| format!("{}={}", encode(k), encode(v)))
-            .collect::<Vec<_>>()
-            .join("&")
-    }
-
-    pub fn base64_url(bytes: &[u8]) -> String {
-        general_purpose::URL_SAFE_NO_PAD.encode(bytes)
-    }
-
-    pub fn decode_base64_url(text: &str) -> Option<Vec<u8>> {
-        const ENGINE: GeneralPurpose = GeneralPurpose::new(
-            &base64::alphabet::URL_SAFE,
-            GeneralPurposeConfig::new().with_decode_padding_mode(DecodePaddingMode::Indifferent),
-        );
-        ENGINE.decode(text).ok()
-    }
-
-    pub fn challenge(verifier: &str) -> String {
-        base64_url(&Sha256::digest(verifier.as_bytes()))
-    }
 
     /// `http://127.0.0.1:<port>/auth/callback`.
     pub fn loopback_redirect(port: u16) -> Url {
@@ -324,18 +285,6 @@ pub mod oauth {
         url
     }
 
-    fn query_items(query: &str) -> Vec<(String, Option<String>)> {
-        let decode = |s: &str| percent_decode_str(s).decode_utf8_lossy().into_owned();
-        query
-            .split('&')
-            .filter(|p| !p.is_empty())
-            .map(|pair| match pair.split_once('=') {
-                Some((name, value)) => (decode(name), Some(decode(value))),
-                None => (decode(pair), None),
-            })
-            .collect()
-    }
-
     /// Validates the OAuth redirect and returns `(code, client_id)`. A provider error means the person cancelled.
     pub fn callback(
         url: &Url,
@@ -354,7 +303,7 @@ pub mod oauth {
         {
             return Err(invalid);
         }
-        let items = query_items(url.query().ok_or(invalid)?);
+        let items = crate::oauth::query_items(url.query().ok_or(invalid)?);
         let single = |name: &str| -> Result<Option<String>, AssistantError> {
             let values: Vec<&Option<String>> = items
                 .iter()
@@ -391,40 +340,7 @@ pub mod oauth {
     /// a single `GET /auth/callback?…` with the exact `Host: 127.0.0.1:<port>` header. Returns `None` while
     /// the headers are incomplete or when the request must be rejected.
     pub fn parse_loopback_request(raw: &[u8], redirect: &Url) -> Option<Url> {
-        if raw.len() > LOOPBACK_MAX_REQUEST_BYTES {
-            return None;
-        }
-        let text = std::str::from_utf8(raw).ok()?;
-        let head = &text[..text.find("\r\n\r\n")?];
-        let mut lines = head.split("\r\n");
-        let first: Vec<&str> = lines.next()?.split(' ').filter(|p| !p.is_empty()).collect();
-        let port = redirect.port()?;
-        let hosts: Vec<&str> = lines
-            .filter(|l| l.to_lowercase().starts_with("host:"))
-            .collect();
-        if first.len() != 3
-            || first[0] != "GET"
-            || !first[1].starts_with(&format!("{CALLBACK_PATH}?"))
-            || hosts.len() != 1
-            || hosts[0][5..].trim() != format!("127.0.0.1:{port}")
-        {
-            return None;
-        }
-        Url::parse(&format!("http://127.0.0.1:{port}{}", first[1])).ok()
-    }
-
-    /// Whether a partial loopback request has its complete header block.
-    pub fn loopback_request_complete(raw: &[u8]) -> bool {
-        raw.windows(4).any(|w| w == b"\r\n\r\n")
-    }
-
-    /// The page shown after the redirect. No credentials, codes or request values enter it.
-    pub fn loopback_response() -> String {
-        let body = "<!doctype html><meta name=viewport content='width=device-width'><title>Discophile</title><p>Return to Discophile to finish signing in.</p>";
-        format!(
-            "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nCache-Control: no-store\r\nContent-Security-Policy: default-src 'none'\r\nConnection: close\r\nContent-Length: {}\r\n\r\n{body}",
-            body.len()
-        )
+        crate::oauth::parse_loopback_request(raw, redirect, CALLBACK_PATH)
     }
 }
 

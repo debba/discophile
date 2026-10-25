@@ -22,6 +22,7 @@ const SOURCES: &[(&str, &str)] = &[
     ("assistant.json", include_str!("../../../Localization/assistant.json")),
     ("audiobooks.json", include_str!("../../../Localization/audiobooks.json")),
     ("discovery.json", include_str!("../../../Localization/discovery.json")),
+    ("connect.json", include_str!("../../../Localization/connect.json")),
 ];
 const PLURALS: &str = include_str!("../../../Localization/plurals.json");
 

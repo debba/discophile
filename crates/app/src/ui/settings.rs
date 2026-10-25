@@ -41,6 +41,7 @@ fn pages(app: &App) -> Vec<(SettingsPage, &'static str, &'static str)> {
         (SettingsPage::Rediscover, icons::CLOCK_COUNTER_CLOCKWISE, "Rediscover your music"),
         (SettingsPage::Assistant, icons::SPARKLE, "Music assistant"),
         (SettingsPage::Agents, icons::ROBOT, "Agents"),
+        (SettingsPage::Connect, icons::USER_CIRCLE, "Discophile Connect"),
     ];
     if app.settings.advanced_unlocked {
         pages.push((SettingsPage::Advanced, icons::WRENCH, "Advanced settings"));
@@ -93,6 +94,7 @@ fn settings_content(app: &mut App, ui: &mut Ui, page: SettingsPage) {
             SettingsPage::Rediscover => crate::ui::statistics::rediscover_settings(app, ui),
             SettingsPage::Assistant => crate::ui::assistant::settings(app, ui),
             SettingsPage::Agents => crate::ui::agents::settings(app, ui),
+            SettingsPage::Connect => crate::ui::connect::settings(app, ui),
             SettingsPage::Advanced => advanced(app, ui),
             SettingsPage::About => about(app, ui),
         }
@@ -569,7 +571,7 @@ fn about(app: &mut App, ui: &mut Ui) {
             ui.label(theme::icon_filled(icons::SHIELD_CHECK, 22.0).color(palette.accent));
             ui.vertical(|ui| {
                 ui.label(theme::text(
-                    t("Discophile connects directly to your servers. There is no Discophile backend or account, and no advertising, tracking or analytics."),
+                    t("Discophile connects directly to your servers. A Discophile Connect account is optional, and there is no advertising, tracking or analytics."),
                     Font::Callout,
                 ));
                 let storage = if crate::platform::IS_WEB {

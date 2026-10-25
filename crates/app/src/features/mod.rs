@@ -3,6 +3,7 @@
 
 pub mod assistant;
 pub mod audiobooks;
+pub mod connect;
 pub mod discovery;
 pub mod downloads;
 pub mod effects;
@@ -31,6 +32,7 @@ pub fn start(app: &mut App) {
     effects::start(app);
     lyrics::start(app);
     info::start(app);
+    connect::start(app);
     #[cfg(not(target_arch = "wasm32"))]
     mcp::start(app);
     #[cfg(not(target_arch = "wasm32"))]

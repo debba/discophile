@@ -11,6 +11,7 @@ pub mod agents;
 pub mod assistant;
 pub mod audiobooks;
 pub mod chat_kit;
+pub mod connect;
 pub mod curator;
 pub mod detail;
 pub mod info;

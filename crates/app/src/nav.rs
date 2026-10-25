@@ -38,6 +38,7 @@ pub enum SettingsPage {
     Rediscover,
     Assistant,
     Agents,
+    Connect,
     Advanced,
     About,
 }

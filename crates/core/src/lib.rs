@@ -5,6 +5,7 @@ pub mod error;
 pub mod http;
 pub mod l10n;
 pub mod models;
+pub mod oauth;
 pub mod queue;
 
 // Providers
@@ -36,7 +37,7 @@ pub mod audio_effects;
 // Assistant
 pub mod assistant;
 
-// Device handoff
+// Discophile Connect accounts and the device handoff draft
 pub mod connect;
 
 // External agents

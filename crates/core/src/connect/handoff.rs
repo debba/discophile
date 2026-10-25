@@ -1,10 +1,10 @@
-//! Discophile Connect: transport-agnostic messages for moving playback between devices,
-//! in the spirit of Spotify Connect (desktop → phone, phone → desktop, browser → desktop).
+//! Playback handoff draft: transport-agnostic messages for moving playback between devices, in the
+//! spirit of Spotify Connect (desktop → phone, phone → desktop, browser → desktop).
 //!
-//! There is no Discophile backend. Devices find each other on the local network (planned:
-//! mDNS service `_discophile._tcp`) or by pairing code, then exchange these JSON messages over
-//! a WebSocket. A snapshot never contains passwords or tokens: the receiving device must
-//! already have the same library configured, matched by `account_key`.
+//! The handoff transport is not implemented yet. It will follow the Discophile Connect protocol's future
+//! `handoff` capability, which needs its own reviewed specification; until then nothing sends or receives
+//! these messages. A snapshot never contains passwords or tokens: the receiving device must already have
+//! the same library configured, matched by `account_key`.
 
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -12,6 +12,7 @@ use uuid::Uuid;
 use crate::models::{InternetRadioStation, MusicProvider, Song};
 use crate::queue::RepeatMode;
 
+/// Version of the handoff messages below (not the Connect account protocol).
 pub const PROTOCOL_VERSION: u32 = 1;
 pub const MDNS_SERVICE: &str = "_discophile._tcp.local.";
 
