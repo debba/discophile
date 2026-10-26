@@ -70,11 +70,15 @@ pub fn repeat_icon(app: &App) -> &'static str {
     if player::repeat_mode(app) == discophile_core::queue::RepeatMode::One { icons::REPEAT_ONCE } else { icons::REPEAT }
 }
 
+fn podcast_playing(app: &App) -> bool {
+    app.player.mode == Mode::Music && app.player.current().is_some_and(|s| s.is_podcast())
+}
+
 /// The countdown of a timed sleep timer as `m:ss`, or a short label for end of track.
 pub fn sleep_caption(app: &App) -> Option<String> {
     match app.player.sleep {
         Some(SleepTimer::At(_)) => player::sleep_remaining(app).map(l10n::time),
-        Some(SleepTimer::EndOfTrack) => Some(t("Track")),
+        Some(SleepTimer::EndOfTrack) => Some(t(if podcast_playing(app) { "Episode" } else { "Track" })),
         Some(SleepTimer::EndOfChapter) => Some(t("Chapter")),
         None => None,
     }
@@ -96,7 +100,8 @@ pub fn sleep_menu(ui: &mut Ui, app: &mut App) {
     }
     if app.player.mode == Mode::Music {
         let selected = app.player.sleep == Some(SleepTimer::EndOfTrack);
-        if ui.add(egui::Button::selectable(selected, t("End of track"))).clicked() {
+        let label = t(if podcast_playing(app) { "End of episode" } else { "End of track" });
+        if ui.add(egui::Button::selectable(selected, label)).clicked() {
             app.player.sleep = Some(SleepTimer::EndOfTrack);
         }
     }
