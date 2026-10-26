@@ -153,7 +153,7 @@ export function DownloadProvider({ locale, release, children }: { locale: Locale
                   <li key={format}>
                     <div>
                       <strong>{label}</strong>
-                      <span>{detail}{file && <> · <span className="nowrap">{megabytes(file.size)}</span></>}</span>
+                      <span>{detail.replace("VERSION", release?.version ?? "VERSION")}{file && <> · <span className="nowrap">{megabytes(file.size)}</span></>}</span>
                     </div>
                     {file ? (
                       <a
