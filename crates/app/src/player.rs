@@ -158,6 +158,8 @@ pub fn play_songs(app: &mut App, songs: Vec<Song>, index: usize, shuffled: bool)
 }
 
 pub fn play_songs_with_context(app: &mut App, songs: Vec<Song>, index: usize, shuffled: bool, context: Option<PlayContext>) {
+    #[cfg(not(target_arch = "wasm32"))]
+    features::connect::services::take_local_control(app);
     app.player.control_generation += 1;
     if songs.is_empty() {
         app.player.error = Some(l10n::music_error(MusicError::EmptyQueue));
@@ -211,6 +213,8 @@ fn load_current(app: &mut App, start_at: f64, autoplay: bool) {
 }
 
 pub fn play(app: &mut App) {
+    #[cfg(not(target_arch = "wasm32"))]
+    if features::connect::services::route_command(app, discophile_core::connect::RemoteCommand::Play) { return; }
     app.player.control_generation += 1;
     if app.player.mode == Mode::Audiobook {
         if !app.player.status.playing {
@@ -232,6 +236,8 @@ pub fn output_play(app: &mut App) {
 }
 
 pub fn pause(app: &mut App) {
+    #[cfg(not(target_arch = "wasm32"))]
+    if features::connect::services::route_command(app, discophile_core::connect::RemoteCommand::Pause) { return; }
     app.player.control_generation += 1;
     if app.player.mode == Mode::Audiobook {
         features::audiobooks::pause(app);
@@ -248,6 +254,12 @@ pub fn output_pause(app: &mut App) {
 }
 
 pub fn toggle(app: &mut App) {
+    #[cfg(not(target_arch = "wasm32"))]
+    if let Some(remote) = features::connect::services::remote_playback(app) {
+        let command = if remote.state.playing { discophile_core::connect::RemoteCommand::Pause } else { discophile_core::connect::RemoteCommand::Play };
+        features::connect::services::route_command(app, command);
+        return;
+    }
     if app.player.mode == Mode::Audiobook {
         return features::audiobooks::toggle(app);
     }
@@ -258,6 +270,8 @@ pub fn toggle(app: &mut App) {
 }
 
 pub fn stop(app: &mut App) {
+    #[cfg(not(target_arch = "wasm32"))]
+    features::connect::services::take_local_control(app);
     app.player.control_generation += 1;
     if app.player.mode == Mode::Audiobook {
         features::audiobooks::on_replaced(app);
@@ -271,6 +285,8 @@ pub fn stop(app: &mut App) {
 }
 
 pub fn next(app: &mut App) {
+    #[cfg(not(target_arch = "wasm32"))]
+    if features::connect::services::route_command(app, discophile_core::connect::RemoteCommand::Next) { return; }
     app.player.control_generation += 1;
     match app.player.mode {
         Mode::Music => {
@@ -285,6 +301,8 @@ pub fn next(app: &mut App) {
 
 /// Restarts the song after three seconds, otherwise goes to the previous one.
 pub fn previous(app: &mut App) {
+    #[cfg(not(target_arch = "wasm32"))]
+    if features::connect::services::route_command(app, discophile_core::connect::RemoteCommand::Previous) { return; }
     app.player.control_generation += 1;
     match app.player.mode {
         Mode::Music => {
@@ -300,6 +318,8 @@ pub fn previous(app: &mut App) {
 }
 
 pub fn seek(app: &mut App, seconds: f64) {
+    #[cfg(not(target_arch = "wasm32"))]
+    if features::connect::services::route_command(app, discophile_core::connect::RemoteCommand::Seek { position: seconds }) { return; }
     app.player.control_generation += 1;
     if app.player.mode == Mode::Audiobook {
         return features::audiobooks::seek(app, seconds);
@@ -338,6 +358,8 @@ pub fn play_transferred(
 }
 
 pub fn set_volume(app: &mut App, volume: f32) {
+    #[cfg(not(target_arch = "wasm32"))]
+    if features::connect::services::route_command(app, discophile_core::connect::RemoteCommand::SetVolume { volume: volume.clamp(0.0, 1.0) }) { return; }
     let volume = volume.clamp(0.0, 1.0);
     app.player.volume = volume;
     app.player.output.set_volume(volume);
@@ -407,6 +429,8 @@ pub fn move_in_queue(app: &mut App, from: usize, to: usize) {
 }
 
 pub fn play_radio(app: &mut App, station: InternetRadioStation) {
+    #[cfg(not(target_arch = "wasm32"))]
+    features::connect::services::take_local_control(app);
     app.player.control_generation += 1;
     leave_current_content(app);
     app.player.queue = PlaybackQueue::new();

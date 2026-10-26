@@ -339,9 +339,9 @@ impl App {
     #[cfg(not(target_arch = "wasm32"))]
     fn sync_tray(&mut self) {
         use crate::platform::tray::{Command, show_window};
-        let playing = self.player.is_playing();
+        let playing = features::connect::services::remote_playback(self).map_or_else(|| self.player.is_playing(), |r| r.online && r.state.playing);
         let has_content = ui::player_bar::controls::has_content(self);
-        let can_skip = matches!(self.player.mode, player::Mode::Music | player::Mode::Audiobook);
+        let can_skip = features::connect::services::remote_playback(self).is_some() || matches!(self.player.mode, player::Mode::Music | player::Mode::Audiobook);
         let menu = crate::platform::menu_events::drain();
         let commands = self.tray.as_mut().map(|tray| tray.poll(&menu, playing, has_content, can_skip)).unwrap_or_default();
         #[cfg(target_os = "macos")]
@@ -423,8 +423,8 @@ impl App {
                         player::cycle_repeat(self);
                     }
                 }
-                MenuCommand::VolumeUp => player::set_volume(self, (self.player.volume + 0.1).min(1.0)),
-                MenuCommand::VolumeDown => player::set_volume(self, (self.player.volume - 0.1).max(0.0)),
+                MenuCommand::VolumeUp => player::set_volume(self, (ui::player_bar::actions::volume(self) + 0.1).min(1.0)),
+                MenuCommand::VolumeDown => player::set_volume(self, (ui::player_bar::actions::volume(self) - 0.1).max(0.0)),
                 MenuCommand::NowPlaying => self.nav.now_playing = has_content && !self.nav.now_playing,
                 MenuCommand::Queue => {
                     if self.nav.now_playing {
@@ -501,7 +501,13 @@ impl App {
                 spread: 0,
                 color: egui::Color32::from_black_alpha(60),
             }).show(ui, |ui| {
-                ui.label(theme::text(message, Font::Callout));
+                ui.set_max_width((ctx.content_rect().width() - 80.0).max(100.0));
+                let response = ui.add(egui::Label::new(theme::text(message, Font::Callout)).wrap());
+                ctx.accesskit_node_builder(response.id, |node| {
+                    node.set_role(egui::Role::Status);
+                    node.set_live(egui::accesskit::Live::Polite);
+                    node.set_live_atomic();
+                });
             });
         });
     }
@@ -568,7 +574,7 @@ impl eframe::App for App {
                 egui::CentralPanel::default().frame(Frame::new().fill(palette.background)).show(root, |ui| ui::welcome::welcome(self, ui));
             } else {
                 egui::Panel::bottom("player-bar")
-                    .exact_size(96.0)
+                    .exact_size(ui::player_bar::height(self))
                     .frame(Frame::new().fill(palette.surface).stroke(egui::Stroke::new(1.0, palette.separator)).inner_margin(Margin::symmetric(24, 14)))
                     .show(root, |ui| ui::player_bar::show(self, ui));
                 let collapsed = ui::sidebar::collapsed(self);

@@ -4,11 +4,65 @@ use crate::{
 };
 use discophile_core::connect::services::Message;
 use discophile_core::connect::{ConnectMessage, PlaybackContent, PlaybackSnapshot, RemoteCommand};
-use discophile_core::l10n::t;
+use discophile_core::l10n::{t, tf};
 use discophile_core::now_millis;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use uuid::Uuid;
+
+#[derive(Clone, Copy, Default, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum DeviceKind {
+    Linux,
+    #[serde(alias = "macos")]
+    Mac,
+    Windows,
+    #[serde(alias = "ios", alias = "android")]
+    Smartphone,
+    #[default]
+    #[serde(other)]
+    Unknown,
+}
+
+impl DeviceKind {
+    pub fn current() -> Self {
+        if cfg!(any(target_os = "android", target_os = "ios")) {
+            Self::Smartphone
+        } else if cfg!(target_os = "macos") {
+            Self::Mac
+        } else if cfg!(target_os = "windows") {
+            Self::Windows
+        } else if cfg!(target_os = "linux") {
+            Self::Linux
+        } else {
+            Self::Unknown
+        }
+    }
+
+    fn from_name(name: &str) -> Self {
+        let name = name.to_lowercase();
+        let words: Vec<_> = name.split(|c: char| !c.is_alphanumeric()).collect();
+        if words.iter().any(|w| matches!(*w, "iphone" | "ipad" | "android" | "smartphone" | "pixel" | "samsung")) {
+            Self::Smartphone
+        } else if words.iter().any(|w| w.starts_with("macbook") || matches!(*w, "mac" | "imac" | "macos")) {
+            Self::Mac
+        } else if words.contains(&"windows") {
+            Self::Windows
+        } else if words.iter().any(|w| matches!(*w, "linux" | "ubuntu" | "debian" | "fedora" | "arch" | "manjaro" | "opensuse" | "kubuntu")) {
+            Self::Linux
+        } else {
+            Self::Unknown
+        }
+    }
+}
+
+pub fn device_kind(app: &App, id: Uuid, name: &str) -> DeviceKind {
+    if Some(id) == own_id(app) {
+        return DeviceKind::current();
+    }
+    app.connect.services.states.get(&id).map(|s| s.device_kind)
+        .filter(|kind| *kind != DeviceKind::Unknown).unwrap_or_else(|| DeviceKind::from_name(name))
+}
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -20,6 +74,15 @@ pub struct Presence {
     pub can_handoff: bool,
     pub volume: f32,
     pub duration: Option<f64>,
+    #[serde(default)]
+    pub output_device: Option<Uuid>,
+    #[serde(default = "normal_rate")]
+    pub rate: f32,
+    #[serde(default)]
+    pub device_kind: DeviceKind,
+}
+fn normal_rate() -> f32 {
+    1.0
 }
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -36,6 +99,7 @@ pub struct OutgoingTransfer {
     generation: u64,
     was_playing: bool,
     signature: String,
+    presence: Presence,
 }
 pub struct IncomingTransfer {
     from: Uuid,
@@ -45,6 +109,152 @@ pub struct IncomingTransfer {
     playing: bool,
     generation: u64,
     rate: f32,
+    completion: Option<(Uuid, i64)>,
+    confirm_source_pause: bool,
+}
+
+#[derive(Clone)]
+pub struct RemotePlayback {
+    pub id: Uuid,
+    pub name: String,
+    pub state: Presence,
+    pub online: bool,
+}
+
+pub fn remote_playback(app: &App) -> Option<RemotePlayback> {
+    let id = app.connect.services.remote_device?;
+    if !app.connect.services.paired || !super::paid(app, "playback.remote") {
+        return None;
+    }
+    let device = app.connect.services.devices.iter().find(|d| d.id == id && Some(d.id) != own_id(app))?;
+    let mut state = app.connect.services.states.get(&id)?.clone();
+    let age = now_millis().saturating_sub(state.captured_at);
+    let online = device.online && !device.suspended && (-5_000..=30_000).contains(&age);
+    if online && state.playing {
+        state.position += age.max(0) as f64 / 1000.0 * state.rate as f64;
+    }
+    if let Some(duration) = state.duration {
+        state.position = state.position.min(duration);
+    }
+    Some(RemotePlayback {
+        id,
+        name: device.name.clone(),
+        state,
+        online,
+    })
+}
+
+pub fn route_command(app: &mut App, command: RemoteCommand) -> bool {
+    let Some(remote) = remote_playback(app) else { return false };
+    if remote.online {
+        let valid = match command {
+            RemoteCommand::Seek { position } => position.is_finite() && position >= 0.0,
+            RemoteCommand::SetVolume { volume } => volume.is_finite() && (0.0..=1.0).contains(&volume),
+            _ => true,
+        };
+        if valid
+            && send_command(app, remote.id, command.clone()).is_some()
+            && let Some(state) = app.connect.services.states.get_mut(&remote.id)
+        {
+            state.position = remote.state.position;
+            state.captured_at = now_millis();
+            match command {
+                RemoteCommand::Play => state.playing = true,
+                RemoteCommand::Pause => state.playing = false,
+                RemoteCommand::Seek { position } => state.position = position,
+                RemoteCommand::SetVolume { volume } => state.volume = volume,
+                _ => {}
+            }
+        }
+    } else {
+        app.connect.services.playback_notice = Some(tf("%@ is unavailable. Choose another playback device.", &[&remote.name]));
+    }
+    true
+}
+
+pub fn take_local_control(app: &mut App) {
+    if let Some(id) = app.connect.services.remote_device.take() {
+        send_command(app, id, RemoteCommand::Pause);
+    }
+}
+
+pub fn listen_independently(app: &mut App) {
+    app.connect.services.remote_device = None;
+    app.connect.services.independent_playback = true;
+    let notice = t("Other devices keep playing. Choose what to listen to here.");
+    app.toast(&notice);
+    app.connect.services.playback_notice = Some(notice);
+}
+
+fn observe_output(app: &mut App) {
+    if app.player.is_playing() {
+        app.connect.services.remote_device = None;
+        return;
+    }
+    if let Some(id) = app.connect.services.remote_device {
+        if !app.connect.services.devices.iter().any(|d| d.id == id && !d.suspended) {
+            app.connect.services.remote_device = None;
+        } else if let Some(state) = app.connect.services.states.get(&id)
+            && (0..=30_000).contains(&(now_millis() - state.captured_at))
+            && let Some(target) = state.output_device
+        {
+            if Some(target) == own_id(app) {
+                app.connect.services.remote_device = None;
+            } else if app.connect.services.devices.iter().any(|d| d.id == target && d.online && !d.suspended) {
+                app.connect.services.remote_device = Some(target);
+            }
+        }
+    }
+    // A local pause must not silently switch an independent listener back to remote controls.
+    if app.connect.services.remote_device.is_none() && !app.connect.services.independent_playback && !transfer_pending(app) {
+        app.connect.services.remote_device = app
+            .connect
+            .services
+            .devices
+            .iter()
+            .filter(|d| Some(d.id) != own_id(app) && d.online && !d.suspended)
+            .filter_map(|d| {
+                app.connect
+                    .services
+                    .states
+                    .get(&d.id)
+                    .filter(|s| s.playing && (0..=30_000).contains(&(now_millis() - s.captured_at)))
+                    .map(|s| (d.id, s.captured_at))
+            })
+            .max_by_key(|(_, captured)| *captured)
+            .map(|(id, _)| id);
+    }
+    if let Some((_, target, _, _)) = app.connect.services.forwarding
+        && app.connect.services.remote_device == Some(target)
+    {
+        app.connect.services.forwarding = None;
+    }
+}
+
+fn device_name(app: &App, id: Uuid) -> String {
+    app.connect
+        .services
+        .devices
+        .iter()
+        .find(|d| d.id == id)
+        .map(|d| d.name.clone())
+        .unwrap_or_else(|| t("Playback devices"))
+}
+
+pub fn transfer_status(app: &App) -> Option<String> {
+    if let Some(pending) = &app.connect.services.transfer {
+        return Some(tf("Moving playback to %@…", &[&device_name(app, pending.target)]));
+    }
+    if let Some((_, target, _, _)) = app.connect.services.forwarding {
+        return Some(tf("Moving playback to %@…", &[&device_name(app, target)]));
+    }
+    if let Some(pending) = &app.connect.services.receiving {
+        return Some(tf("Receiving playback from %@…", &[&device_name(app, pending.from)]));
+    }
+    if let Some((source, _, _)) = app.connect.services.transfer_request {
+        return Some(tf("Receiving playback from %@…", &[&device_name(app, source)]));
+    }
+    None
 }
 
 fn snapshot_content(snapshot: &PlaybackSnapshot) -> String {
@@ -173,20 +383,20 @@ fn enqueue(
             &body,
         )
         .ok()?;
-    app.connect.services.outgoing.push_back(
-        json!({"action":"send", "id":id, "targetId":target, "kind":kind, "envelope":envelope}),
-    );
+    let operation = json!({"action":"send", "id":id, "targetId":target, "kind":kind, "envelope":envelope});
+    if kind == "handoff" { app.connect.services.outgoing.push_front(operation); }
+    else { app.connect.services.outgoing.push_back(operation); }
     Some(id)
 }
 
-pub fn send_command(app: &mut App, target: Uuid, command: RemoteCommand) {
+pub fn send_command(app: &mut App, target: Uuid, command: RemoteCommand) -> Option<Uuid> {
     enqueue(
         app,
         target,
         "remote",
         ConnectMessage::Command { target, command },
         None,
-    );
+    )
 }
 pub fn request_transfer(app: &mut App, source: Uuid) {
     if transfer_pending(app) { return; }
@@ -205,12 +415,12 @@ pub fn request_transfer(app: &mut App, source: Uuid) {
 }
 
 pub fn transfer_pending(app: &App) -> bool {
-    app.connect.services.transfer.is_some() || app.connect.services.receiving.is_some() || app.connect.services.transfer_request.is_some()
+    app.connect.services.transfer.is_some() || app.connect.services.receiving.is_some() || app.connect.services.transfer_request.is_some() || app.connect.services.forwarding.is_some()
 }
 
 pub fn can_transfer(app: &App) -> bool {
     super::paid(app, "playback.handoff") && app.connect.services.paired
-        && !transfer_pending(app) && snapshot(app).is_some()
+        && !transfer_pending(app) && (remote_playback(app).is_some_and(|r| r.online && r.state.can_handoff) || snapshot(app).is_some())
 }
 
 fn offer(app: &mut App, target: Uuid, reply_to: Option<Uuid>) -> bool {
@@ -218,27 +428,35 @@ fn offer(app: &mut App, target: Uuid, reply_to: Option<Uuid>) -> bool {
     let Some(own) = own_id(app) else { return false };
     let Some(snapshot) = snapshot(app) else { return false };
     let playing = snapshot.playing;
-    let Some(id) = enqueue(app, target, "handoff", ConnectMessage::Transfer { from: own, snapshot }, reply_to) else { return false };
+    let Some(id) = enqueue(app, target, "handoff", ConnectMessage::Transfer { from: own, snapshot, confirm_source_pause: true }, reply_to) else { return false };
     app.connect.services.transfer = Some(OutgoingTransfer {
         target, message: id, until: now_millis() + 30_000,
-        generation: app.player.control_generation, was_playing: playing, signature: transfer_signature(app),
+        generation: app.player.control_generation, was_playing: playing, signature: transfer_signature(app), presence: local_presence(app),
     });
     true
 }
 
 pub fn transfer_to(app: &mut App, target: Uuid) {
+    if let Some(remote) = remote_playback(app) {
+        if !transfer_pending(app) && remote.online && remote.id != target
+            && app.connect.services.devices.iter().any(|d| d.id == target && d.online && !d.suspended)
+            && let Some(message) = enqueue(app, remote.id, "handoff", ConnectMessage::TransferRequest { target }, None) {
+                app.connect.services.forwarding = Some((remote.id, target, message, now_millis() + 30_000));
+        }
+        return;
+    }
     if !transfer_pending(app) && app.connect.services.devices.iter().any(|d| d.id == target && Some(d.id) != own_id(app) && d.online && !d.suspended)
         && offer(app, target, None) {
         app.connect.services.playback_notice = Some(t("Moving playback to the selected computer…"));
     }
 }
 
-pub fn queue_presence(app: &mut App) {
+fn local_presence(app: &App) -> Presence {
     let title = crate::ui::player_bar::actions::now_playing_text(app)
         .map(|(title, artist)| format!("{title} · {artist}"))
         .unwrap_or_else(|| t("Nothing playing"));
     let (position, duration) = crate::ui::player_bar::actions::timeline(app);
-    let presence = Presence {
+    Presence {
         title,
         playing: app.player.is_playing(),
         position,
@@ -246,7 +464,14 @@ pub fn queue_presence(app: &mut App) {
         can_handoff: snapshot(app).is_some(),
         volume: app.player.volume,
         duration,
-    };
+        output_device: app.connect.services.remote_device,
+        rate: if app.player.mode == Mode::Audiobook || app.player.current().is_some_and(|s| s.is_podcast()) { app.player.rate } else { 1.0 },
+        device_kind: DeviceKind::current(),
+    }
+}
+
+pub fn queue_presence(app: &mut App) {
+    let presence = local_presence(app);
     let Some(identity) = app.connect.services.identity.as_mut() else {
         return;
     };
@@ -306,7 +531,9 @@ pub fn receive_poll(app: &mut App, messages: &[Message]) {
                 &format!("state:{}", device.id),
             ) {
                 if (now_millis() - presence.captured_at).abs() > 60_000
-                    || !presence.position.is_finite()
+                    || !presence.position.is_finite() || presence.position < 0.0 || !presence.volume.is_finite() || !(0.0..=1.0).contains(&presence.volume)
+                    || presence.duration.is_some_and(|d| !d.is_finite() || d < 0.0)
+                    || !presence.rate.is_finite() || !(0.5..=4.0).contains(&presence.rate)
                 {
                     continue;
                 }
@@ -368,6 +595,7 @@ pub fn receive_poll(app: &mut App, messages: &[Message]) {
             .push_back(json!({"action":"ack", "ids":acknowledged}));
     }
     super::save(app);
+    observe_output(app);
 }
 
 fn apply(app: &mut App, envelope: &Message, body: Body) {
@@ -378,6 +606,7 @@ fn apply(app: &mut App, envelope: &Message, body: Body) {
                 && target == own
                 && super::paid(app, "playback.remote") =>
         {
+            app.connect.services.remote_device = None;
             match command {
                 RemoteCommand::Play => player::play(app),
                 RemoteCommand::Pause => player::pause(app),
@@ -398,16 +627,17 @@ fn apply(app: &mut App, envelope: &Message, body: Body) {
         }
         ConnectMessage::TransferRequest { target }
             if envelope.kind == "handoff"
-                && target == envelope.sender_id
+                && target != own
+                && app.connect.services.devices.iter().any(|d| d.id == target && d.online && !d.suspended)
                 && super::paid(app, "playback.handoff") =>
         {
             if app.connect.services.transfer.is_some() {
                 return;
             }
-            if !offer(app, target, Some(envelope.id)) {
+            if !offer(app, target, (target == envelope.sender_id).then_some(envelope.id)) {
                 enqueue(
                     app,
-                    target,
+                    envelope.sender_id,
                     "handoff",
                     ConnectMessage::TransferRejected {
                         device_id: own,
@@ -417,7 +647,7 @@ fn apply(app: &mut App, envelope: &Message, body: Body) {
                 );
             }
         }
-        ConnectMessage::Transfer { from, snapshot }
+        ConnectMessage::Transfer { from, snapshot, confirm_source_pause }
             if envelope.kind == "handoff"
                 && from == envelope.sender_id
                 && super::paid(app, "playback.handoff") =>
@@ -444,6 +674,8 @@ fn apply(app: &mut App, envelope: &Message, body: Body) {
                     playing,
                     generation: app.player.control_generation,
                     rate: snapshot.rate,
+                    completion: None,
+                    confirm_source_pause,
                 });
             } else {
                 enqueue(
@@ -464,6 +696,12 @@ fn apply(app: &mut App, envelope: &Message, body: Body) {
         ConnectMessage::TransferComplete { device_id }
             if envelope.kind == "handoff" && device_id == envelope.sender_id =>
         {
+            if app.connect.services.receiving.as_ref().is_some_and(|p| p.from == device_id
+                && p.completion.is_some_and(|(id, _)| Some(id) == body.reply_to)) {
+                app.connect.services.receiving = None;
+                app.connect.services.playback_notice = Some(t("Playing on this computer."));
+                return;
+            }
             let complete = app
                 .connect
                 .services
@@ -478,14 +716,37 @@ fn apply(app: &mut App, envelope: &Message, body: Body) {
                         && pending.signature == transfer_signature(app)
                 });
             if complete {
+                let pending = app.connect.services.transfer.take().unwrap();
                 player::pause(app);
-                app.connect.services.transfer = None;
+                let mut state = pending.presence;
+                state.captured_at = now_millis();
+                state.position = app.player.position();
+                app.connect.services.states.insert(device_id, state);
+                app.connect.services.remote_device = Some(device_id);
+                app.connect.services.independent_playback = false;
+                enqueue(app, device_id, "handoff", ConnectMessage::TransferComplete { device_id: own }, Some(envelope.id));
+                queue_presence(app);
                 app.connect.services.playback_notice = Some(t("Playback moved to the other computer."));
+            } else if app.connect.services.transfer.as_ref().is_some_and(|p| p.target == device_id && Some(p.message) == body.reply_to) {
+                app.connect.services.transfer = None;
+                enqueue(app, device_id, "handoff", ConnectMessage::TransferRejected { device_id: own, reason: "source_changed".into() }, Some(envelope.id));
             }
         }
         ConnectMessage::TransferRejected { device_id, .. }
             if envelope.kind == "handoff" && device_id == envelope.sender_id =>
         {
+            let receiving = app.connect.services.receiving.as_ref().is_some_and(|p| p.from == device_id && p.completion.is_some_and(|(id, _)| Some(id) == body.reply_to));
+            let correlated = receiving || app.connect.services.transfer_request.as_ref().is_some_and(|(source, id, _)| *source == device_id && Some(*id) == body.reply_to)
+                || app.connect.services.transfer.as_ref().is_some_and(|p| p.target == device_id && Some(p.message) == body.reply_to)
+                || app.connect.services.forwarding.as_ref().is_some_and(|(source, _, id, _)| *source == device_id && Some(*id) == body.reply_to);
+            if !correlated { return; }
+            if app.connect.services.receiving.as_ref().is_some_and(|p| p.from == device_id && p.completion.is_some_and(|(id, _)| Some(id) == body.reply_to)) {
+                let pending = app.connect.services.receiving.take().unwrap();
+                if pending.generation == app.player.control_generation { player::stop(app); }
+            }
+            if app.connect.services.forwarding.as_ref().is_some_and(|(source, _, id, _)| *source == device_id && Some(*id) == body.reply_to) {
+                app.connect.services.forwarding = None;
+            }
             if app.connect.services.transfer_request.as_ref().is_some_and(|(source, id, _)| *source == device_id && Some(*id) == body.reply_to) {
                 app.connect.services.transfer_request = None;
             }
@@ -498,9 +759,8 @@ fn apply(app: &mut App, envelope: &Message, body: Body) {
             {
                 app.connect.services.transfer = None;
             }
-            app.connect.services.playback_notice = Some(t(
-                "Playback transfer was not completed. The source computer keeps playing.",
-            ));
+            app.connect.services.playback_notice = Some(t(if receiving { "The transfer could not be confirmed. Playback was paused on this computer." }
+                else { "Playback transfer was not completed. The source computer keeps playing." }));
         }
         _ => {}
     }
@@ -516,6 +776,8 @@ fn accept(app: &mut App, snapshot: &PlaybackSnapshot) -> bool {
         return false;
     }
     let position = snapshot.position_at(now_millis());
+    // Incoming handoff controls the local output; it must not route back to its source.
+    app.connect.services.remote_device = None;
     match &snapshot.content {
         PlaybackContent::Music {
             account_key,
@@ -587,12 +849,18 @@ fn accept(app: &mut App, snapshot: &PlaybackSnapshot) -> bool {
         player::pause(app);
     }
     player::set_rate(app, snapshot.rate);
+    app.connect.services.independent_playback = false;
     // Volume belongs to this computer and is intentionally not copied from the sender.
     true
 }
 
 pub fn tick(app: &mut App) {
     let now = now_millis();
+    if app.player.is_playing() { app.connect.services.remote_device = None; }
+    if app.connect.services.forwarding.is_some_and(|(_, _, _, until)| until < now) {
+        app.connect.services.forwarding = None;
+        app.connect.services.playback_notice = Some(t("Playback transfer timed out. The source computer keeps playing."));
+    }
     if app
         .connect
         .services
@@ -618,6 +886,14 @@ pub fn tick(app: &mut App) {
     let Some(pending) = app.connect.services.receiving.as_ref() else {
         return;
     };
+    if let Some((_, sent_at)) = pending.completion {
+        // Older clients confirm by publishing that their physical output has paused.
+        if app.connect.services.states.get(&pending.from).is_some_and(|s| !s.playing && s.captured_at >= sent_at) {
+            app.connect.services.receiving = None;
+            app.connect.services.playback_notice = Some(t("Playing on this computer."));
+            return;
+        }
+    }
     let actual = app.player.output.status();
     let same_content = current_content(app) == pending.content;
     let ready = same_content
@@ -628,24 +904,33 @@ pub fn tick(app: &mut App) {
         && !actual.buffering
         && (actual.playing || !pending.playing)
         && pending.generation == app.player.control_generation;
-    let failed = pending.until < now || app.player.error.is_some();
+    let failed = pending.until < now || app.player.error.is_some() || !same_content || pending.generation != app.player.control_generation;
     if !ready && !failed {
+        return;
+    }
+    if ready && !failed {
+        if pending.completion.is_none() {
+            let from = pending.from; let reply = pending.message;
+            let Some(own) = own_id(app) else { return };
+            if let Some(id) = enqueue(app, from, "handoff", ConnectMessage::TransferComplete { device_id: own }, Some(reply)) {
+                app.connect.services.receiving.as_mut().unwrap().completion = Some((id, now));
+                if !app.connect.services.receiving.as_ref().unwrap().confirm_source_pause {
+                    app.connect.services.receiving = None;
+                    app.connect.services.playback_notice = Some(t("Playing on this computer."));
+                }
+                queue_presence(app);
+            }
+        }
         return;
     }
     let pending = app.connect.services.receiving.take().unwrap();
     if failed && pending.generation == app.player.control_generation {
         crate::features::audiobooks::cancel_pending_start(app);
         player::stop(app);
+        app.connect.services.playback_notice = Some(t("The transfer could not be confirmed. Playback was paused on this computer."));
     }
     let Some(own) = own_id(app) else { return };
-    let message = if ready {
-        ConnectMessage::TransferComplete { device_id: own }
-    } else {
-        ConnectMessage::TransferRejected {
-            device_id: own,
-            reason: "playback_failed".into(),
-        }
-    };
+    let message = ConnectMessage::TransferRejected { device_id: own, reason: "playback_failed".into() };
     enqueue(app, pending.from, "handoff", message, Some(pending.message));
 }
 
@@ -780,6 +1065,7 @@ mod tests {
                 state: None,
             })
             .collect();
+        state.paired = true;
         app
     }
     fn start(app: &mut App) {
@@ -825,6 +1111,203 @@ mod tests {
             expires_at: chrono::Utc::now().to_rfc3339(),
         };
         receive_poll(app, &[message]);
+    }
+
+    fn publish_to(source: &mut App, controller: &mut App) {
+        queue_presence(source);
+        let index = source.connect.services.outgoing.iter().position(|v| v["action"] == "state").unwrap();
+        let wire = source.connect.services.outgoing.remove(index).unwrap();
+        controller.connect.services.devices.iter_mut().find(|d| Some(d.id) == own_id(source)).unwrap().state =
+            Some(serde_json::from_value(wire["envelope"].clone()).unwrap());
+        receive_poll(controller, &[]);
+    }
+
+    fn move_to(source: &mut App, destination: &mut App) {
+        transfer_to(source, own_id(destination).unwrap());
+        deliver(destination, sent(source));
+        tick(destination);
+        deliver(source, sent(destination));
+        deliver(destination, sent(source));
+    }
+
+    #[test]
+    fn confirmed_handoff_routes_controls_and_can_return_to_the_source() {
+        let keys = VaultKeys::new().unwrap(); let a_id = Uuid::new_v4(); let b_id = Uuid::new_v4();
+        let mut a = app(a_id, b_id, &keys); let mut b = app(b_id, a_id, &keys);
+        start(&mut a);
+        move_to(&mut a, &mut b);
+        assert!(!a.player.output.status().playing && b.player.output.status().playing);
+        assert!(b.connect.services.receiving.is_none());
+        assert_eq!(remote_playback(&a).unwrap().id, b_id);
+        player::toggle(&mut a);
+        assert!(!remote_playback(&a).unwrap().state.playing);
+        deliver(&mut b, sent(&mut a));
+        assert!(!b.player.output.status().playing);
+        player::toggle(&mut a); deliver(&mut b, sent(&mut a));
+        assert!(b.player.output.status().playing && !a.player.output.status().playing);
+        let local_volume = a.player.volume;
+        player::set_volume(&mut a, 0.3); deliver(&mut b, sent(&mut a));
+        assert_eq!(a.player.volume, local_volume);
+        assert_eq!(b.player.volume, 0.3);
+        crate::platform::media_controls::apply(&mut a, crate::platform::media_controls::MediaCommand::SetPosition(90.0));
+        deliver(&mut b, sent(&mut a));
+        assert_eq!(b.player.position(), 90.0);
+        request_transfer(&mut a, b_id);
+        deliver(&mut b, sent(&mut a)); deliver(&mut a, sent(&mut b));
+        tick(&mut a); deliver(&mut b, sent(&mut a)); deliver(&mut a, sent(&mut b));
+        assert!(a.player.output.status().playing && !b.player.output.status().playing);
+        assert!(a.connect.services.remote_device.is_none());
+        assert_eq!(remote_playback(&b).unwrap().id, a_id);
+    }
+
+    #[test]
+    fn independent_listening_keeps_different_queues_and_controls_local_after_presence_updates() {
+        let keys = VaultKeys::new().unwrap(); let a_id = Uuid::new_v4(); let b_id = Uuid::new_v4();
+        let mut a = app(a_id, b_id, &keys); let mut b = app(b_id, a_id, &keys);
+        start(&mut b);
+        publish_to(&mut b, &mut a);
+        assert_eq!(remote_playback(&a).unwrap().id, b_id);
+
+        listen_independently(&mut a);
+        player::play_songs(&mut a, vec![Song::new("independent", "Another album")], 0, false);
+        assert!(a.player.output.status().playing && b.player.output.status().playing);
+        assert_eq!(a.player.queue.current().unwrap().id, "independent");
+        assert_eq!(b.player.queue.current().unwrap().id, "song-1");
+        assert!(!a.connect.services.outgoing.iter().any(|v| v["action"] == "send"));
+        publish_to(&mut b, &mut a);
+        player::pause(&mut a);
+        publish_to(&mut b, &mut a);
+        assert!(remote_playback(&a).is_none(), "pausing locally must not select another output again");
+        player::toggle(&mut a);
+        player::set_volume(&mut a, 0.2);
+        assert!(a.player.output.status().playing && b.player.output.status().playing);
+        assert_ne!(a.player.volume, b.player.volume);
+        assert!(!a.connect.services.outgoing.iter().any(|v| v["action"] == "send"));
+
+        request_transfer(&mut a, b_id);
+        deliver(&mut b, sent(&mut a)); deliver(&mut a, sent(&mut b));
+        tick(&mut a); deliver(&mut b, sent(&mut a)); deliver(&mut a, sent(&mut b));
+        assert!(a.player.output.status().playing && !b.player.output.status().playing);
+        assert_eq!(a.player.queue.current().unwrap().id, "song-1");
+        assert!(!a.connect.services.independent_playback);
+    }
+
+    #[test]
+    fn device_kind_uses_encrypted_metadata_before_legacy_name_hints() {
+        for (name, expected) in [("Macbook Pro", DeviceKind::Mac), ("Studio Mac", DeviceKind::Mac),
+            ("Windows PC", DeviceKind::Windows), ("Linux", DeviceKind::Linux), ("Ubuntu desktop", DeviceKind::Linux),
+            ("iPhone di Andrea", DeviceKind::Smartphone), ("Android Pixel", DeviceKind::Smartphone),
+            ("Office", DeviceKind::Unknown), ("DESKTOP-123", DeviceKind::Unknown)] {
+            assert_eq!(DeviceKind::from_name(name), expected, "{name}");
+        }
+        let keys = VaultKeys::new().unwrap(); let a_id = Uuid::new_v4(); let b_id = Uuid::new_v4();
+        let mut a = app(a_id, b_id, &keys); let mut b = app(b_id, a_id, &keys);
+        publish_to(&mut b, &mut a);
+        assert_eq!(device_kind(&a, b_id, "Custom name"), DeviceKind::current());
+        a.connect.services.states.get_mut(&b_id).unwrap().device_kind = DeviceKind::Windows;
+        assert_eq!(device_kind(&a, b_id, "Macbook"), DeviceKind::Windows);
+        assert_eq!(device_kind(&a, a_id, "Linux"), DeviceKind::current());
+        let mut legacy = serde_json::to_value(local_presence(&b)).unwrap();
+        legacy.as_object_mut().unwrap().remove("deviceKind");
+        assert_eq!(serde_json::from_value::<Presence>(legacy.clone()).unwrap().device_kind, DeviceKind::Unknown);
+        legacy["deviceKind"] = json!("future-device");
+        assert_eq!(serde_json::from_value::<Presence>(legacy).unwrap().device_kind, DeviceKind::Unknown);
+    }
+
+    #[test]
+    fn an_unconfirmed_destination_rolls_back_instead_of_playing_over_the_source() {
+        let keys = VaultKeys::new().unwrap(); let source = Uuid::new_v4(); let target = Uuid::new_v4();
+        let mut a = app(source, target, &keys); let mut b = app(target, source, &keys);
+        start(&mut a); transfer_to(&mut a, target); deliver(&mut b, sent(&mut a)); tick(&mut b);
+        let _lost_confirmation = sent(&mut b);
+        assert!(b.connect.services.receiving.as_ref().unwrap().completion.is_some());
+        b.connect.services.receiving.as_mut().unwrap().until = 0;
+        tick(&mut b);
+        assert!(!b.player.output.status().playing);
+        assert!(a.player.output.status().playing);
+        assert!(b.connect.services.receiving.is_none());
+    }
+
+    #[test]
+    fn source_keeps_playing_while_the_destination_audio_is_still_buffering() {
+        use crate::audio::{AudioOutput, NullOutput, OutputStatus, AudioEvent, TransitionSettings};
+        use discophile_core::audio_effects::AudioEffectsSettings;
+        use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
+        struct Delayed { inner: NullOutput, ready: Arc<AtomicBool> }
+        impl AudioOutput for Delayed {
+            fn load(&mut self, item: MediaItem, position: f64, autoplay: bool) { self.inner.load(item, position, autoplay); }
+            fn set_next(&mut self, item: Option<MediaItem>) { self.inner.set_next(item); }
+            fn play(&mut self) { self.inner.play(); }
+            fn pause(&mut self) { self.inner.pause(); }
+            fn stop(&mut self) { self.inner.stop(); }
+            fn seek(&mut self, position: f64) { self.inner.seek(position); }
+            fn set_volume(&mut self, volume: f32) { self.inner.set_volume(volume); }
+            fn set_rate(&mut self, rate: f32) { self.inner.set_rate(rate); }
+            fn set_transitions(&mut self, settings: TransitionSettings) { self.inner.set_transitions(settings); }
+            fn set_effects(&mut self, settings: &AudioEffectsSettings) { self.inner.set_effects(settings); }
+            fn status(&self) -> OutputStatus { let mut status = self.inner.status(); if !self.ready.load(Ordering::Relaxed) { status.playing = false; status.buffering = true; } status }
+            fn poll_events(&mut self) -> Vec<AudioEvent> { self.inner.poll_events() }
+        }
+        let keys = VaultKeys::new().unwrap(); let source = Uuid::new_v4(); let target = Uuid::new_v4();
+        let mut a = app(source, target, &keys); let mut b = app(target, source, &keys);
+        let ready = Arc::new(AtomicBool::new(false));
+        b.player.output = Box::new(Delayed { inner: NullOutput::default(), ready: ready.clone() });
+        start(&mut a); transfer_to(&mut a, target); deliver(&mut b, sent(&mut a));
+        tick(&mut b);
+        assert!(a.player.output.status().playing);
+        assert!(!b.connect.services.outgoing.iter().any(|v| v["action"] == "send"));
+        ready.store(true, Ordering::Relaxed); tick(&mut b);
+        deliver(&mut a, sent(&mut b)); deliver(&mut b, sent(&mut a));
+        assert!(!a.player.output.status().playing && b.player.output.status().playing);
+    }
+
+    #[test]
+    fn a_controller_moves_the_actual_remote_queue_to_a_third_device() {
+        let keys = VaultKeys::new().unwrap(); let a_id = Uuid::new_v4(); let b_id = Uuid::new_v4(); let c_id = Uuid::new_v4();
+        let mut a = app(a_id, b_id, &keys); let mut b = app(b_id, a_id, &keys); let mut c = app(c_id, a_id, &keys);
+        for (app, missing) in [(&mut a, c_id), (&mut b, c_id), (&mut c, b_id)] {
+            app.connect.services.devices.push(PairedDevice { id: missing, name: "Third computer".into(), online: true, suspended: false, state: None });
+        }
+        start(&mut a); publish_to(&mut a, &mut b);
+        assert_eq!(remote_playback(&b).unwrap().id, a_id);
+        transfer_to(&mut b, c_id);
+        deliver(&mut a, sent(&mut b)); deliver(&mut c, sent(&mut a)); tick(&mut c);
+        deliver(&mut a, sent(&mut c)); deliver(&mut c, sent(&mut a));
+        publish_to(&mut a, &mut b); publish_to(&mut c, &mut b);
+        assert!(c.player.output.status().playing);
+        assert!(!a.player.output.status().playing && !b.player.output.status().playing);
+        assert_eq!(c.player.queue.songs()[0].id, "song-1");
+        assert_eq!(remote_playback(&b).unwrap().id, c_id);
+        assert!(b.connect.services.forwarding.is_none());
+    }
+
+    #[test]
+    fn offline_remote_controls_never_restart_the_local_output() {
+        let keys = VaultKeys::new().unwrap(); let source = Uuid::new_v4(); let target = Uuid::new_v4();
+        let mut a = app(source, target, &keys); let mut b = app(target, source, &keys);
+        start(&mut b); publish_to(&mut b, &mut a);
+        assert_eq!(remote_playback(&a).unwrap().id, target);
+        a.connect.services.states.get_mut(&target).unwrap().captured_at -= 60_000;
+        assert!(!remote_playback(&a).unwrap().online);
+        player::play(&mut a); player::next(&mut a); player::set_volume(&mut a, 0.1);
+        assert!(!a.player.output.status().playing);
+        assert_eq!(a.player.volume, 1.0);
+        assert!(!a.connect.services.outgoing.iter().any(|v| v["action"] == "send"));
+        a.connect.services.devices.retain(|d| d.id != target); receive_poll(&mut a, &[]);
+        assert!(remote_playback(&a).is_none());
+    }
+
+    #[test]
+    fn legacy_offers_do_not_wait_for_a_confirmation_the_old_source_cannot_send() {
+        let keys = VaultKeys::new().unwrap(); let source = Uuid::new_v4(); let target = Uuid::new_v4();
+        let mut a = app(source, target, &keys); let mut b = app(target, source, &keys);
+        start(&mut a);
+        let snapshot = snapshot(&a).unwrap();
+        enqueue(&mut a, target, "handoff", ConnectMessage::Transfer { from: source, snapshot, confirm_source_pause: false }, None);
+        deliver(&mut b, sent(&mut a)); tick(&mut b);
+        assert!(b.connect.services.receiving.is_none());
+        assert!(b.player.output.status().playing);
+        assert_eq!(sent(&mut b)["kind"], "handoff");
     }
 
     fn ready_services(app: &mut App) {
@@ -959,6 +1442,63 @@ mod tests {
     }
 
     #[test]
+    fn transient_send_failures_retry_the_identical_encrypted_message() {
+        use std::io::{Read, Write};
+        use discophile_core::connect::ServerInfo;
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let origin = InstanceOrigin::parse(&format!("http://{}", listener.local_addr().unwrap())).unwrap();
+        let server = std::thread::spawn(move || {
+            let mut requests = Vec::new();
+            for status in ["503 Service Unavailable", "200 OK"] {
+                let (mut socket, _) = listener.accept().unwrap();
+                socket.set_read_timeout(Some(std::time::Duration::from_secs(5))).unwrap();
+                let mut request = Vec::new();
+                let start = loop {
+                    let mut bytes = [0; 4096]; let count = socket.read(&mut bytes).unwrap(); assert!(count > 0);
+                    request.extend_from_slice(&bytes[..count]);
+                    if let Some(end) = request.windows(4).position(|w| w == b"\r\n\r\n") { break end + 4; }
+                };
+                let length: usize = String::from_utf8_lossy(&request[..start]).lines().find_map(|line| {
+                    let (name, value) = line.split_once(':')?; name.eq_ignore_ascii_case("content-length").then(|| value.trim().parse().unwrap())
+                }).unwrap();
+                while request.len() < start + length {
+                    let mut bytes = [0; 4096]; let count = socket.read(&mut bytes).unwrap(); assert!(count > 0); request.extend_from_slice(&bytes[..count]);
+                }
+                requests.push(serde_json::from_slice::<serde_json::Value>(&request[start..start + length]).unwrap());
+                write!(socket, "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{{}}").unwrap();
+            }
+            requests
+        });
+        let keys = VaultKeys::new().unwrap(); let source = Uuid::new_v4(); let target = Uuid::new_v4();
+        let mut app = app(source, target, &keys);
+        app.connect.credential.as_mut().unwrap().origin = origin.clone();
+        app.connect.credential.as_mut().unwrap().scopes = vec!["connect:manage".into()];
+        app.connect.server_info = Some(ServerInfo {
+            origin: origin.clone(), instance_id: "test-instance".into(), name: None, issuer: origin.to_string(),
+            authorization_endpoint: origin.url("/oauth/authorize"), token_endpoint: origin.url("/oauth/token"),
+            revocation_endpoint: origin.url("/oauth/revoke"), resource: origin.url("/api/v1").to_string(),
+            scopes_supported: vec!["account:read".into(), "offline_access".into(), "connect:manage".into()],
+            native_clients: vec!["discophile-desktop".into()], capabilities: [("account".into(), 1), ("devices".into(), 1)].into_iter().collect(), dashboard: None,
+        });
+        ready_services(&mut app);
+        let (tasks, updates) = crate::tasks::Tasks::new(egui::Context::default()); app.tasks = tasks;
+        send_command(&mut app, target, RemoteCommand::Pause);
+        let mut operation = sent(&mut app);
+        operation["deviceId"] = json!(source);
+        super::super::run(&mut app, operation.clone(), |_, _| {});
+        updates.recv_timeout(std::time::Duration::from_secs(5)).unwrap()(&mut app);
+        assert_eq!(app.connect.services.outgoing.front().unwrap(), &operation);
+        assert!(app.connect.services.retry_after > now_millis());
+        app.connect.services.retry_after = 0;
+        super::super::tick(&mut app);
+        updates.recv_timeout(std::time::Duration::from_secs(5)).unwrap()(&mut app);
+        let requests = server.join().unwrap();
+        assert_eq!(requests, vec![operation.clone(), operation]);
+        assert!(app.connect.services.send_retries.is_empty());
+        assert!(app.connect.services.error.is_none());
+    }
+
+    #[test]
     fn sending_playback_to_a_device_waits_for_confirmation_and_preserves_pause() {
         for playing in [true, false] {
             let keys = VaultKeys::new().unwrap();
@@ -974,6 +1514,7 @@ mod tests {
             assert_eq!(b.player.is_playing(), playing);
             tick(&mut b);
             deliver(&mut a, sent(&mut b));
+            deliver(&mut b, sent(&mut a));
             assert!(!a.player.is_playing());
             assert!(a.connect.services.transfer.is_none());
             assert_eq!(b.player.queue.songs().len(), 2);
@@ -1023,7 +1564,7 @@ mod tests {
         assert!(crate::features::audiobooks::library::known_book(&b, "book").is_none());
         let snapshot = PlaybackSnapshot { content: PlaybackContent::Audiobook { account_key: account.id(), item_id: "book".into(), title: "Synthetic book".into() },
             position: 75.0, playing: false, volume: 0.5, rate: 1.5, captured_at: now_millis() };
-        enqueue(&mut a, target, "handoff", ConnectMessage::Transfer { from: source, snapshot }, None);
+        enqueue(&mut a, target, "handoff", ConnectMessage::Transfer { from: source, snapshot, confirm_source_pause: true }, None);
         deliver(&mut b, sent(&mut a));
         for phase in 0..3 {
             let update = updates.recv_timeout(std::time::Duration::from_secs(5)).unwrap_or_else(|_| panic!("update phase {phase}; starting: {:?}; player error: {:?}; sync error: {:?}", b.audiobooks.starting, b.player.error, b.audiobooks.sync.error));
@@ -1035,8 +1576,11 @@ mod tests {
         assert!(!b.player.is_playing());
         assert_eq!(b.audiobooks.playback.as_ref().unwrap().position, 75.0);
         assert_eq!(b.player.rate, 1.5);
+        assert!(b.connect.services.receiving.as_ref().unwrap().completion.is_some());
+        let completed = sent(&mut b);
+        enqueue(&mut a, target, "handoff", ConnectMessage::TransferComplete { device_id: source }, Some(serde_json::from_value(completed["id"].clone()).unwrap()));
+        deliver(&mut b, sent(&mut a));
         assert!(b.connect.services.receiving.is_none());
-        assert_eq!(sent(&mut b)["kind"], "handoff");
         assert!(server.join().unwrap().contains(&"/api/items/book".to_string()));
     }
 
@@ -1062,6 +1606,9 @@ mod tests {
         deliver(&mut a, sent(&mut b));
         assert!(!a.player.is_playing());
         assert!(b.player.output.status().playing);
+        deliver(&mut b, sent(&mut a));
+        assert!(b.connect.services.receiving.is_none());
+        assert_eq!(remote_playback(&a).unwrap().id, target);
     }
 
     #[test]
@@ -1089,8 +1636,9 @@ mod tests {
             a.player.is_playing(),
             "an old acknowledgement must not interrupt a new user action"
         );
-        a.connect.services.transfer.as_mut().unwrap().until = 0;
-        tick(&mut a);
+        deliver(&mut b, sent(&mut a));
+        assert!(!b.player.is_playing(), "the cancelled destination must not keep playing over the source");
+        assert!(a.connect.services.transfer.is_none());
         assert!(a.player.is_playing());
     }
 

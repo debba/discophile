@@ -14,6 +14,8 @@ use crate::ui::widgets;
 #[cfg(not(target_arch = "wasm32"))]
 mod services;
 #[cfg(not(target_arch = "wasm32"))]
+pub mod remote_player;
+#[cfg(not(target_arch = "wasm32"))]
 mod profile;
 #[cfg(not(target_arch = "wasm32"))]
 pub use profile::toolbar;

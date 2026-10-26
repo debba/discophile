@@ -105,7 +105,13 @@ pub enum ConnectMessage {
     /// Asks the active device to hand playback to `target`.
     TransferRequest { target: Uuid },
     /// Sent to the target; it starts playing and the sender pauses after `TransferComplete`.
-    Transfer { from: Uuid, snapshot: PlaybackSnapshot },
+    Transfer {
+        from: Uuid,
+        snapshot: PlaybackSnapshot,
+        /// Updated sources echo TransferComplete after pausing. Absent on legacy offers.
+        #[serde(default, rename = "confirmSourcePause")]
+        confirm_source_pause: bool,
+    },
     TransferComplete { device_id: Uuid },
     TransferRejected { device_id: Uuid, reason: String },
     Command { target: Uuid, command: RemoteCommand },
@@ -140,8 +146,11 @@ mod tests {
             rate: 1.0,
             captured_at: 1_000,
         };
-        let message = ConnectMessage::Transfer { from: Uuid::nil(), snapshot: snapshot.clone() };
+        let message = ConnectMessage::Transfer { from: Uuid::nil(), snapshot: snapshot.clone(), confirm_source_pause: true };
         assert_eq!(ConnectMessage::from_json(&message.to_json()), Some(message));
+        let mut legacy = serde_json::to_value(ConnectMessage::Transfer { from: Uuid::nil(), snapshot: snapshot.clone(), confirm_source_pause: false }).unwrap();
+        assert!(legacy.as_object_mut().unwrap().remove("confirmSourcePause").is_some());
+        assert!(matches!(ConnectMessage::from_json(&legacy.to_string()), Some(ConnectMessage::Transfer { confirm_source_pause: false, .. })));
         assert_eq!(snapshot.position_at(3_000), 14.0);
         assert_eq!(snapshot.position_at(500), 12.0);
     }
