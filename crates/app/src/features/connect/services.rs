@@ -13,6 +13,9 @@ use serde_json::{Value, json};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use uuid::Uuid;
 
+const POLL_INTERVAL_MS: i64 = 3_000;
+type Completion = Box<dyn FnOnce(&mut App, Value) + Send>;
+
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Identity {
@@ -64,6 +67,8 @@ pub struct ServicesState {
     pub conflict: Option<Configuration>,
     pub pending_cloud: Option<Configuration>,
     pub busy: bool,
+    background: bool,
+    pending: VecDeque<(Value, Completion)>,
     pub error: Option<String>,
     pub notice: Option<String>,
     pub playback_notice: Option<String>,
@@ -78,6 +83,12 @@ pub struct ServicesState {
     last_poll: i64,
     last_backup: i64,
     paused_after_error: bool,
+}
+
+/// Background heartbeats must not disable controls or change the settings layout.
+pub fn changing(app: &App) -> bool {
+    let state = &app.connect.services;
+    (state.busy && !state.background) || !state.pending.is_empty()
 }
 
 pub fn paid(app: &App, benefit: &str) -> bool {
@@ -154,6 +165,10 @@ fn context(app: &App) -> Option<(ServerInfo, ConnectCredential)> {
 }
 
 fn run(app: &mut App, mut operation: Value, done: impl FnOnce(&mut App, Value) + Send + 'static) {
+    if app.connect.busy || app.connect.services.busy {
+        app.connect.services.pending.push_back((operation, Box::new(done)));
+        return;
+    }
     let Some((info, credential)) = context(app) else {
         app.connect.services.error = Some(t(
             "Refresh your account or sign in again to allow Connect services.",
@@ -168,6 +183,7 @@ fn run(app: &mut App, mut operation: Value, done: impl FnOnce(&mut App, Value) +
     let generation = app.connect.generation;
     let action = operation["action"].as_str().unwrap_or_default().to_string();
     app.connect.services.busy = true;
+    app.connect.services.background = matches!(action.as_str(), "poll" | "state" | "send" | "ack");
     app.tasks.spawn(async move {
         let result = ConnectClient::new()
             .service(&info, &credential, &operation)
@@ -211,6 +227,7 @@ pub fn inspect(app: &mut App) {
     };
     let generation = app.connect.generation;
     app.connect.services.busy = true;
+    app.connect.services.background = false;
     app.tasks.spawn(async move {
         let client = ConnectClient::new();
         let result = client
@@ -820,6 +837,9 @@ pub fn tick(app: &mut App) {
     let Some(credential) = app.connect.credential.as_ref() else {
         return;
     };
+    // Any intervening frame (including a network completion) consumes egui's repaint timer.
+    // Rearm it even while idle or busy so discovery and incoming controls never depend on audio.
+    app.ctx().request_repaint_after(std::time::Duration::from_millis(POLL_INTERVAL_MS as u64));
     if app.connect.account.is_none() {
         return;
     }
@@ -851,6 +871,10 @@ pub fn tick(app: &mut App) {
     if app.connect.services.busy || app.connect.busy {
         return;
     }
+    if let Some((operation, done)) = app.connect.services.pending.pop_front() {
+        run(app, operation, done);
+        return;
+    }
     if let Some(operation) = app.connect.services.outgoing.pop_front() {
         run(app, operation, |_, _| {});
         return;
@@ -876,7 +900,9 @@ pub fn tick(app: &mut App) {
         if changed { save(app); }
     }
     let now = discophile_core::now_millis();
-    if now - app.connect.services.last_poll < 3_000 {
+    let remaining = POLL_INTERVAL_MS - (now - app.connect.services.last_poll);
+    if remaining > 0 {
+        app.ctx().request_repaint_after(std::time::Duration::from_millis(remaining as u64));
         return;
     }
     app.connect.services.last_poll = now;
@@ -894,8 +920,6 @@ pub fn tick(app: &mut App) {
             .outgoing
             .push_back(json!({"action":"backup"}));
     }
-    app.ctx()
-        .request_repaint_after(std::time::Duration::from_secs(3));
 }
 
 pub use playback::{audiobook_failed, audiobook_prepared, audiobook_start_allowed};

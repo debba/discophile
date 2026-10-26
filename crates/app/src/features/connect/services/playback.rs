@@ -827,6 +827,137 @@ mod tests {
         receive_poll(app, &[message]);
     }
 
+    fn ready_services(app: &mut App) {
+        let namespace = super::super::namespace(app.connect.credential.as_ref().unwrap());
+        let state = &mut app.connect.services;
+        state.loaded = true;
+        state.namespace = namespace;
+        state.paired = true;
+        state.last_poll = now_millis();
+        state.last_backup = now_millis();
+    }
+
+    #[test]
+    fn idle_devices_rearm_polling_after_network_and_input_frames() {
+        let keys = VaultKeys::new().unwrap();
+        let mut app = app(Uuid::new_v4(), Uuid::new_v4(), &keys);
+        ready_services(&mut app);
+        let ctx = app.ctx().clone();
+        for busy in [false, true, false] {
+            app.connect.services.busy = busy;
+            for frame in 0..5 {
+                let output = ctx.run_ui(egui::RawInput::default(), |_| super::super::tick(&mut app));
+                if frame > 1 {
+                    assert!(output.viewport_output[&egui::ViewportId::ROOT].repaint_delay <= std::time::Duration::from_secs(3),
+                        "idle devices must keep polling even after an intervening frame");
+                }
+                output.drop_without_applying_deltas();
+            }
+        }
+        assert!(!app.player.is_playing());
+    }
+
+    #[test]
+    fn background_poll_keeps_controls_available_and_accepts_handoff_to_idle_device() {
+        let keys = VaultKeys::new().unwrap();
+        let source = Uuid::new_v4();
+        let target = Uuid::new_v4();
+        let mut a = app(source, target, &keys);
+        let mut b = app(target, source, &keys);
+        ready_services(&mut a);
+        ready_services(&mut b);
+        a.connect.services.busy = true;
+        a.connect.services.background = true;
+        assert!(!super::super::changing(&a));
+        assert!(b.player.current().is_none());
+        queue_presence(&mut b);
+        let state = b.connect.services.outgoing.pop_front().unwrap();
+        a.connect.services.devices.iter_mut().find(|d| d.id == target).unwrap().state =
+            Some(serde_json::from_value(state["envelope"].clone()).unwrap());
+        receive_poll(&mut a, &[]);
+        assert!(!a.connect.services.states[&target].playing);
+        assert!(!a.connect.services.states[&target].can_handoff);
+        start(&mut a);
+        transfer_to(&mut a, target);
+        deliver(&mut b, sent(&mut a));
+        tick(&mut b);
+        deliver(&mut a, sent(&mut b));
+        assert!(b.player.is_playing());
+        assert!(!a.player.is_playing());
+        assert!(a.connect.services.transfer.is_none());
+    }
+
+    #[test]
+    fn user_operations_wait_for_background_poll_instead_of_failing() {
+        use discophile_core::connect::ServerInfo;
+        use std::io::{Read, Write};
+
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let origin = InstanceOrigin::parse(&format!("http://{}", listener.local_addr().unwrap())).unwrap();
+        let server = std::thread::spawn(move || {
+            let (mut socket, _) = listener.accept().unwrap();
+            socket.set_read_timeout(Some(std::time::Duration::from_secs(5))).unwrap();
+            let mut request = Vec::new();
+            let body_start = loop {
+                let mut chunk = [0; 4096];
+                let n = socket.read(&mut chunk).unwrap();
+                assert!(n > 0);
+                request.extend_from_slice(&chunk[..n]);
+                if let Some(end) = request.windows(4).position(|w| w == b"\r\n\r\n") {
+                    break end + 4;
+                }
+            };
+            let headers = String::from_utf8_lossy(&request[..body_start]);
+            let length: usize = headers.lines().find_map(|line| {
+                let (name, value) = line.split_once(':')?;
+                name.eq_ignore_ascii_case("content-length").then(|| value.trim().parse().unwrap())
+            }).unwrap();
+            while request.len() < body_start + length {
+                let mut chunk = [0; 4096];
+                let n = socket.read(&mut chunk).unwrap();
+                assert!(n > 0);
+                request.extend_from_slice(&chunk[..n]);
+            }
+            let operation: serde_json::Value = serde_json::from_slice(&request[body_start..body_start + length]).unwrap();
+            socket.write_all(b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}").unwrap();
+            operation
+        });
+        let keys = VaultKeys::new().unwrap();
+        let mut app = app(Uuid::new_v4(), Uuid::new_v4(), &keys);
+        let credential = app.connect.credential.as_mut().unwrap();
+        credential.origin = origin.clone();
+        credential.scopes = vec!["connect:manage".into()];
+        app.connect.server_info = Some(ServerInfo {
+            origin: origin.clone(), instance_id: "test-instance".into(), name: None,
+            issuer: origin.to_string(), authorization_endpoint: origin.url("/oauth/authorize"),
+            token_endpoint: origin.url("/oauth/token"), revocation_endpoint: origin.url("/oauth/revoke"),
+            resource: origin.url("/api/v1").to_string(),
+            scopes_supported: vec!["account:read".into(), "offline_access".into(), "connect:manage".into()],
+            native_clients: vec!["discophile-desktop".into()],
+            capabilities: [("account".into(), 1), ("devices".into(), 1)].into_iter().collect(),
+            dashboard: None,
+        });
+        let (tasks, updates) = crate::tasks::Tasks::new(egui::Context::default());
+        app.tasks = tasks;
+        ready_services(&mut app);
+        app.connect.services.busy = true;
+        app.connect.services.background = true;
+        app.connect.services.name = "Renamed while polling".into();
+        super::super::rename(&mut app);
+        assert!(app.connect.services.error.is_none());
+        assert!(super::super::changing(&app));
+        assert_eq!(app.connect.services.pending.len(), 1);
+        assert_eq!(app.connect.services.pending[0].0["action"], "join");
+        app.connect.services.busy = false;
+        super::super::tick(&mut app);
+        assert!(app.connect.services.busy);
+        assert!(app.connect.services.pending.is_empty());
+        updates.recv_timeout(std::time::Duration::from_secs(5)).expect("queued rename completes")(&mut app);
+        assert!(app.connect.services.error.is_none(), "{:?}", app.connect.services.error);
+        assert!(!super::super::changing(&app));
+        assert_eq!(server.join().unwrap()["name"], "Renamed while polling");
+    }
+
     #[test]
     fn sending_playback_to_a_device_waits_for_confirmation_and_preserves_pause() {
         for playing in [true, false] {
