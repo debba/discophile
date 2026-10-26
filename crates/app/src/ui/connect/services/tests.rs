@@ -315,3 +315,59 @@ fn picker_text_and_focus_colors_meet_minimum_contrast_in_both_themes() {
         }
     }
 }
+
+#[test]
+fn selected_device_has_one_return_action_and_an_accessible_independent_listening_choice() {
+    for language in Language::ALL {
+        l10n::set_language(language);
+        for dark in [false, true] {
+            for zoom in [1.0, 1.5, 2.0] {
+                let mut app = fixture();
+                app.connect.services.devices.truncate(1);
+                let id = app.connect.services.devices[0].id;
+                app.connect.services.remote_device = Some(id);
+                app.connect.services.states.get_mut(&id).unwrap().captured_at = discophile_core::now_millis();
+                for id in ["playback.handoff", "playback.remote"] {
+                    app.connect.account.as_mut().unwrap().plan.entitlements.push(Entitlement { id: id.into(), available: true, limit: None });
+                }
+                let ctx = setup(&app, dark, zoom);
+                let mut tree = None;
+                for frame in 0..4 {
+                    let (mut output, _) = render(&mut app, &ctx, frame == 0, vec![]);
+                    output.textures_delta.clear();
+                    tree = output.platform_output.accesskit_update;
+                }
+                let tree = tree.unwrap();
+                for label in [t("Play on this computer"), t("Listen independently here")] {
+                    let node = tree.nodes.iter().map(|(_, node)| node).find(|node| node.label() == Some(&label)).unwrap();
+                    assert_eq!(node.role(), egui::Role::MenuItem);
+                    assert!(!node.is_disabled());
+                    let bounds = node.bounds().unwrap();
+                    assert!(bounds.height() >= 44.0);
+                    assert!(bounds.x0 >= 0.0 && bounds.x1 <= 900.0 / zoom as f64);
+                }
+                assert!(!tree.nodes.iter().any(|(_, node)| node.label() == Some(tf("Play on %@", &[&"Linux"]).as_str())));
+                assert!(!tree.nodes.iter().any(|(_, node)| node.label() == Some(tf("Continue here from %@", &[&"Linux"]).as_str())));
+                assert!(tree.nodes.iter().any(|(_, node)| node.role() == egui::Role::Image && node.label() == Some(t("Selected playback device").as_str())));
+                let footer = t("Manage playback devices");
+                let bounds = tree.nodes.iter().map(|(_, node)| node).find(|node| node.label() == Some(&footer)).unwrap().bounds().unwrap();
+                assert!(bounds.y0 >= 0.0 && bounds.y1 <= 600.0 / zoom as f64, "zoom {zoom}: {bounds:?}");
+
+                let label = t("Listen independently here");
+                let bounds = tree.nodes.iter().map(|(_, node)| node).find(|node| node.label() == Some(&label)).unwrap().bounds().unwrap();
+                let pos = egui::pos2((bounds.x0 + bounds.x1) as f32 / 2.0, (bounds.y0 + bounds.y1) as f32 / 2.0);
+                render(&mut app, &ctx, false, vec![egui::Event::PointerMoved(pos)]).0.drop_without_applying_deltas();
+                for pressed in [true, false] {
+                    render(&mut app, &ctx, false, vec![egui::Event::PointerButton {
+                        pos, button: egui::PointerButton::Primary, pressed, modifiers: Default::default(),
+                    }]).0.drop_without_applying_deltas();
+                }
+                assert!(app.connect.services.independent_playback, "{language:?}, dark {dark}, zoom {zoom}, {bounds:?}");
+                assert!(service::remote_playback(&app).is_none());
+                assert!(!service::transfer_pending(&app));
+                assert!(!egui::Popup::is_any_open(&ctx));
+            }
+        }
+    }
+    l10n::set_language(Language::English);
+}

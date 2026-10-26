@@ -216,5 +216,10 @@
   "Play on this computer": "Riproduci su questo computer",
   "Selected playback device": "Dispositivo di riproduzione selezionato",
   "Playing": "In riproduzione",
-  "Paused": "In pausa"
+  "Paused": "In pausa",
+  "Listen independently here": "Ascolta separatamente qui",
+  "Independent playback": "Ascolto indipendente",
+  "Other devices keep playing. Choose what to listen to here.": "Gli altri dispositivi continuano a suonare. Scegli cosa ascoltare qui.",
+  "Ready to play": "Pronto per la riproduzione",
+  "Device settings": "Impostazioni dispositivi"
 }

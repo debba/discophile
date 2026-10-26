@@ -501,7 +501,13 @@ impl App {
                 spread: 0,
                 color: egui::Color32::from_black_alpha(60),
             }).show(ui, |ui| {
-                ui.label(theme::text(message, Font::Callout));
+                ui.set_max_width((ctx.content_rect().width() - 80.0).max(100.0));
+                let response = ui.add(egui::Label::new(theme::text(message, Font::Callout)).wrap());
+                ctx.accesskit_node_builder(response.id, |node| {
+                    node.set_role(egui::Role::Status);
+                    node.set_live(egui::accesskit::Live::Polite);
+                    node.set_live_atomic();
+                });
             });
         });
     }

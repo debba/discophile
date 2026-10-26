@@ -122,6 +122,14 @@ pub fn take_local_control(app: &mut App) {
     }
 }
 
+pub fn listen_independently(app: &mut App) {
+    app.connect.services.remote_device = None;
+    app.connect.services.independent_playback = true;
+    let notice = t("Other devices keep playing. Choose what to listen to here.");
+    app.toast(&notice);
+    app.connect.services.playback_notice = Some(notice);
+}
+
 fn observe_output(app: &mut App) {
     if app.player.is_playing() {
         app.connect.services.remote_device = None;
@@ -141,7 +149,8 @@ fn observe_output(app: &mut App) {
             }
         }
     }
-    if app.connect.services.remote_device.is_none() && !transfer_pending(app) {
+    // A local pause must not silently switch an independent listener back to remote controls.
+    if app.connect.services.remote_device.is_none() && !app.connect.services.independent_playback && !transfer_pending(app) {
         app.connect.services.remote_device = app
             .connect
             .services
@@ -657,6 +666,7 @@ fn apply(app: &mut App, envelope: &Message, body: Body) {
                 state.position = app.player.position();
                 app.connect.services.states.insert(device_id, state);
                 app.connect.services.remote_device = Some(device_id);
+                app.connect.services.independent_playback = false;
                 enqueue(app, device_id, "handoff", ConnectMessage::TransferComplete { device_id: own }, Some(envelope.id));
                 queue_presence(app);
                 app.connect.services.playback_notice = Some(t("Playback moved to the other computer."));
@@ -782,6 +792,7 @@ fn accept(app: &mut App, snapshot: &PlaybackSnapshot) -> bool {
         player::pause(app);
     }
     player::set_rate(app, snapshot.rate);
+    app.connect.services.independent_playback = false;
     // Volume belongs to this computer and is intentionally not copied from the sender.
     true
 }
@@ -1090,6 +1101,38 @@ mod tests {
         assert!(a.player.output.status().playing && !b.player.output.status().playing);
         assert!(a.connect.services.remote_device.is_none());
         assert_eq!(remote_playback(&b).unwrap().id, a_id);
+    }
+
+    #[test]
+    fn independent_listening_keeps_different_queues_and_controls_local_after_presence_updates() {
+        let keys = VaultKeys::new().unwrap(); let a_id = Uuid::new_v4(); let b_id = Uuid::new_v4();
+        let mut a = app(a_id, b_id, &keys); let mut b = app(b_id, a_id, &keys);
+        start(&mut b);
+        publish_to(&mut b, &mut a);
+        assert_eq!(remote_playback(&a).unwrap().id, b_id);
+
+        listen_independently(&mut a);
+        player::play_songs(&mut a, vec![Song::new("independent", "Another album")], 0, false);
+        assert!(a.player.output.status().playing && b.player.output.status().playing);
+        assert_eq!(a.player.queue.current().unwrap().id, "independent");
+        assert_eq!(b.player.queue.current().unwrap().id, "song-1");
+        assert!(!a.connect.services.outgoing.iter().any(|v| v["action"] == "send"));
+        publish_to(&mut b, &mut a);
+        player::pause(&mut a);
+        publish_to(&mut b, &mut a);
+        assert!(remote_playback(&a).is_none(), "pausing locally must not select another output again");
+        player::toggle(&mut a);
+        player::set_volume(&mut a, 0.2);
+        assert!(a.player.output.status().playing && b.player.output.status().playing);
+        assert_ne!(a.player.volume, b.player.volume);
+        assert!(!a.connect.services.outgoing.iter().any(|v| v["action"] == "send"));
+
+        request_transfer(&mut a, b_id);
+        deliver(&mut b, sent(&mut a)); deliver(&mut a, sent(&mut b));
+        tick(&mut a); deliver(&mut b, sent(&mut a)); deliver(&mut a, sent(&mut b));
+        assert!(a.player.output.status().playing && !b.player.output.status().playing);
+        assert_eq!(a.player.queue.current().unwrap().id, "song-1");
+        assert!(!a.connect.services.independent_playback);
     }
 
     #[test]

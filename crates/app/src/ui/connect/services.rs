@@ -9,7 +9,7 @@ use crate::{
 };
 use discophile_core::connect::RemoteCommand;
 use discophile_core::l10n::{t, tf};
-use egui::{Response, Ui, vec2};
+use egui::{AtomExt, Response, Ui, vec2};
 
 #[cfg(test)]
 pub(in crate::ui::connect) mod tests;
@@ -50,7 +50,8 @@ pub fn player_devices(app: &mut App, ui: &mut Ui) -> Response {
 fn playback_devices_contents(app: &mut App, ui: &mut Ui) {
     let handoff = service::paid(app, "playback.handoff");
     ui.label(theme::text(t("Playback devices"), Font::Headline));
-    let max_height = (ui.ctx().content_rect().height() - 260.0).clamp(widgets::CONTROL_LARGE, 360.0);
+    let footer_space = if app.connect.services.paired && !handoff { 260.0 } else { 120.0 };
+    let max_height = (ui.ctx().content_rect().height() - footer_space).clamp(widgets::CONTROL_LARGE, 360.0);
     egui::ScrollArea::vertical()
         .id_salt("playback-devices")
         .max_height(max_height)
@@ -61,70 +62,78 @@ fn playback_devices_contents(app: &mut App, ui: &mut Ui) {
             } else {
                 let remote = service::remote_playback(app);
                 ui.push_id("this-computer", |ui| {
-                    ui.add(egui::Label::new(theme::text(t("This computer"), Font::Headline)).wrap());
-                    if app.player.is_playing() { ui.label(theme::secondary(ui, t("Playing here"), Font::Footnote)); }
-                    if let Some(source) = &remote {
-                        if playback_action(ui, &t("Play on this computer"), &t("Play on this computer"), handoff && source.online && source.state.can_handoff && !service::transfer_pending(app)).clicked() {
-                            service::request_transfer(app, source.id);
+                    device_card(ui, false, |ui| {
+                        let status = if app.connect.services.independent_playback {
+                            t("Independent playback")
+                        } else if app.player.is_playing() {
+                            t("Playing here")
+                        } else if remote.is_some() {
+                            String::new()
+                        } else {
+                            t("Ready to play")
+                        };
+                        device_heading(ui, &t("This computer"), &status, remote.is_none() && app.player.is_playing());
+                        if let Some(source) = &remote {
+                            if playback_action(ui, &t("Continue here"), &t("Play on this computer"), handoff && source.online && source.state.can_handoff && !service::transfer_pending(app)).clicked() {
+                                service::request_transfer(app, source.id);
+                            }
+                            if playback_action(ui, &t("Listen independently here"), &t("Listen independently here"), !service::transfer_pending(app)).clicked() {
+                                service::listen_independently(app);
+                                ui.close();
+                            }
                         }
-                    }
+                    });
                 });
                 let own = app.connect.services.identity.as_ref().map(|i| i.device_id);
                 let peers: Vec<_> = app.connect.services.devices.iter().filter(|d| Some(d.id) != own).cloned().collect();
                 if peers.is_empty() {
-                    ui.label(t("No other computers connected"));
+                    ui.label(theme::secondary(ui, t("No other computers connected"), Font::Callout));
                 }
                 for device in peers {
                     ui.push_id(device.id, |ui| {
-                        ui.separator();
-                        ui.add(egui::Label::new(theme::text(&device.name, Font::Headline)).wrap());
-                        if remote.as_ref().is_some_and(|r| r.id == device.id) {
-                            ui.label(theme::text(t("Selected playback device"), Font::Footnote).color(Palette::of_ui(ui).accent));
-                        }
+                        let selected = remote.as_ref().is_some_and(|r| r.id == device.id);
+                        let state = app.connect.services.states.get(&device.id).cloned();
+                        let fresh = device.online && state.as_ref().is_some_and(|s| (-5_000..=30_000).contains(&discophile_core::now_millis().saturating_sub(s.captured_at)));
                         let status = if device.suspended {
                             t("Suspended by the current plan")
-                        } else if device.online {
-                            t("Online")
-                        } else {
+                        } else if !device.online {
                             t("Offline")
+                        } else if fresh {
+                            t(if state.as_ref().unwrap().playing { "Playing" } else { "Paused" })
+                        } else {
+                            t("Online")
                         };
-                        ui.add(egui::Label::new(theme::secondary(ui, status, Font::Footnote)).wrap());
-                        let state = app.connect.services.states.get(&device.id).cloned();
-                        if let Some(state) = &state {
-                            if device.online && discophile_core::now_millis().saturating_sub(state.captured_at) <= 30_000 {
-                                ui.label(theme::secondary(ui, t(if state.playing { "Playing" } else { "Paused" }), Font::Footnote));
+                        device_card(ui, selected, |ui| {
+                            device_heading(ui, &device.name, &status, selected);
+                            if let Some(state) = &state {
+                                ui.add(egui::Label::new(theme::secondary(ui, &state.title, Font::Callout)).truncate()).on_hover_text(&state.title);
                             }
-                            ui.add(egui::Label::new(theme::secondary(ui, &state.title, Font::Callout)).wrap());
-                        }
-                        if !handoff {
-                            return;
-                        }
-                        let available = device.online && !device.suspended && !service::changing(app) && !app.connect.busy;
-                        if playback_action(
-                            ui,
-                            &t("Play on this device"),
-                            &tf("Play on %@", &[&device.name]),
-                            available && service::can_transfer(app) && remote.as_ref().is_none_or(|r| r.id != device.id),
-                        )
-                        .clicked()
-                        {
-                            service::transfer_to(app, device.id);
-                        }
-                        if playback_action(
-                            ui,
-                            &t("Continue here"),
-                            &tf("Continue here from %@", &[&device.name]),
-                            available && !service::transfer_pending(app) && state.is_some_and(|s| s.can_handoff),
-                        )
-                        .clicked()
-                        {
-                            service::request_transfer(app, device.id);
-                        }
+                            if !handoff || selected {
+                                return;
+                            }
+                            let available = device.online && !device.suspended && !service::changing(app) && !app.connect.busy;
+                            if playback_action(
+                                ui,
+                                &t("Play on this device"),
+                                &tf("Play on %@", &[&device.name]),
+                                available && service::can_transfer(app),
+                            ).clicked() {
+                                service::transfer_to(app, device.id);
+                            }
+                            if playback_action(
+                                ui,
+                                &t("Continue here"),
+                                &tf("Continue here from %@", &[&device.name]),
+                                available && !service::transfer_pending(app) && state.is_some_and(|s| s.can_handoff),
+                            ).clicked() {
+                                service::request_transfer(app, device.id);
+                            }
+                        });
                     });
                 }
             }
             if let Some(notice) = &app.connect.services.playback_notice {
-                ui.add(egui::Label::new(notice).wrap());
+                ui.add(egui::Label::new(theme::secondary(ui, notice, Font::Footnote)).wrap());
             }
             if let Some(error) = &app.connect.services.error {
                 super::error_text(ui, error);
@@ -145,7 +154,7 @@ fn playback_devices_contents(app: &mut App, ui: &mut Ui) {
     ui.separator();
     if ui
         .push_id("manage-playback-devices", |ui| {
-            playback_action(ui, &t("Manage playback devices"), &t("Manage playback devices"), true)
+            playback_action(ui, &t("Device settings"), &t("Manage playback devices"), true)
         })
         .inner
         .clicked()
@@ -155,15 +164,62 @@ fn playback_devices_contents(app: &mut App, ui: &mut Ui) {
     }
 }
 
+fn device_card(ui: &mut Ui, selected: bool, contents: impl FnOnce(&mut Ui)) {
+    let palette = Palette::of_ui(ui);
+    egui::Frame::new()
+        .fill(if selected { palette.surface_raised } else { egui::Color32::TRANSPARENT })
+        .stroke(egui::Stroke::new(1.0, palette.separator))
+        .corner_radius(10)
+        .inner_margin(10)
+        .show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            ui.spacing_mut().item_spacing.y = widgets::space::XS;
+            contents(ui);
+        });
+}
+
+fn device_heading(ui: &mut Ui, name: &str, status: &str, selected: bool) {
+    let palette = Palette::of_ui(ui);
+    ui.horizontal_top(|ui| {
+        ui.add_space(2.0);
+        let icon = ui.label(theme::icon(if selected { icons::SPEAKER_HIGH } else { icons::DESKTOP }, 20.0)
+            .color(if selected { palette.accent } else { palette.secondary }));
+        icon.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Image, true, if selected { t("Selected playback device") } else { name.to_owned() }));
+        ui.add_space(2.0);
+        ui.vertical(|ui| {
+            ui.spacing_mut().item_spacing.y = 2.0;
+            ui.add(egui::Label::new(theme::text(name, Font::Headline)).truncate()).on_hover_text(name);
+            if !status.is_empty() {
+                ui.add(egui::Label::new(theme::text(status, Font::Footnote)
+                    .color(if selected { palette.accent } else { palette.secondary })).wrap());
+            }
+        });
+    });
+}
+
 fn playback_action(ui: &mut Ui, label: &str, accessible_name: &str, enabled: bool) -> Response {
     let palette = Palette::of_ui(ui);
+    let (icon, quiet) = if label == t("Listen independently here") {
+        (icons::HEADPHONES, true)
+    } else if label == t("Device settings") {
+        (icons::GEAR_SIX, true)
+    } else if label == t("Continue here") {
+        (icons::ARROW_LEFT, false)
+    } else {
+        (icons::PLAY, false)
+    };
     // Keep focus on the same device and action when presence or the live roster changes.
     let id = ui.scope_id().with(label);
     let response = ui
         .scope_builder(egui::UiBuilder::new().scope_id(id), |ui| {
             ui.add_enabled(
                 enabled,
-                egui::Button::new(theme::text(label, Font::Callout).color(palette.text))
+                egui::Button::new((
+                    theme::icon(icon, 17.0).color(palette.secondary).atom_size(vec2(20.0, 20.0)),
+                    theme::text(label, Font::Callout).color(palette.text).atom_shrink(true),
+                ))
+                    .gap(widgets::space::S)
+                    .frame_when_inactive(!quiet)
                     .wrap()
                     .min_size(vec2(ui.available_width(), widgets::CONTROL_LARGE))
                     .corner_radius(8),
