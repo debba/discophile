@@ -88,6 +88,7 @@ pub struct ServicesState {
     last_poll: i64,
     last_backup: i64,
     paused_after_error: bool,
+    registration_replaced: bool,
 }
 
 /// Background heartbeats must not disable controls or change the settings layout.
@@ -202,12 +203,19 @@ fn run(app: &mut App, mut operation: Value, done: impl FnOnce(&mut App, Value) +
             match result {
                 Ok(value) => {
                     if let Ok(id) = serde_json::from_value(retry_operation["id"].clone()) { app.connect.services.send_retries.remove(&id); }
+                    if action == "join" { app.connect.services.registration_replaced = false; }
                     app.connect.services.error = None;
                     done(app, value);
                 }
                 Err(error) => {
                     if action == "join" && matches!(&error, ConnectError::Service(code) if code == "revision_conflict") && account_sync(app) {
                         recover_account(app);
+                        return;
+                    }
+                    if action == "join" && matches!(&error, ConnectError::Service(code) if code == "forbidden")
+                        && account_sync(app) && !app.connect.services.registration_replaced
+                    {
+                        replace_registration(app);
                         return;
                     }
                     let transient = matches!(
@@ -273,8 +281,10 @@ pub fn inspect(app: &mut App) {
                             let limit = connection_limit(app);
                             app.connect.services.selected = configuration::choices(app).into_iter().take(limit).map(|c| c.id()).collect();
                             app.connect.services.preferences = true;
-                            prepare(app);
                         }
+                        // Without a vault nothing on the account is sealed with stored keys, and keys
+                        // of a deleted vault can never create a new one: start from a fresh identity.
+                        prepare(app);
                         pair(app, true);
                     } else if app.connect.services.vault.is_some()
                         && app.connect.services.identity.is_some()
@@ -293,6 +303,25 @@ pub fn inspect(app: &mut App) {
             }
         })
     });
+}
+
+/// The account refused this computer's device registration, usually because another device
+/// revoked it. With account sync the keys come from the account, so register again once.
+fn replace_registration(app: &mut App) {
+    let Some(secret) = discophile_core::oauth::random_token() else { return };
+    let state = &mut app.connect.services;
+    let Some(identity) = state.identity.as_mut() else { return };
+    identity.device_id = Uuid::new_v4();
+    identity.device_secret = secret;
+    identity.state_revision = 0;
+    identity.seen.clear();
+    identity.state_watermarks.clear();
+    state.registration_replaced = true;
+    state.paired = false;
+    state.error = None;
+    state.paused_after_error = false;
+    save(app);
+    inspect(app);
 }
 
 pub fn prepare(app: &mut App) {
