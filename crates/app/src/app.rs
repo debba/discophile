@@ -46,6 +46,8 @@ pub struct App {
     pub effects: effects::EffectsState,
     pub lyrics: lyrics::LyricsState,
     pub info: info::InfoState,
+    /// Positions of podcast episodes and long tracks.
+    pub progress: features::progress::ProgressState,
     /// The optional Discophile Connect account.
     pub connect: connect::ConnectState,
     #[cfg(not(target_arch = "wasm32"))]
@@ -93,6 +95,7 @@ impl App {
             effects: Default::default(),
             lyrics: Default::default(),
             info: Default::default(),
+            progress: Default::default(),
             connect: Default::default(),
             #[cfg(not(target_arch = "wasm32"))]
             mcp: Default::default(),
@@ -143,6 +146,7 @@ impl App {
             effects: Default::default(),
             lyrics: Default::default(),
             info: Default::default(),
+            progress: Default::default(),
             connect: Default::default(),
             #[cfg(not(target_arch = "wasm32"))]
             mcp: Default::default(),
@@ -627,6 +631,7 @@ impl eframe::App for App {
 
     fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
         self.settings.save();
+        features::progress::leave(self);
         if self.player.mode == player::Mode::Audiobook {
             audiobooks::on_replaced(self);
         }

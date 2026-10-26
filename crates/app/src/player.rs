@@ -178,6 +178,7 @@ fn leave_current_content(app: &mut App) {
     if app.player.mode == Mode::Audiobook {
         features::audiobooks::on_replaced(app);
     }
+    features::progress::leave(app);
     app.player.radio = None;
     app.player.context = None;
     app.player.pending_resume = None;
@@ -186,7 +187,10 @@ fn leave_current_content(app: &mut App) {
     }
 }
 
+/// Loads the queue's current item. Podcast episodes and long tracks start from their saved position unless
+/// `start_at` asks for another one.
 fn load_current(app: &mut App, start_at: f64, autoplay: bool) {
+    features::progress::leave(app);
     let Some(song) = app.player.queue.current().cloned() else {
         app.player.output.stop();
         app.player.mode = Mode::Idle;
@@ -196,6 +200,7 @@ fn load_current(app: &mut App, start_at: f64, autoplay: bool) {
         app.player.error = Some(l10n::music_error(MusicError::ServerUnavailable));
         return;
     };
+    let start_at = if start_at > 0.0 { start_at } else { features::progress::start_position(app, &song) };
     app.player.prepared_next = None;
     app.player.listened = 0.0;
     app.player.last_position = None;
@@ -251,6 +256,7 @@ pub fn output_pause(app: &mut App) {
     app.player.output.pause();
     app.player.status.playing = false;
     save_resume(app, true);
+    features::progress::record_current(app, true);
 }
 
 pub fn toggle(app: &mut App) {
@@ -276,6 +282,7 @@ pub fn stop(app: &mut App) {
     if app.player.mode == Mode::Audiobook {
         features::audiobooks::on_replaced(app);
     }
+    features::progress::leave(app);
     app.player.output.stop();
     app.player.status = OutputStatus::default();
     app.player.mode = Mode::Idle;
@@ -337,6 +344,7 @@ pub fn seek(app: &mut App, seconds: f64) {
     app.player.last_position = None;
     app.player.prepared_next = None;
     app.player.output.set_next(None);
+    features::progress::on_seek(app);
 }
 
 /// Starts an already validated Connect queue directly at its transferred offset.
@@ -488,7 +496,8 @@ pub fn tick(app: &mut App) {
 
 fn handle_event(app: &mut App, event: AudioEvent) {
     match event {
-        AudioEvent::Ended { .. } => {
+        AudioEvent::Ended { item_id } => {
+            features::progress::finished(app, &item_id);
             if app.player.sleep == Some(SleepTimer::EndOfTrack) {
                 app.player.sleep = None;
                 app.player.output.pause();
@@ -509,7 +518,8 @@ fn handle_event(app: &mut App, event: AudioEvent) {
                 features::on_queue_finished(app);
             }
         }
-        AudioEvent::Advanced { to, .. } => {
+        AudioEvent::Advanced { from, to } => {
+            features::progress::finished(app, &from);
             // The output already plays the prepared item; move the queue without reloading.
             if app.player.queue.advance(true) && app.player.queue.current().is_some_and(|s| s.id == to) {
                 let song = app.player.queue.current().cloned();
@@ -552,6 +562,10 @@ fn prepare_next(app: &mut App) {
         return;
     }
     let Some(next) = app.player.queue.peek_next(true).cloned() else { return };
+    // An item with a saved position is loaded at that position once the current one ends.
+    if features::progress::start_position(app, &next) > 0.0 {
+        return;
+    }
     let Some(item) = media_item(app, &next) else { return };
     app.player.prepared_next = Some(item.id.clone());
     app.player.output.set_next(Some(item));

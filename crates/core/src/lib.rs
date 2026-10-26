@@ -29,6 +29,7 @@ pub mod music_info;
 pub mod offline_audiobook;
 pub mod offline_catalog;
 pub mod personal_radio;
+pub mod playback_progress;
 pub mod podcast_directory;
 
 // Sound

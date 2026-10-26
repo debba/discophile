@@ -6,7 +6,7 @@ use discophile_core::{Album, Artist, Playlist, PodcastChannel, Song, l10n};
 use egui::{Align, Color32, CornerRadius, Layout, Rect, Response, Sense, Ui, UiBuilder, vec2};
 
 use crate::app::App;
-use crate::features::{discovery, downloads, info, library};
+use crate::features::{discovery, downloads, info, library, progress};
 use crate::nav::Route;
 use crate::player;
 use crate::theme::{self, Font, Palette, icons};
@@ -110,6 +110,17 @@ pub fn track_menu(app: &mut App, ui: &mut Ui, songs: &[Song], index: usize, opti
     }
     if menu_item(ui, icons::QUEUE, &l10n::t("Add to queue")) {
         player::add_to_queue(app, vec![song.clone()]);
+    }
+    if progress::remembers(song) {
+        let saved = progress::saved(app, song);
+        if !saved.is_some_and(|p| p.finished) && menu_item(ui, icons::CHECK_CIRCLE, &l10n::t("Mark as played")) {
+            progress::mark(app, song, true);
+        }
+        if saved.is_some_and(|p| p.finished || p.resume_position().is_some())
+            && menu_item(ui, icons::ARROW_COUNTER_CLOCKWISE, &l10n::t("Mark as unplayed"))
+        {
+            progress::mark(app, song, false);
+        }
     }
     ui.separator();
     if !song.is_podcast() {

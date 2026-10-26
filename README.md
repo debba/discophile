@@ -62,6 +62,10 @@ Create and edit playlists without duplicates, subscribe to podcasts from an Appl
 RSS feed, and download songs, albums, playlists or podcasts for offline listening. Switch on **Downloaded only**
 and every view shows just what is saved on this computer.
 
+Podcast episodes and tracks of 20 minutes or more continue where you left them, on this computer and on your other
+devices: the position is kept on the server as a Subsonic bookmark or as the Jellyfin resume point. Episode rows show
+the time left, finished ones read **Played**, and the track menu can mark an episode as played or unplayed.
+
 <table>
   <tr>
     <td><picture><source media="(prefers-color-scheme: light)" srcset="docs/screenshots/light/albums.webp"><img src="docs/screenshots/albums.webp" alt="The album grid with colorful covers"></picture></td>
