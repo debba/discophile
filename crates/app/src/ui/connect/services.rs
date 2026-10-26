@@ -339,6 +339,11 @@ pub fn settings(app: &mut App, ui: &mut Ui) {
                         ui.add(egui::TextEdit::singleline(&mut app.connect.services.recovery_input).password(true).hint_text("dc1_…").desired_width(f32::INFINITY));
                         if ui.button(t("Import recovery code")).clicked() { service::pair(app, false); }
                     });
+                    if app.connect.services.error.is_some() && app.connect.services.identity.is_some()
+                        && ui.button(t("Forget this registration and pair again")).clicked()
+                    {
+                        service::forget_registration(app);
+                    }
                     return;
                 }
                 let existing = app.connect.services.vault.is_some();

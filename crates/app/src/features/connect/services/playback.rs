@@ -1442,6 +1442,76 @@ mod tests {
     }
 
     #[test]
+    fn refused_registration_is_replaced_once_with_account_sync() {
+        use discophile_core::connect::ServerInfo;
+        use std::io::{Read, Write};
+        let keys = VaultKeys::new().unwrap();
+        let vault = json!({"id": keys.vault_id, "epoch": keys.epoch, "revision": 1, "rotationRequired": false, "connectionCount": 0, "envelope": null});
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let origin = InstanceOrigin::parse(&format!("http://{}", listener.local_addr().unwrap())).unwrap();
+        let server = std::thread::spawn(move || {
+            // A revoked device, then inspect and its plan catalog, then the new registration.
+            let replies = [
+                ("403 Forbidden", json!({"error": "forbidden", "message": "This device registration cannot be reused."})),
+                ("200 OK", json!({"vault": vault, "plan": null})),
+                ("404 Not Found", json!({})),
+                ("200 OK", json!({"vault": vault})),
+            ];
+            let mut requests = Vec::new();
+            for (status, reply) in replies {
+                let (mut socket, _) = listener.accept().unwrap();
+                socket.set_read_timeout(Some(std::time::Duration::from_secs(5))).unwrap();
+                let mut request = Vec::new();
+                let start = loop {
+                    let mut bytes = [0; 4096]; let count = socket.read(&mut bytes).unwrap(); assert!(count > 0);
+                    request.extend_from_slice(&bytes[..count]);
+                    if let Some(end) = request.windows(4).position(|w| w == b"\r\n\r\n") { break end + 4; }
+                };
+                let length: usize = String::from_utf8_lossy(&request[..start]).lines().find_map(|line| {
+                    let (name, value) = line.split_once(':')?; name.eq_ignore_ascii_case("content-length").then(|| value.trim().parse().unwrap())
+                }).unwrap_or(0);
+                while request.len() < start + length {
+                    let mut bytes = [0; 4096]; let count = socket.read(&mut bytes).unwrap(); assert!(count > 0); request.extend_from_slice(&bytes[..count]);
+                }
+                requests.push(serde_json::from_slice::<serde_json::Value>(&request[start..start + length]).unwrap_or(serde_json::Value::Null));
+                let body = reply.to_string();
+                write!(socket, "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).unwrap();
+            }
+            requests
+        });
+        let old = Uuid::new_v4();
+        let mut app = app(old, Uuid::new_v4(), &keys);
+        app.connect.credential.as_mut().unwrap().origin = origin.clone();
+        app.connect.credential.as_mut().unwrap().scopes = vec!["connect:manage".into()];
+        app.connect.server_info = Some(ServerInfo {
+            origin: origin.clone(), instance_id: "test-instance".into(), name: None, issuer: origin.to_string(),
+            authorization_endpoint: origin.url("/oauth/authorize"), token_endpoint: origin.url("/oauth/token"),
+            revocation_endpoint: origin.url("/oauth/revoke"), resource: origin.url("/api/v1").to_string(),
+            scopes_supported: vec!["account:read".into(), "offline_access".into(), "connect:manage".into()],
+            native_clients: vec!["discophile-desktop".into()],
+            capabilities: [("account".into(), 1), ("devices".into(), 1), ("account-sync".into(), 1)].into_iter().collect(), dashboard: None,
+        });
+        ready_services(&mut app);
+        app.connect.services.paired = false;
+        app.connect.services.identity.as_mut().unwrap().device_secret = "s".repeat(43);
+        let (tasks, updates) = crate::tasks::Tasks::new(egui::Context::default()); app.tasks = tasks;
+        super::super::pair(&mut app, false);
+        for _ in 0..3 {
+            updates.recv_timeout(std::time::Duration::from_secs(5)).unwrap()(&mut app);
+        }
+        let requests = server.join().unwrap();
+        assert_eq!(requests[0]["action"], "join");
+        assert_eq!(requests[0]["deviceId"], json!(old));
+        assert_eq!(requests[1]["action"], "inspect");
+        assert_eq!(requests[3]["action"], "join");
+        assert_ne!(requests[3]["deviceId"], json!(old));
+        assert_ne!(requests[3]["deviceSecret"], requests[0]["deviceSecret"]);
+        assert!(app.connect.services.paired);
+        assert!(app.connect.services.error.is_none(), "{:?}", app.connect.services.error);
+        assert!(!app.connect.services.registration_replaced);
+    }
+
+    #[test]
     fn transient_send_failures_retry_the_identical_encrypted_message() {
         use std::io::{Read, Write};
         use discophile_core::connect::ServerInfo;
