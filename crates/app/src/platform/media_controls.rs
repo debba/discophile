@@ -119,7 +119,10 @@ pub fn apply(app: &mut App, command: MediaCommand) {
         MediaCommand::Previous => player::previous(app),
         MediaCommand::Stop => player::pause(app),
         MediaCommand::SeekBy(delta) => {
-            let position = app.player.position() + delta;
+            let position = app.player.position();
+            #[cfg(not(target_arch = "wasm32"))]
+            let position = crate::features::connect::services::remote_playback(app).map_or(position, |remote| remote.state.position);
+            let position = (position + delta).max(0.0);
             player::seek(app, position)
         }
         MediaCommand::SetPosition(position) => player::seek(app, position),
@@ -130,6 +133,13 @@ pub fn apply(app: &mut App, command: MediaCommand) {
 
 /// Publishes the current item and state to the system when they change. Called every frame.
 pub fn sync(app: &App, controls: &mut MediaControls) {
+    #[cfg(not(target_arch = "wasm32"))]
+    if let Some(remote) = crate::features::connect::services::remote_playback(app) {
+        controls.set_metadata(Some(Metadata { title: remote.state.title, artist: Some(discophile_core::l10n::tf("Playing on %@", &[&remote.name])),
+            duration: remote.state.duration, ..Default::default() }));
+        controls.set_playback(remote.online && remote.state.playing, remote.state.duration.map(|_| remote.state.position));
+        return;
+    }
     use crate::player::Mode;
     if app.player.mode == Mode::Audiobook
         && let Some((title, author, position, duration)) = crate::features::audiobooks::now_playing(app) {

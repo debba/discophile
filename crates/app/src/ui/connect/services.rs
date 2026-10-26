@@ -12,10 +12,12 @@ use discophile_core::l10n::{t, tf};
 use egui::{Response, Ui, vec2};
 
 #[cfg(test)]
-mod tests;
+pub(in crate::ui::connect) mod tests;
 
 pub fn player_devices(app: &mut App, ui: &mut Ui) -> Response {
-    let button = widgets::icon_button(ui, icons::DEVICES, &t("Playback devices"), 19.0);
+    let remote = service::remote_playback(app);
+    let label = remote.as_ref().map(|r| tf("Playback devices: %@", &[&r.name])).unwrap_or_else(|| t("Playback devices"));
+    let button = widgets::icon_button_tinted(ui, icons::DEVICES, &label, 19.0, remote.map(|_| Palette::of_ui(ui).accent));
     if button.clicked() {
         button.request_focus();
     }
@@ -57,6 +59,16 @@ fn playback_devices_contents(app: &mut App, ui: &mut Ui) {
             if !app.connect.services.paired {
                 ui.add(egui::Label::new(t("Sign in to Connect on both computers to move playback between them.")).wrap());
             } else {
+                let remote = service::remote_playback(app);
+                ui.push_id("this-computer", |ui| {
+                    ui.add(egui::Label::new(theme::text(t("This computer"), Font::Headline)).wrap());
+                    if app.player.is_playing() { ui.label(theme::secondary(ui, t("Playing here"), Font::Footnote)); }
+                    if let Some(source) = &remote {
+                        if playback_action(ui, &t("Play on this computer"), &t("Play on this computer"), handoff && source.online && source.state.can_handoff && !service::transfer_pending(app)).clicked() {
+                            service::request_transfer(app, source.id);
+                        }
+                    }
+                });
                 let own = app.connect.services.identity.as_ref().map(|i| i.device_id);
                 let peers: Vec<_> = app.connect.services.devices.iter().filter(|d| Some(d.id) != own).cloned().collect();
                 if peers.is_empty() {
@@ -66,6 +78,9 @@ fn playback_devices_contents(app: &mut App, ui: &mut Ui) {
                     ui.push_id(device.id, |ui| {
                         ui.separator();
                         ui.add(egui::Label::new(theme::text(&device.name, Font::Headline)).wrap());
+                        if remote.as_ref().is_some_and(|r| r.id == device.id) {
+                            ui.label(theme::text(t("Selected playback device"), Font::Footnote).color(Palette::of_ui(ui).accent));
+                        }
                         let status = if device.suspended {
                             t("Suspended by the current plan")
                         } else if device.online {
@@ -76,6 +91,9 @@ fn playback_devices_contents(app: &mut App, ui: &mut Ui) {
                         ui.add(egui::Label::new(theme::secondary(ui, status, Font::Footnote)).wrap());
                         let state = app.connect.services.states.get(&device.id).cloned();
                         if let Some(state) = &state {
+                            if device.online && discophile_core::now_millis().saturating_sub(state.captured_at) <= 30_000 {
+                                ui.label(theme::secondary(ui, t(if state.playing { "Playing" } else { "Paused" }), Font::Footnote));
+                            }
                             ui.add(egui::Label::new(theme::secondary(ui, &state.title, Font::Callout)).wrap());
                         }
                         if !handoff {
@@ -86,7 +104,7 @@ fn playback_devices_contents(app: &mut App, ui: &mut Ui) {
                             ui,
                             &t("Play on this device"),
                             &tf("Play on %@", &[&device.name]),
-                            available && service::can_transfer(app),
+                            available && service::can_transfer(app) && remote.as_ref().is_none_or(|r| r.id != device.id),
                         )
                         .clicked()
                         {

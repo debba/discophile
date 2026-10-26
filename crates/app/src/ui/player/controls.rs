@@ -11,6 +11,8 @@ use crate::theme::{self, Font, Palette, icons};
 
 /// Whether the transport has something to control (playing, paused or a restored queue).
 pub fn has_content(app: &App) -> bool {
+    #[cfg(not(target_arch = "wasm32"))]
+    if crate::features::connect::services::remote_playback(app).is_some() { return true; }
     app.player.mode != crate::player::Mode::Idle || crate::player::has_pending_resume(app)
 }
 
@@ -18,8 +20,9 @@ pub fn has_content(app: &App) -> bool {
 /// space reserved around the circle, so buffering never moves the layout.
 pub fn play_button(ui: &mut Ui, app: &App, diameter: f32) -> Response {
     let status = &app.player.status;
-    let active = status.playing || status.buffering;
-    let buffering = status.buffering;
+    let (active, buffering) = (status.playing || status.buffering, status.buffering);
+    #[cfg(not(target_arch = "wasm32"))]
+    let (active, buffering) = crate::features::connect::services::remote_playback(app).map_or((active, buffering), |remote| (remote.state.playing, false));
     let enabled = has_content(app) && ui.is_enabled();
     let side = diameter + 10.0;
     let (rect, response) = ui.allocate_exact_size(Vec2::splat(side), if enabled { Sense::click() } else { Sense::hover() });

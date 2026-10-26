@@ -17,8 +17,22 @@ use crate::player::{self, Mode};
 use crate::theme::{self, Font, Palette, icons};
 use crate::ui::widgets;
 
+pub fn height(app: &App) -> f32 {
+    #[cfg(not(target_arch = "wasm32"))]
+    if crate::features::connect::services::remote_playback(app).is_some() || crate::features::connect::services::transfer_status(app).is_some() { return 120.0; }
+    let _ = app;
+    96.0
+}
+
 pub fn show(app: &mut App, ui: &mut Ui) {
-    let rect = ui.max_rect();
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        if crate::ui::connect::remote_player::show(app, ui) { return; }
+        if let Some(caption) = crate::features::connect::services::transfer_status(app) {
+            crate::ui::connect::remote_player::status(ui, &caption);
+        }
+    }
+    let rect = ui.available_rect_before_wrap();
     let compact = rect.width() < 820.0;
     let side = (rect.width() * 0.28).clamp(170.0, 340.0);
     let right_width = if compact { 186.0 } else { side.max(300.0) };

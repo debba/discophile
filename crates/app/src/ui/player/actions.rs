@@ -24,7 +24,13 @@ fn unmuted_id() -> Id {
 }
 
 pub fn is_muted(app: &App) -> bool {
-    app.player.volume <= 0.001
+    volume(app) <= 0.001
+}
+
+pub fn volume(app: &App) -> f32 {
+    #[cfg(not(target_arch = "wasm32"))]
+    if let Some(remote) = crate::features::connect::services::remote_playback(app) { return remote.state.volume; }
+    app.player.volume
 }
 
 /// Mutes, or restores the volume from before muting.
@@ -33,7 +39,7 @@ pub fn toggle_mute(app: &mut App) {
         let previous = app.ctx().data(|d| d.get_temp::<f32>(unmuted_id())).filter(|v| *v > 0.01).unwrap_or(0.6);
         player::set_volume(app, previous);
     } else {
-        let current = app.player.volume;
+        let current = volume(app);
         app.ctx().data_mut(|d| d.insert_temp(unmuted_id(), current));
         player::set_volume(app, 0.0);
     }
@@ -292,10 +298,14 @@ pub fn timeline(app: &App) -> (f64, Option<f64>) {
 }
 
 pub fn seek(app: &mut App, seconds: f64) {
+    #[cfg(not(target_arch = "wasm32"))]
+    if crate::features::connect::services::remote_playback(app).is_some() { player::seek(app, seconds); return; }
     if app.player.mode == Mode::Audiobook { crate::features::audiobooks::seek(app, seconds) } else { player::seek(app, seconds) }
 }
 
 /// Play/pause; audiobooks also restart a finished book or reload a failed file.
 pub fn toggle(app: &mut App) {
+    #[cfg(not(target_arch = "wasm32"))]
+    if crate::features::connect::services::remote_playback(app).is_some() { player::toggle(app); return; }
     if app.player.mode == Mode::Audiobook { crate::features::audiobooks::toggle(app) } else { player::toggle(app) }
 }

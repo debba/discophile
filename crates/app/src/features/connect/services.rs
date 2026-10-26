@@ -74,6 +74,11 @@ pub struct ServicesState {
     pub playback_notice: Option<String>,
     pub states: BTreeMap<Uuid, playback::Presence>,
     pub remote_edits: BTreeMap<Uuid, (f64, f32)>,
+    pub remote_device: Option<Uuid>,
+    pub(super) forwarding: Option<(Uuid, Uuid, Uuid, i64)>,
+    send_retries: BTreeMap<Uuid, u8>,
+    retry_after: i64,
+    last_presence: i64,
     pub(super) outgoing: VecDeque<Value>,
     pub(super) transfer: Option<playback::OutgoingTransfer>,
     pub(super) receiving: Option<playback::IncomingTransfer>,
@@ -182,6 +187,7 @@ fn run(app: &mut App, mut operation: Value, done: impl FnOnce(&mut App, Value) +
     }
     let generation = app.connect.generation;
     let action = operation["action"].as_str().unwrap_or_default().to_string();
+    let retry_operation = operation.clone();
     app.connect.services.busy = true;
     app.connect.services.background = matches!(action.as_str(), "poll" | "state" | "send" | "ack");
     app.tasks.spawn(async move {
@@ -195,6 +201,7 @@ fn run(app: &mut App, mut operation: Value, done: impl FnOnce(&mut App, Value) +
             app.connect.services.busy = false;
             match result {
                 Ok(value) => {
+                    if let Ok(id) = serde_json::from_value(retry_operation["id"].clone()) { app.connect.services.send_retries.remove(&id); }
                     app.connect.services.error = None;
                     done(app, value);
                 }
@@ -209,6 +216,19 @@ fn run(app: &mut App, mut operation: Value, done: impl FnOnce(&mut App, Value) +
                             | ConnectError::RateLimited { .. }
                             | ConnectError::ServerUnavailable(_)
                     );
+                    if transient && action == "send" {
+                        if let Ok(id) = serde_json::from_value::<Uuid>(retry_operation["id"].clone()) {
+                            let attempts = app.connect.services.send_retries.entry(id).or_default();
+                            if *attempts < 3 {
+                                *attempts += 1;
+                                let delay = match &error { ConnectError::RateLimited { retry_after } => retry_after.unwrap_or(3).max(1) as i64 * 1000, _ => 1_000 };
+                                app.connect.services.retry_after = discophile_core::now_millis() + delay;
+                                app.connect.services.outgoing.push_front(retry_operation);
+                            } else { app.connect.services.send_retries.remove(&id); }
+                        }
+                    } else if let Ok(id) = serde_json::from_value::<Uuid>(retry_operation["id"].clone()) {
+                        app.connect.services.send_retries.remove(&id);
+                    }
                     app.connect.services.error = Some(super::error_message(&error));
                     app.connect.services.paused_after_error = !transient
                         && matches!(action.as_str(), "write" | "rotate" | "poll" | "join");
@@ -839,7 +859,8 @@ pub fn tick(app: &mut App) {
     };
     // Any intervening frame (including a network completion) consumes egui's repaint timer.
     // Rearm it even while idle or busy so discovery and incoming controls never depend on audio.
-    app.ctx().request_repaint_after(std::time::Duration::from_millis(POLL_INTERVAL_MS as u64));
+    let interval = if playback::transfer_pending(app) { 1_000 } else { POLL_INTERVAL_MS };
+    app.ctx().request_repaint_after(std::time::Duration::from_millis(interval as u64));
     if app.connect.account.is_none() {
         return;
     }
@@ -871,6 +892,11 @@ pub fn tick(app: &mut App) {
     if app.connect.services.busy || app.connect.busy {
         return;
     }
+    let retry_wait = app.connect.services.retry_after - discophile_core::now_millis();
+    if retry_wait > 0 {
+        app.ctx().request_repaint_after(std::time::Duration::from_millis(retry_wait as u64));
+        return;
+    }
     if let Some((operation, done)) = app.connect.services.pending.pop_front() {
         run(app, operation, done);
         return;
@@ -900,14 +926,15 @@ pub fn tick(app: &mut App) {
         if changed { save(app); }
     }
     let now = discophile_core::now_millis();
-    let remaining = POLL_INTERVAL_MS - (now - app.connect.services.last_poll);
+    let remaining = interval - (now - app.connect.services.last_poll);
     if remaining > 0 {
         app.ctx().request_repaint_after(std::time::Duration::from_millis(remaining as u64));
         return;
     }
     app.connect.services.last_poll = now;
     poll(app);
-    if paid(app, "playback.remote") {
+    if paid(app, "playback.remote") && now - app.connect.services.last_presence >= POLL_INTERVAL_MS {
+        app.connect.services.last_presence = now;
         playback::queue_presence(app);
     }
     if now - app.connect.services.last_backup > 86_400_000
@@ -924,3 +951,4 @@ pub fn tick(app: &mut App) {
 
 pub use playback::{audiobook_failed, audiobook_prepared, audiobook_start_allowed};
 pub use playback::{can_transfer, request_transfer, send_command, transfer_pending, transfer_to};
+pub use playback::{RemotePlayback, remote_playback, route_command, take_local_control, transfer_status};

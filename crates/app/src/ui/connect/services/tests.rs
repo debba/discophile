@@ -4,7 +4,7 @@ use discophile_core::connect::{Account, AccountInfo, Entitlement, Plan, PlanSour
 use discophile_core::l10n::{self, Language};
 use uuid::Uuid;
 
-fn fixture() -> App {
+pub(in crate::ui::connect) fn fixture() -> App {
     let mut app = App::connect_test_app();
     app.connect.account = Some(AccountInfo {
         instance_id: "fixture".into(),
@@ -46,7 +46,7 @@ fn fixture() -> App {
     app
 }
 
-fn setup(app: &App, dark: bool, zoom: f32) -> egui::Context {
+pub(in crate::ui::connect) fn setup(app: &App, dark: bool, zoom: f32) -> egui::Context {
     let ctx = app.ctx().clone();
     ctx.enable_accesskit();
     theme::install_fonts(&ctx);
@@ -55,7 +55,7 @@ fn setup(app: &App, dark: bool, zoom: f32) -> egui::Context {
     ctx
 }
 
-fn input(ctx: &egui::Context, events: Vec<egui::Event>) -> egui::RawInput {
+pub(in crate::ui::connect) fn input(ctx: &egui::Context, events: Vec<egui::Event>) -> egui::RawInput {
     egui::RawInput {
         screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, vec2(900.0, 600.0) / ctx.zoom_factor())),
         events,
