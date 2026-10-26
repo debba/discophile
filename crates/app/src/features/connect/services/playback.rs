@@ -10,6 +10,60 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use uuid::Uuid;
 
+#[derive(Clone, Copy, Default, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum DeviceKind {
+    Linux,
+    #[serde(alias = "macos")]
+    Mac,
+    Windows,
+    #[serde(alias = "ios", alias = "android")]
+    Smartphone,
+    #[default]
+    #[serde(other)]
+    Unknown,
+}
+
+impl DeviceKind {
+    pub fn current() -> Self {
+        if cfg!(any(target_os = "android", target_os = "ios")) {
+            Self::Smartphone
+        } else if cfg!(target_os = "macos") {
+            Self::Mac
+        } else if cfg!(target_os = "windows") {
+            Self::Windows
+        } else if cfg!(target_os = "linux") {
+            Self::Linux
+        } else {
+            Self::Unknown
+        }
+    }
+
+    fn from_name(name: &str) -> Self {
+        let name = name.to_lowercase();
+        let words: Vec<_> = name.split(|c: char| !c.is_alphanumeric()).collect();
+        if words.iter().any(|w| matches!(*w, "iphone" | "ipad" | "android" | "smartphone" | "pixel" | "samsung")) {
+            Self::Smartphone
+        } else if words.iter().any(|w| w.starts_with("macbook") || matches!(*w, "mac" | "imac" | "macos")) {
+            Self::Mac
+        } else if words.contains(&"windows") {
+            Self::Windows
+        } else if words.iter().any(|w| matches!(*w, "linux" | "ubuntu" | "debian" | "fedora" | "arch" | "manjaro" | "opensuse" | "kubuntu")) {
+            Self::Linux
+        } else {
+            Self::Unknown
+        }
+    }
+}
+
+pub fn device_kind(app: &App, id: Uuid, name: &str) -> DeviceKind {
+    if Some(id) == own_id(app) {
+        return DeviceKind::current();
+    }
+    app.connect.services.states.get(&id).map(|s| s.device_kind)
+        .filter(|kind| *kind != DeviceKind::Unknown).unwrap_or_else(|| DeviceKind::from_name(name))
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Presence {
@@ -24,6 +78,8 @@ pub struct Presence {
     pub output_device: Option<Uuid>,
     #[serde(default = "normal_rate")]
     pub rate: f32,
+    #[serde(default)]
+    pub device_kind: DeviceKind,
 }
 fn normal_rate() -> f32 {
     1.0
@@ -410,6 +466,7 @@ fn local_presence(app: &App) -> Presence {
         duration,
         output_device: app.connect.services.remote_device,
         rate: if app.player.mode == Mode::Audiobook || app.player.current().is_some_and(|s| s.is_podcast()) { app.player.rate } else { 1.0 },
+        device_kind: DeviceKind::current(),
     }
 }
 
@@ -1133,6 +1190,28 @@ mod tests {
         assert!(a.player.output.status().playing && !b.player.output.status().playing);
         assert_eq!(a.player.queue.current().unwrap().id, "song-1");
         assert!(!a.connect.services.independent_playback);
+    }
+
+    #[test]
+    fn device_kind_uses_encrypted_metadata_before_legacy_name_hints() {
+        for (name, expected) in [("Macbook Pro", DeviceKind::Mac), ("Studio Mac", DeviceKind::Mac),
+            ("Windows PC", DeviceKind::Windows), ("Linux", DeviceKind::Linux), ("Ubuntu desktop", DeviceKind::Linux),
+            ("iPhone di Andrea", DeviceKind::Smartphone), ("Android Pixel", DeviceKind::Smartphone),
+            ("Office", DeviceKind::Unknown), ("DESKTOP-123", DeviceKind::Unknown)] {
+            assert_eq!(DeviceKind::from_name(name), expected, "{name}");
+        }
+        let keys = VaultKeys::new().unwrap(); let a_id = Uuid::new_v4(); let b_id = Uuid::new_v4();
+        let mut a = app(a_id, b_id, &keys); let mut b = app(b_id, a_id, &keys);
+        publish_to(&mut b, &mut a);
+        assert_eq!(device_kind(&a, b_id, "Custom name"), DeviceKind::current());
+        a.connect.services.states.get_mut(&b_id).unwrap().device_kind = DeviceKind::Windows;
+        assert_eq!(device_kind(&a, b_id, "Macbook"), DeviceKind::Windows);
+        assert_eq!(device_kind(&a, a_id, "Linux"), DeviceKind::current());
+        let mut legacy = serde_json::to_value(local_presence(&b)).unwrap();
+        legacy.as_object_mut().unwrap().remove("deviceKind");
+        assert_eq!(serde_json::from_value::<Presence>(legacy.clone()).unwrap().device_kind, DeviceKind::Unknown);
+        legacy["deviceKind"] = json!("future-device");
+        assert_eq!(serde_json::from_value::<Presence>(legacy).unwrap().device_kind, DeviceKind::Unknown);
     }
 
     #[test]

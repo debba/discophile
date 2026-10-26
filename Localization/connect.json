@@ -221,5 +221,10 @@
   "Independent playback": "Ascolto indipendente",
   "Other devices keep playing. Choose what to listen to here.": "Gli altri dispositivi continuano a suonare. Scegli cosa ascoltare qui.",
   "Ready to play": "Pronto per la riproduzione",
-  "Device settings": "Impostazioni dispositivi"
+  "Device settings": "Impostazioni dispositivi",
+  "Device options: %@": "Opzioni dispositivo: %@",
+  "Position": "Posizione",
+  "Computer": "Computer",
+  "Smartphone": "Smartphone",
+  "Move playback to %@": "Trasferisci la riproduzione su %@"
 }

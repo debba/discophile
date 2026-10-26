@@ -138,8 +138,33 @@ pub fn thin_slider(
     step: f64,
     label: &str,
 ) -> SliderOutput {
+    slider_with_height(ui, value, range, width, 18.0, live, step, label)
+}
+
+/// The player's thin rail with a 44-point target for settings and touch interaction.
+pub fn large_slider(
+    ui: &mut Ui,
+    value: f64,
+    range: std::ops::RangeInclusive<f64>,
+    width: f32,
+    live: bool,
+    step: f64,
+    label: &str,
+) -> SliderOutput {
+    slider_with_height(ui, value, range, width, 44.0, live, step, label)
+}
+
+fn slider_with_height(
+    ui: &mut Ui,
+    value: f64,
+    range: std::ops::RangeInclusive<f64>,
+    width: f32,
+    height: f32,
+    live: bool,
+    step: f64,
+    label: &str,
+) -> SliderOutput {
     let enabled = ui.is_enabled() && range.end() > range.start();
-    let height = 18.0;
     let (rect, response) = ui.allocate_exact_size(vec2(width, height), if enabled { Sense::click_and_drag() } else { Sense::hover() });
     let (low, high) = (*range.start(), *range.end());
     let span = (high - low).max(f64::EPSILON);
@@ -147,6 +172,7 @@ pub fn thin_slider(
     let mut shown = value.clamp(low, high);
     let mut changed = None;
     if enabled {
+        if response.clicked() || response.drag_started() { response.request_focus(); }
         if let Some(pointer) = response.interact_pointer_pos()
             && (response.dragged() || response.is_pointer_button_down_on() || response.clicked() || response.drag_stopped())
         {
@@ -164,12 +190,28 @@ pub fn thin_slider(
             }
         }
         if response.has_focus() {
+            ui.memory_mut(|memory| memory.set_focus_lock_filter(response.id, egui::EventFilter { horizontal_arrows: true, ..Default::default() }));
             let (left, right) = ui.input(|i| (i.key_pressed(egui::Key::ArrowLeft), i.key_pressed(egui::Key::ArrowRight)));
             if left || right {
                 shown = (value + if right { step } else { -step }).clamp(low, high);
                 changed = Some(shown);
             }
         }
+        ui.input(|input| {
+            use egui::accesskit::{Action, ActionData};
+            let steps = input.num_accesskit_action_requests(response.id, Action::Increment) as f64
+                - input.num_accesskit_action_requests(response.id, Action::Decrement) as f64;
+            if steps != 0.0 {
+                shown = (shown + steps * step).clamp(low, high);
+                changed = Some(shown);
+            }
+            for request in input.accesskit_action_requests(response.id, Action::SetValue) {
+                if let Some(ActionData::NumericValue(value)) = request.data && value.is_finite() {
+                    shown = value.clamp(low, high);
+                    changed = Some(shown);
+                }
+            }
+        });
     }
     let palette = Palette::of_ui(ui);
     let active = response.hovered() || response.dragged() || response.has_focus();
@@ -186,12 +228,22 @@ pub fn thin_slider(
         palette.text.gamma_multiply(0.75)
     };
     ui.painter().rect_filled(filled, CornerRadius::same(3), fill);
-    if enabled && active {
+    if enabled && (active || height >= 44.0) {
         let thumb = pos2(filled.right(), rail.center().y);
         ui.painter().circle_filled(thumb, 6.5, palette.surface);
         ui.painter().circle_stroke(thumb, 6.5, Stroke::new(2.0, palette.accent));
     }
     response.widget_info(|| egui::WidgetInfo::slider(enabled, shown, label));
+    ui.ctx().accesskit_node_builder(response.id, |node| {
+        node.set_min_numeric_value(low);
+        node.set_max_numeric_value(high);
+        node.set_numeric_value_step(step);
+        if enabled {
+            node.add_action(egui::accesskit::Action::SetValue);
+            if shown < high { node.add_action(egui::accesskit::Action::Increment); }
+            if shown > low { node.add_action(egui::accesskit::Action::Decrement); }
+        }
+    });
     SliderOutput { response, shown, changed }
 }
 

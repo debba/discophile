@@ -7,9 +7,10 @@ use crate::{
         widgets,
     },
 };
-use discophile_core::connect::RemoteCommand;
 use discophile_core::l10n::{t, tf};
 use egui::{AtomExt, Response, Ui, vec2};
+
+mod device_settings;
 
 #[cfg(test)]
 pub(in crate::ui::connect) mod tests;
@@ -72,7 +73,7 @@ fn playback_devices_contents(app: &mut App, ui: &mut Ui) {
                         } else {
                             t("Ready to play")
                         };
-                        device_heading(ui, &t("This computer"), &status, remote.is_none() && app.player.is_playing());
+                        device_heading(ui, &t("This computer"), &status, service::DeviceKind::current(), remote.is_none() && app.player.is_playing());
                         if let Some(source) = &remote {
                             if playback_action(ui, &t("Continue here"), &t("Play on this computer"), handoff && source.online && source.state.can_handoff && !service::transfer_pending(app)).clicked() {
                                 service::request_transfer(app, source.id);
@@ -104,7 +105,7 @@ fn playback_devices_contents(app: &mut App, ui: &mut Ui) {
                             t("Online")
                         };
                         device_card(ui, selected, |ui| {
-                            device_heading(ui, &device.name, &status, selected);
+                            device_heading(ui, &device.name, &status, service::device_kind(app, device.id, &device.name), selected);
                             if let Some(state) = &state {
                                 ui.add(egui::Label::new(theme::secondary(ui, &state.title, Font::Callout)).truncate()).on_hover_text(&state.title);
                             }
@@ -178,13 +179,21 @@ fn device_card(ui: &mut Ui, selected: bool, contents: impl FnOnce(&mut Ui)) {
         });
 }
 
-fn device_heading(ui: &mut Ui, name: &str, status: &str, selected: bool) {
+fn device_heading(ui: &mut Ui, name: &str, status: &str, kind: service::DeviceKind, selected: bool) {
     let palette = Palette::of_ui(ui);
+    let (glyph, kind_label) = match kind {
+        service::DeviceKind::Linux => (icons::LINUX_LOGO, "Linux".to_owned()),
+        service::DeviceKind::Mac => (icons::APPLE_LOGO, "macOS".to_owned()),
+        service::DeviceKind::Windows => (icons::WINDOWS_LOGO, "Windows".to_owned()),
+        service::DeviceKind::Smartphone => (icons::DEVICE_MOBILE, t("Smartphone")),
+        service::DeviceKind::Unknown => (icons::DESKTOP, t("Computer")),
+    };
     ui.horizontal_top(|ui| {
         ui.add_space(2.0);
-        let icon = ui.label(theme::icon(if selected { icons::SPEAKER_HIGH } else { icons::DESKTOP }, 20.0)
-            .color(if selected { palette.accent } else { palette.secondary }));
-        icon.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Image, true, if selected { t("Selected playback device") } else { name.to_owned() }));
+        let icon = ui.label(theme::icon(glyph, 20.0)
+            .color(if selected { palette.accent } else { palette.secondary })).on_hover_text(&kind_label);
+        icon.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Image, true, if selected { t("Selected playback device") } else { kind_label.clone() }));
+        ui.ctx().accesskit_node_builder(icon.id, |node| node.set_description(&kind_label));
         ui.add_space(2.0);
         ui.vertical(|ui| {
             ui.spacing_mut().item_spacing.y = 2.0;
@@ -400,7 +409,7 @@ pub fn settings(app: &mut App, ui: &mut Ui) {
     if !app.connect.services.paired {
         return;
     }
-    devices(app, ui, busy);
+    device_settings::show(app, ui, busy);
     backups(app, ui, busy);
     group(ui, |ui| {
         ui.checkbox(
@@ -439,101 +448,6 @@ fn recovery(app: &mut App, ui: &mut Ui) {
             ui.ctx().copy_text(code);
         }
     }
-}
-fn devices(app: &mut App, ui: &mut Ui, busy: bool) {
-    widgets::section_heading(ui, &t("Paired playback devices"), None);
-    let devices = app.connect.services.devices.clone();
-    let own = app.connect.services.identity.as_ref().map(|i| i.device_id);
-    let paid = service::paid(app, "playback.remote");
-    group(ui, |ui| {
-        for device in devices {
-            ui.label(theme::text(&device.name, Font::Headline));
-            ui.label(if Some(device.id) == own {
-                t("This computer")
-            } else if device.suspended {
-                t("Suspended by the current plan")
-            } else if device.online {
-                t("Online")
-            } else {
-                t("Offline")
-            });
-            if let Some(state) = app.connect.services.states.get(&device.id) {
-                ui.add(egui::Label::new(&state.title).wrap());
-            }
-            if paid && Some(device.id) != own && device.online {
-                ui.add_enabled_ui(!busy, |ui| {
-                    ui.horizontal_wrapped(|ui| {
-                        if ui.add_enabled(service::can_transfer(app), egui::Button::new(t("Play on this device"))).clicked() {
-                            service::transfer_to(app, device.id);
-                        }
-                        for (label, command) in [
-                            (t("Play"), RemoteCommand::Play),
-                            (t("Pause"), RemoteCommand::Pause),
-                            (t("Previous"), RemoteCommand::Previous),
-                            (t("Next"), RemoteCommand::Next),
-                        ] {
-                            if ui.button(label).clicked() {
-                                service::send_command(app, device.id, command);
-                            }
-                        }
-                        if app
-                            .connect
-                            .services
-                            .states
-                            .get(&device.id)
-                            .is_some_and(|s| s.can_handoff)
-                            && ui.button(t("Continue here")).clicked()
-                        {
-                            service::request_transfer(app, device.id);
-                        }
-                    });
-                    if let Some(state) = app.connect.services.states.get(&device.id).cloned() {
-                        let (mut position, mut volume) = app.connect.services.remote_edits.get(&device.id).copied().unwrap_or((state.position, state.volume));
-                        ui.horizontal_wrapped(|ui| {
-                            ui.add(egui::Slider::new(&mut volume, 0.0..=1.0).text(t("Volume")));
-                            if ui.button(t("Set device volume")).clicked() { service::send_command(app, device.id, RemoteCommand::SetVolume { volume }); }
-                        });
-                        if let Some(duration) = state.duration.filter(|d| d.is_finite() && *d > 0.0) {
-                            ui.horizontal_wrapped(|ui| {
-                                ui.add(egui::DragValue::new(&mut position).range(0.0..=duration).suffix(" s"));
-                                if ui.button(t("Seek on device")).clicked() { service::send_command(app, device.id, RemoteCommand::Seek { position }); }
-                            });
-                        }
-                        app.connect.services.remote_edits.insert(device.id, (position, volume));
-                    }
-                });
-            }
-            if ui
-                .add_enabled(!busy, egui::Button::new(t("Revoke device access")))
-                .clicked()
-            {
-                app.connect.services.revoke_target = Some(device.id);
-            }
-            if app.connect.services.revoke_target == Some(device.id) {
-                ui.add(egui::Label::new(t(if service::account_sync(app) {
-                    "Revoking signs this device out and updates encryption for your remaining computers."
-                } else {
-                    "Revoking blocks this device immediately and changes the recovery code. Remaining computers will need the new code."
-                })).wrap());
-                if ui
-                    .add_enabled(!busy, egui::Button::new(t("Confirm device revocation")))
-                    .clicked()
-                {
-                    service::revoke(app, device.id);
-                }
-                if ui.button(t("Cancel")).clicked() {
-                    app.connect.services.revoke_target = None;
-                }
-            }
-            ui.separator();
-        }
-    });
-    footer(
-        ui,
-        &t(
-            "Players must be running and online. Your music server must be reachable from the destination. Connect does not relay audio.",
-        ),
-    );
 }
 fn backups(app: &mut App, ui: &mut Ui, busy: bool) {
     widgets::section_heading(ui, &t("Configuration backups"), None);
