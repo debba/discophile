@@ -29,7 +29,7 @@ pub fn player_devices(app: &mut App, ui: &mut Ui) {
                 ui.label(theme::text(&device.name, Font::Headline));
                 let state = app.connect.services.states.get(&device.id).cloned();
                 if let Some(state) = &state { ui.add(egui::Label::new(&state.title).truncate()); }
-                let available = device.online && !device.suspended && !app.connect.services.busy;
+                let available = device.online && !device.suspended && !service::changing(app) && !app.connect.busy;
                 if !device.online { ui.label(theme::secondary(ui, t("Offline"), Font::Footnote)); }
                 if ui.add_enabled(available && service::can_transfer(app), egui::Button::new(t("Play on this device"))).clicked() {
                     service::transfer_to(app, device.id);
@@ -111,7 +111,7 @@ pub fn settings(app: &mut App, ui: &mut Ui) {
         return;
     }
     widgets::section_heading(ui, &t("Encrypted synchronization"), None);
-    let busy = app.connect.services.busy || app.connect.busy;
+    let busy = service::changing(app) || app.connect.busy;
     group(ui, |ui| {
         ui.label(t("Computer name"));
         ui.add(
