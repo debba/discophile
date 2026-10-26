@@ -69,6 +69,7 @@ pub fn begin(
     connection: Uuid,
     offline: bool,
     position: f64,
+    autoplay: bool,
 ) {
     if app.player.mode == Mode::Audiobook {
         super::on_replaced(app);
@@ -97,7 +98,7 @@ pub fn begin(
         loading: false,
         sleep_stop: None,
         repeating,
-        autoplay: true,
+        autoplay,
         generation: 0,
         meter: ListeningMeter::start(now_millis()),
         was_playing: false,
@@ -105,7 +106,7 @@ pub fn begin(
         rate_before,
     });
     let start = if position.is_finite() { position.clamp(0.0, duration) } else { 0.0 };
-    load_track(app, start, true);
+    load_track(app, start, autoplay);
 }
 
 /// Hands the file containing `position` to the output, resolving a signed URL when streaming.
@@ -220,12 +221,14 @@ pub fn prepared(
                 .or_else(|| latest.map(|p| if p.is_finished { 0.0 } else { p.current_time }))
                 .unwrap_or(session.current_time);
             let book = merged_book(app, request.book);
-            begin(app, book, session, request.account, request.connection, false, resume);
+            begin(app, book, session, request.account, request.connection, false, resume, request.autoplay);
             #[cfg(not(target_arch = "wasm32"))]
             crate::features::connect::services::audiobook_prepared(app);
         }
         Err(error) => {
             if current {
+                #[cfg(not(target_arch = "wasm32"))]
+                crate::features::connect::services::audiobook_failed(app);
                 let message = audiobook_error(error);
                 match app.audiobooks.detail.as_mut() {
                     Some(detail) if detail.id == request.book.id => detail.error = Some(message),
@@ -242,6 +245,12 @@ fn merged_book(app: &App, book: Audiobook) -> Audiobook {
         Some(detail) if detail.id == book.id => detail.book.clone().unwrap_or(book),
         _ => book,
     }
+}
+
+/// Cancels autoplay even before the output has loaded its file.
+pub fn pause(app: &mut App) {
+    if let Some(pb) = app.audiobooks.playback.as_mut() { pb.autoplay = false; }
+    player::output_pause(app);
 }
 
 /// Plays or pauses, restarting a finished book and reloading after a failure.

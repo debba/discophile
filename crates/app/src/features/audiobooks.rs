@@ -163,6 +163,12 @@ pub fn seek(app: &mut App, seconds: f64) {
     playback::seek(app, seconds);
 }
 
+/// Pauses the book, including a file that is still being prepared.
+pub fn pause(app: &mut App) {
+    app.player.control_generation += 1;
+    playback::pause(app);
+}
+
 /// Play/pause that also restarts a finished book and reloads a failed file.
 pub fn toggle(app: &mut App) {
     app.player.control_generation += 1;
@@ -177,6 +183,10 @@ pub fn cover(app: &mut App) -> Option<egui::TextureHandle> {
 
 /// Streams or plays a downloaded book from `position`, or from its saved position.
 pub fn start_book(app: &mut App, id: &str, position: Option<f64>) {
+    start_book_with_autoplay(app, id, position, true);
+}
+
+fn start_book_with_autoplay(app: &mut App, id: &str, position: Option<f64>, autoplay: bool) {
     let Some(account) = app.audiobooks.account.clone() else { return };
     if app.audiobooks.starting.is_some() {
         return;
@@ -185,7 +195,7 @@ pub fn start_book(app: &mut App, id: &str, position: Option<f64>) {
     if let Some(record) = downloads::ready_record(app, id) {
         let saved = app.audiobooks.sync.saved(&account_id, id);
         let resume = position.unwrap_or_else(|| saved.map(|p| if p.is_finished { 0.0 } else { p.current_time }).unwrap_or(0.0));
-        playback::begin(app, record.book, record.playback, account_id, account.connection_id, true, resume);
+        playback::begin(app, record.book, record.playback, account_id, account.connection_id, true, resume, autoplay);
         return;
     }
     let Some(book) = library::known_book(app, id) else { return };
@@ -195,7 +205,44 @@ pub fn start_book(app: &mut App, id: &str, position: Option<f64>) {
     if let Some(detail) = app.audiobooks.detail.as_mut().filter(|d| d.id == id) {
         detail.error = None;
     }
-    sync::prepare(app, sync::StartRequest { account: account_id, connection: account.connection_id, book, position, generation });
+    sync::prepare(app, sync::StartRequest { account: account_id, connection: account.connection_id, book, position, generation, autoplay });
+}
+
+/// Handoff can address a book that this computer has never browsed.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn start_transferred(app: &mut App, id: &str, position: f64, autoplay: bool) -> bool {
+    if id.is_empty() || id.len() > 1000 || app.audiobooks.starting.is_some() { return false; }
+    if library::known_book(app, id).is_some() || downloads::ready_record(app, id).is_some() {
+        start_book_with_autoplay(app, id, Some(position), autoplay);
+        return true;
+    }
+    let Some(account) = app.audiobooks.account.clone() else { return false };
+    let Some(client) = app.audiobooks.client.clone() else { return false };
+    app.audiobooks.start_generation += 1;
+    let generation = app.audiobooks.start_generation;
+    let id = id.to_string();
+    app.audiobooks.starting = Some((id.clone(), generation));
+    app.tasks.spawn(async move {
+        let result = client.book(&id).await;
+        crate::tasks::update(move |app: &mut App| {
+            if app.audiobooks.starting.as_ref().is_none_or(|(_, g)| *g != generation) { return; }
+            if app.audiobooks.account.as_ref().is_none_or(|a| a.connection_id != account.connection_id)
+                || !crate::features::connect::services::audiobook_start_allowed(app) {
+                app.audiobooks.starting = None;
+                return;
+            }
+            match result {
+                Ok(book) if book.id == id => sync::prepare(app, sync::StartRequest {
+                    account: account.id(), connection: account.connection_id, book, position: Some(position), generation, autoplay,
+                }),
+                _ => {
+                    app.audiobooks.starting = None;
+                    crate::features::connect::services::audiobook_failed(app);
+                }
+            }
+        })
+    });
+    true
 }
 
 /// Whether `id` is the book in the player.

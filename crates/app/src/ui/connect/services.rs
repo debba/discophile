@@ -11,6 +11,43 @@ use discophile_core::connect::RemoteCommand;
 use discophile_core::l10n::{t, tf};
 use egui::Ui;
 
+pub fn player_devices(app: &mut App, ui: &mut Ui) {
+    let button = widgets::icon_button(ui, crate::theme::icons::DEVICES, &t("Playback devices"), 19.0);
+    egui::Popup::menu(&button).show(|ui| {
+        ui.set_min_width(260.0);
+        ui.label(theme::text(t("Playback devices"), Font::Headline));
+        if !app.connect.services.paired {
+            ui.add(egui::Label::new(t("Sign in to Connect on both computers to move playback between them.")).wrap());
+        } else if !service::paid(app, "playback.handoff") {
+            ui.add(egui::Label::new(t("Playback handoff is included in the Connect plan.")).wrap());
+        } else {
+            let own = app.connect.services.identity.as_ref().map(|i| i.device_id);
+            let peers: Vec<_> = app.connect.services.devices.iter().filter(|d| Some(d.id) != own).cloned().collect();
+            if peers.is_empty() { ui.label(t("No other computers connected")); }
+            for device in peers {
+                ui.separator();
+                ui.label(theme::text(&device.name, Font::Headline));
+                let state = app.connect.services.states.get(&device.id).cloned();
+                if let Some(state) = &state { ui.add(egui::Label::new(&state.title).truncate()); }
+                let available = device.online && !device.suspended && !app.connect.services.busy;
+                if !device.online { ui.label(theme::secondary(ui, t("Offline"), Font::Footnote)); }
+                if ui.add_enabled(available && service::can_transfer(app), egui::Button::new(t("Play on this device"))).clicked() {
+                    service::transfer_to(app, device.id);
+                }
+                if ui.add_enabled(available && !service::transfer_pending(app) && state.is_some_and(|s| s.can_handoff), egui::Button::new(t("Continue here"))).clicked() {
+                    service::request_transfer(app, device.id);
+                }
+            }
+        }
+        if let Some(notice) = &app.connect.services.playback_notice { ui.add(egui::Label::new(notice).wrap()); }
+        if let Some(error) = &app.connect.services.error { super::error_text(ui, error); }
+        ui.separator();
+        if ui.button(t("Manage playback devices")).clicked() {
+            app.nav.push(crate::nav::Route::Settings(crate::nav::SettingsPage::Connect));
+        }
+    });
+}
+
 pub fn settings(app: &mut App, ui: &mut Ui) {
     widgets::section_heading(ui, &t("Plans and pricing"), None);
     group(ui, |ui| {
@@ -91,9 +128,21 @@ pub fn settings(app: &mut App, ui: &mut Ui) {
         if let Some(notice) = &app.connect.services.notice {
             ui.add(egui::Label::new(theme::secondary(ui, notice, Font::Callout)).wrap());
         }
+        if let Some(notice) = &app.connect.services.playback_notice {
+            ui.add(egui::Label::new(theme::secondary(ui, notice, Font::Callout)).wrap());
+        }
         ui.add_enabled_ui(!busy, |ui| {
             if app.connect.services.paired && ui.button(t("Save computer name")).clicked() { service::rename(app); }
             if !app.connect.services.paired {
+                if service::account_sync(app) {
+                    ui.add(egui::Label::new(t("Sign in to the same Connect account on your computers. Your selected connections and preferences synchronize without exchanging a code.")).wrap());
+                    if ui.button(t("Connect this computer")).clicked() { service::refresh(app); }
+                    egui::CollapsingHeader::new(t("Recover an older configuration")).show(ui, |ui| {
+                        ui.add(egui::TextEdit::singleline(&mut app.connect.services.recovery_input).password(true).hint_text("dc1_…").desired_width(f32::INFINITY));
+                        if ui.button(t("Import recovery code")).clicked() { service::pair(app, false); }
+                    });
+                    return;
+                }
                 let existing = app.connect.services.vault.is_some();
                 if existing {
                     ui.add(egui::Label::new(t("Enter the recovery code from a trusted computer. Pairing copies the shared connections to this computer; local connections and downloads are kept.")).wrap());
@@ -134,7 +183,7 @@ pub fn settings(app: &mut App, ui: &mut Ui) {
                 }
             }
             if old != (app.connect.services.automatic, app.connect.services.preferences, app.connect.services.selected.clone()) { service::save(app); }
-            ui.add(egui::Label::new(theme::secondary(ui, t("Only language and appearance are shared. Volume, audio effects, downloads, local paths and AI credentials stay on this computer. Audiobookshelf requires a separate sign-in on each computer."), Font::Callout)).wrap());
+            ui.add(egui::Label::new(theme::secondary(ui, t("Only language and appearance are shared. Volume, audio effects, downloads, local paths and AI credentials stay on this computer. Selected Audiobookshelf connections sign in automatically when a saved password is available."), Font::Callout)).wrap());
             if app.connect.services.conflict.is_some() {
                 ui.add(egui::Label::new(t("Both this computer and another device changed the configuration. Choose which shared configuration to keep; local connections and downloads will be preserved.")).wrap());
                 if ui.button(t("Use cloud configuration")).clicked() { service::use_cloud(app); }
@@ -145,14 +194,16 @@ pub fn settings(app: &mut App, ui: &mut Ui) {
                     if ui.button(t("Refresh Connect services")).clicked() { service::refresh(app); }
                 });
             }
-            recovery(app, ui);
+            egui::CollapsingHeader::new(t("Advanced recovery")).show(ui, |ui| recovery(app, ui));
             ui.horizontal_wrapped(|ui| {
                 if ui.button(t("Export encrypted configuration")).clicked() { service::configuration::export_encrypted(app); }
                 if service::paid(app, "backup.configuration") && ui.button(t("Back up configuration now")).clicked() { service::backup(app); }
             });
         });
     });
-    footer(ui, &t(if crate::platform::secrets::using_keychain() {
+    footer(ui, &t(if service::account_sync(app) {
+        "Connect protects your synchronization key and restores it when you sign in. The Connect server can recover the key for your account."
+    } else if crate::platform::secrets::using_keychain() {
         "Recovery keys are saved in this computer's system keychain."
     } else {
         "Recovery keys are saved in this computer's protected secrets file."
@@ -223,6 +274,9 @@ fn devices(app: &mut App, ui: &mut Ui, busy: bool) {
             if paid && Some(device.id) != own && device.online {
                 ui.add_enabled_ui(!busy, |ui| {
                     ui.horizontal_wrapped(|ui| {
+                        if ui.add_enabled(service::can_transfer(app), egui::Button::new(t("Play on this device"))).clicked() {
+                            service::transfer_to(app, device.id);
+                        }
                         for (label, command) in [
                             (t("Play"), RemoteCommand::Play),
                             (t("Pause"), RemoteCommand::Pause),
@@ -267,7 +321,11 @@ fn devices(app: &mut App, ui: &mut Ui, busy: bool) {
                 app.connect.services.revoke_target = Some(device.id);
             }
             if app.connect.services.revoke_target == Some(device.id) {
-                ui.add(egui::Label::new(t("Revoking blocks this device immediately and changes the recovery code. Remaining computers will need the new code.")).wrap());
+                ui.add(egui::Label::new(t(if service::account_sync(app) {
+                    "Revoking signs this device out and updates encryption for your remaining computers."
+                } else {
+                    "Revoking blocks this device immediately and changes the recovery code. Remaining computers will need the new code."
+                })).wrap());
                 if ui
                     .add_enabled(!busy, egui::Button::new(t("Confirm device revocation")))
                     .clicked()

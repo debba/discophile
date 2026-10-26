@@ -22,7 +22,7 @@ pub const OFFLINE_SCOPE: &str = "offline_access";
 /// The native client identifier of Discophile for computers.
 pub const DESKTOP_CLIENT_ID: &str = "discophile-desktop";
 /// Capabilities, with their versions, that this version of Discophile implements.
-pub const IMPLEMENTED_CAPABILITIES: &[(&str, u64)] = &[(ACCOUNT_CAPABILITY, ACCOUNT_CAPABILITY_VERSION), ("devices", 1), ("sync", 1), ("backup", 1), ("remote", 1), ("handoff", 1)];
+pub const IMPLEMENTED_CAPABILITIES: &[(&str, u64)] = &[(ACCOUNT_CAPABILITY, ACCOUNT_CAPABILITY_VERSION), ("devices", 1), ("sync", 1), ("account-sync", 1), ("backup", 1), ("remote", 1), ("handoff", 1)];
 const MAX_ID_CHARS: usize = 128;
 const MAX_NAME_CHARS: usize = 100;
 

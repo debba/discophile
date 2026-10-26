@@ -2,7 +2,7 @@
 //! large artwork and bold headings.
 
 use discophile_core::{Album, Song, l10n};
-use egui::{Align, Color32, CornerRadius, FontId, Layout, Margin, Pos2, Rect, Response, RichText, Sense, Stroke, Ui, Vec2, vec2};
+use egui::{Align, AtomExt, Color32, CornerRadius, FontId, Layout, Margin, Pos2, Rect, Response, RichText, Sense, Stroke, Ui, Vec2, vec2};
 
 use crate::app::App;
 use crate::theme::{self, Font, Palette, icons};
@@ -24,23 +24,49 @@ pub mod space {
 pub const CONTROL_SMALL: f32 = 30.0;
 pub const CONTROL: f32 = 36.0;
 pub const CONTROL_LARGE: f32 = 44.0;
+pub const ACCOUNT_MENU_WIDTH: f32 = 336.0;
 
 pub fn account_menu_frame(ui: &Ui) -> egui::Frame {
     let palette = Palette::of_ui(ui);
     egui::Frame::popup(ui.style()).fill(palette.surface).stroke(Stroke::new(1.0, palette.separator))
-        .corner_radius(14).inner_margin(Margin::same(8))
+        .corner_radius(14).inner_margin(Margin::same(12))
+}
+
+pub fn account_menu_layout(ui: &mut Ui) {
+    ui.set_width(ACCOUNT_MENU_WIDTH - 24.0);
+    ui.spacing_mut().item_spacing = vec2(space::S, space::XS);
+    ui.spacing_mut().button_padding = vec2(space::M, 10.0);
 }
 
 /// Full-width account menu action with separate symbol and trailing indicator columns.
 pub fn account_menu_action(ui: &mut Ui, icon: &str, label: &str, trailing: Option<&str>, tint: Option<Color32>) -> Response {
+    account_menu_row(ui, icon, label, trailing, tint, None)
+}
+
+pub fn account_menu_choice(ui: &mut Ui, icon: &str, label: &str, selected: bool) -> Response {
+    let tint = selected.then_some(Palette::of_ui(ui).accent);
+    account_menu_row(ui, icon, label, selected.then_some(icons::CHECK), tint, Some(selected))
+}
+
+fn account_menu_row(ui: &mut Ui, icon: &str, label: &str, trailing: Option<&str>, tint: Option<Color32>, selected: Option<bool>) -> Response {
     let palette = Palette::of_ui(ui);
-    let symbol = theme::icon(icon, 17.0).color(tint.unwrap_or(palette.secondary));
-    let text = theme::text(label, Font::Callout).color(tint.unwrap_or(palette.text));
-    let button = egui::Button::new((symbol, text))
-        .right_text(theme::icon(trailing.unwrap_or(""), 13.0).color(palette.secondary))
-        .gap(space::M).frame(false).truncate().corner_radius(8).min_size(vec2(ui.available_width(), 38.0));
+    let symbol = theme::icon(icon, 18.0).color(tint.unwrap_or(palette.secondary));
+    let family = if selected == Some(true) { theme::semibold() } else { egui::FontFamily::Proportional };
+    let text = RichText::new(label).font(FontId::new(15.0, family)).color(tint.unwrap_or(palette.text));
+    let mut button = egui::Button::new((symbol.atom_size(vec2(20.0, 20.0)), text.atom_shrink(true)))
+        .right_text(theme::icon(trailing.unwrap_or(""), 16.0).color(tint.unwrap_or(palette.secondary)))
+        .gap(space::M).frame(true).frame_when_inactive(false).stroke(Stroke::NONE)
+        .truncate().corner_radius(8).min_size(vec2(ui.available_width(), CONTROL_LARGE));
+    if selected == Some(true) { button = button.fill(palette.surface_raised).stroke(Stroke::NONE); }
     let response = ui.add(button);
-    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, ui.is_enabled(), label));
+    response.widget_info(|| match selected {
+        Some(selected) => egui::WidgetInfo::selected(egui::Role::MenuItemRadio, ui.is_enabled(), selected, label),
+        None => egui::WidgetInfo::labeled(egui::Role::MenuItem, ui.is_enabled(), label),
+    });
+    // Keep the ring inside the row so the scroll viewport cannot clip its first or last edge.
+    if response.has_focus() && keyboard_navigation(ui.ctx()) {
+        ui.painter().rect_stroke(response.rect.shrink(1.0), 8, Stroke::new(2.0, palette.accent), egui::StrokeKind::Inside);
+    }
     response
 }
 
@@ -63,13 +89,17 @@ pub fn paint_icon(painter: &egui::Painter, center: Pos2, glyph: &str, font: Font
     painted
 }
 
-/// True while the user navigates with the keyboard (after Tab, until the next pointer press),
+/// True while the user navigates with the keyboard, until the next pointer press,
 /// so focus rings appear for keyboard users without flashing on every mouse click.
 pub fn keyboard_navigation(ctx: &egui::Context) -> bool {
     let id = egui::Id::unique("keyboard-navigation");
-    let (tab, pointer) = ctx.input(|i| (i.key_pressed(egui::Key::Tab), i.pointer.any_pressed()));
+    let (navigating, pointer) = ctx.input(|i| (
+        [egui::Key::Tab, egui::Key::ArrowUp, egui::Key::ArrowDown, egui::Key::ArrowLeft, egui::Key::ArrowRight, egui::Key::Enter, egui::Key::Space]
+            .iter().any(|key| i.key_pressed(*key)),
+        i.pointer.any_pressed(),
+    ));
     let mut active = ctx.data(|d| d.get_temp::<bool>(id)).unwrap_or(false);
-    if tab {
+    if navigating {
         active = true;
     } else if pointer {
         active = false;

@@ -67,12 +67,10 @@ pub fn toolbar(app: &mut App, ui: &mut Ui) {
     egui::Popup::menu(&response)
         .align(egui::emath::RectAlign::BOTTOM_END)
         .gap(8.0)
-        .width(312.0)
+        .width(widgets::ACCOUNT_MENU_WIDTH)
         .frame(widgets::account_menu_frame(ui))
         .show(|ui| {
-            ui.set_width(296.0);
-            ui.spacing_mut().item_spacing = vec2(8.0, 2.0);
-            ui.spacing_mut().button_padding = vec2(12.0, 8.0);
+            widgets::account_menu_layout(ui);
             Frame::new().inner_margin(Margin::same(12)).show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing.x = widgets::space::M;

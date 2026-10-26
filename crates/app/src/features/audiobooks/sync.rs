@@ -25,6 +25,7 @@ pub struct StartRequest {
     pub book: Audiobook,
     pub position: Option<f64>,
     pub generation: u64,
+    pub autoplay: bool,
 }
 
 enum Job {

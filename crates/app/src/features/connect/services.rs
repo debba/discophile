@@ -37,6 +37,10 @@ pub struct Identity {
     pub baseline: String,
     #[serde(default)]
     pub name: String,
+    #[serde(default)]
+    pub select_new_connections: bool,
+    #[serde(default)]
+    pub known_connections: BTreeSet<String>,
 }
 
 #[derive(Default)]
@@ -62,6 +66,7 @@ pub struct ServicesState {
     pub busy: bool,
     pub error: Option<String>,
     pub notice: Option<String>,
+    pub playback_notice: Option<String>,
     pub states: BTreeMap<Uuid, playback::Presence>,
     pub remote_edits: BTreeMap<Uuid, (f64, f32)>,
     pub(super) outgoing: VecDeque<Value>,
@@ -96,6 +101,23 @@ pub fn connection_limit(app: &App) -> usize {
         .and_then(|e| e.limit)
         .map(|n| n.min(100) as usize)
         .unwrap_or(100)
+}
+pub fn account_sync(app: &App) -> bool {
+    app.connect.server_info.as_ref().is_some_and(|info| info.capability_usable("account-sync"))
+}
+
+pub fn recover_account(app: &mut App) {
+    let mut operation = json!({"action":"recover"});
+    if let Some(identity) = app.connect.services.identity.as_ref() { operation["deviceSecret"] = json!(identity.device_secret); }
+    run(app, operation, |app, value| {
+        app.connect.services.vault = serde_json::from_value(value["vault"].clone()).ok();
+        if let Some(code) = value["recoveryCode"].as_str() {
+            app.connect.services.recovery_input = code.to_string();
+            pair(app, false);
+        } else {
+            app.connect.services.error = Some(t("Open a previously connected computer once to enable synchronization through your account."));
+        }
+    });
 }
 fn namespace(credential: &ConnectCredential) -> String {
     use sha2::{Digest, Sha256};
@@ -161,6 +183,10 @@ fn run(app: &mut App, mut operation: Value, done: impl FnOnce(&mut App, Value) +
                     done(app, value);
                 }
                 Err(error) => {
+                    if action == "join" && matches!(&error, ConnectError::Service(code) if code == "revision_conflict") && account_sync(app) {
+                        recover_account(app);
+                        return;
+                    }
                     let transient = matches!(
                         error,
                         ConnectError::Network
@@ -205,10 +231,25 @@ pub fn inspect(app: &mut App) {
                         .and_then(|v| serde_json::from_value::<VaultInfo>(v.clone()).ok());
                     app.connect.services.vault = vault;
                     app.connect.services.error = None;
-                    if app.connect.services.vault.is_some()
+                    if account_sync(app) && app.connect.services.vault.is_none() {
+                        if app.connect.services.identity.is_none() {
+                            let limit = connection_limit(app);
+                            app.connect.services.selected = configuration::choices(app).into_iter().take(limit).map(|c| c.id()).collect();
+                            app.connect.services.preferences = true;
+                            prepare(app);
+                        }
+                        pair(app, true);
+                    } else if app.connect.services.vault.is_some()
                         && app.connect.services.identity.is_some()
                     {
-                        pair(app, false);
+                        let pending_rotation = app.connect.services.vault.as_ref().zip(app.connect.services.identity.as_ref())
+                            .is_some_and(|(v, i)| v.rotation_required && v.id == i.keys.vault_id && i.keys.epoch == v.epoch + 1);
+                        if pending_rotation { publish(app, true); return; }
+                        let needs_key = app.connect.services.vault.as_ref().zip(app.connect.services.identity.as_ref())
+                            .is_some_and(|(v, i)| v.id != i.keys.vault_id || v.epoch != i.keys.epoch);
+                        if account_sync(app) && needs_key { recover_account(app); } else { pair(app, false); }
+                    } else if account_sync(app) {
+                        recover_account(app);
                     }
                 }
                 Err(error) => app.connect.services.error = Some(super::error_message(&error)),
@@ -235,8 +276,10 @@ pub fn prepare(app: &mut App) {
         automatic: false,
         baseline: String::new(),
         name: app.connect.services.name.clone(),
+        select_new_connections: account_sync(app),
+        known_connections: configuration::choices(app).iter().map(|c| c.id()).collect(),
     });
-    app.connect.services.recovery_visible = true;
+    app.connect.services.recovery_visible = !account_sync(app);
     save(app);
 }
 
@@ -278,6 +321,8 @@ pub fn pair(app: &mut App, create: bool) {
             automatic: false,
             baseline: String::new(),
             name: app.connect.services.name.clone(),
+            select_new_connections: account_sync(app),
+            known_connections: Default::default(),
         }
     };
     if identity.device_secret.len() != 43 {
@@ -323,7 +368,7 @@ pub fn pair(app: &mut App, create: bool) {
             }
         }
     } else {
-        if !create || !app.connect.services.confirm_recovery_saved {
+        if !create || (!account_sync(app) && !app.connect.services.confirm_recovery_saved) {
             return;
         }
         let configuration = configuration::snapshot(app);
@@ -346,6 +391,9 @@ pub fn pair(app: &mut App, create: bool) {
         "connectionCount":configuration::snapshot(app).connections.len() });
     if let Some(envelope) = initial {
         operation["envelope"] = json!(envelope);
+    }
+    if account_sync(app) && vault.as_ref().is_none_or(|v| !v.rotation_required) {
+        operation["recoveryCode"] = json!(identity.keys.recovery_code());
     }
     // Persist the only copy before the first network write, including uncertain network outcomes.
     app.connect.services.identity = Some(identity);
@@ -385,6 +433,8 @@ pub fn pair(app: &mut App, create: bool) {
         }
         if old_baseline.is_empty() {
             app.connect.services.automatic = true;
+            let known = configuration::choices(app).iter().map(|c| c.id()).collect();
+            if let Some(identity) = app.connect.services.identity.as_mut() { identity.known_connections = known; }
         }
         save(app);
         refresh(app);
@@ -491,9 +541,13 @@ pub fn publish(app: &mut App, rotate: bool) {
         return;
     };
     let next = envelope.clone();
+    let mut operation = json!({"action":if rotate {"rotate"} else {"write"}, "expectedRevision":vault.revision, "connectionCount":config.connections.len(), "envelope":envelope});
+    if account_sync(app) {
+        operation["recoveryCode"] = json!(identity.keys.recovery_code());
+    }
     run(
         app,
-        json!({"action":if rotate {"rotate"} else {"write"}, "expectedRevision":vault.revision, "connectionCount":config.connections.len(), "envelope":envelope}),
+        operation,
         move |app, _| {
             if let Some(vault) = app.connect.services.vault.as_mut() {
                 vault.revision = next.revision;
@@ -509,10 +563,13 @@ pub fn publish(app: &mut App, rotate: bool) {
             app.connect.services.pending_cloud = None;
             app.connect.services.paused_after_error = false;
             if rotate {
-                app.connect.services.recovery_visible = true;
-                app.connect.services.notice = Some(t(
-                    "The key was rotated. Give the new recovery code to each remaining trusted computer.",
-                ));
+                app.connect.services.paired = true;
+                app.connect.services.recovery_visible = !account_sync(app);
+                app.connect.services.notice = Some(t(if account_sync(app) {
+                    "Encryption updated. Your other computers will reconnect through your account."
+                } else {
+                    "The key was rotated. Give the new recovery code to each remaining trusted computer."
+                }));
             }
             save(app);
             backup(app);
@@ -683,12 +740,20 @@ fn poll(app: &mut App) {
         app.connect.services.devices = poll.devices;
         app.connect.services.backups = poll.backups;
         if poll.vault.rotation_required {
+            if account_sync(app) && poll.vault.epoch == identity.keys.epoch {
+                publish(app, true);
+                return;
+            }
             app.connect.services.error = Some(t(
                 "A device was revoked. Rotate the encryption key before synchronizing again.",
             ));
             return;
         }
         if poll.vault.epoch > identity.keys.epoch {
+            if account_sync(app) {
+                recover_account(app);
+                return;
+            }
             app.connect.services.error =
                 Some(t("Use the latest recovery code from a trusted computer."));
             return;
@@ -793,6 +858,23 @@ pub fn tick(app: &mut App) {
     if !app.connect.services.paired || app.connect.services.paused_after_error {
         return;
     }
+    if app.connect.services.automatic {
+        let choices = configuration::choices(app);
+        let limit = connection_limit(app);
+        let state = &mut app.connect.services;
+        let mut changed = false;
+        if let Some(identity) = state.identity.as_mut() {
+            for choice in choices {
+                let id = choice.id();
+                let new = identity.known_connections.insert(id.clone());
+                changed |= new;
+                if new && identity.select_new_connections && state.selected.len() < limit {
+                    state.selected.insert(id);
+                }
+            }
+        }
+        if changed { save(app); }
+    }
     let now = discophile_core::now_millis();
     if now - app.connect.services.last_poll < 3_000 {
         return;
@@ -816,5 +898,5 @@ pub fn tick(app: &mut App) {
         .request_repaint_after(std::time::Duration::from_secs(3));
 }
 
-pub use playback::{audiobook_prepared, audiobook_start_allowed};
-pub use playback::{request_transfer, send_command};
+pub use playback::{audiobook_failed, audiobook_prepared, audiobook_start_allowed};
+pub use playback::{can_transfer, request_transfer, send_command, transfer_pending, transfer_to};

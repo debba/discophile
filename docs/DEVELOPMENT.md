@@ -133,4 +133,5 @@ captured by `scripts/screenshots/web_player.py` from the published container, wi
 in `connect/client.rs` cover discovery, token exchange, refresh rotation, revocation and the account. To try a
 local server, choose `http://localhost:<port>` as the custom address in Settings > Discophile Connect. See
 [CONNECT.md](CONNECT.md) for the user guide and [ARCHITECTURE.md](ARCHITECTURE.md) for the structure.
-`connect/handoff.rs` keeps the draft playback handoff messages; their transport is not implemented yet.
+`connect/handoff.rs` defines playback handoff messages. The native integration in
+`crates/app/src/features/connect/services/` transports them through encrypted Connect envelopes.

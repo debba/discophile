@@ -85,6 +85,43 @@ fn make_client(account: AudiobookshelfAccount, tokens: AudiobookshelfTokens) -> 
     AudiobookshelfClient::new(account, tokens, persist)
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+pub fn shared_password(account: &AudiobookshelfAccount) -> Option<String> {
+    secrets::get(&format!("audiobookshelf-password:{}", account.id())).filter(|s| !s.is_empty())
+}
+
+pub(crate) fn save_password(account: &AudiobookshelfAccount, password: &str) {
+    if !password.is_empty() { secrets::set(&format!("audiobookshelf-password:{}", account.id()), password); }
+}
+
+/// Reauthenticate on each computer so refresh-token rotation remains device-specific.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn restore_shared(app: &mut App, account: AudiobookshelfAccount, password: String) {
+    if app.audiobooks.form.busy || app.audiobooks.account.as_ref().is_some_and(|a| a.id() != account.id()) { return; }
+    app.audiobooks.form.generation += 1;
+    let generation = app.audiobooks.form.generation;
+    let connect_generation = app.connect.generation;
+    app.audiobooks.form.busy = true;
+    app.tasks.spawn(async move {
+        let result = AudiobookshelfClient::connect(account.server.as_str(), &account.username, &password,
+            account.server.scheme() == "http", account.name.as_deref().unwrap_or_default()).await;
+        update(move |app: &mut App| {
+            if app.audiobooks.form.generation != generation { return; }
+            app.audiobooks.form.busy = false;
+            if app.connect.generation != connect_generation { return; }
+            match result {
+                Ok(login) if login.account.id() == account.id() => {
+                    if replace(app, login).is_ok() {
+                        save_password(&account, &password);
+                        app.connect.services.notice = Some(t("Audiobookshelf connected on this computer."));
+                    }
+                }
+                _ => app.connect.services.error = Some(t("Audiobookshelf could not sign in automatically. Sign in again to update the shared connection.")),
+            }
+        })
+    });
+}
+
 /// Reads the saved connection at launch.
 pub fn load(app: &mut App) {
     let state = &mut app.audiobooks;
@@ -130,10 +167,12 @@ pub fn connect(app: &mut App) {
             app.audiobooks.form.busy = false;
             match result {
                 Ok(login) => {
+                    let connected_account = login.account.clone();
                     if let Err(error) = replace(app, login) {
                         app.audiobooks.form.error = Some(audiobook_error(error));
                         return;
                     }
+                    save_password(&connected_account, &password);
                     let form = &mut app.audiobooks.form;
                     form.password.clear();
                     form.done = true;
@@ -200,6 +239,7 @@ pub fn disconnect(app: &mut App) {
         storage::remove(ACCOUNT_KEY);
     }
     if let Some(account) = account {
+        secrets::delete(&format!("audiobookshelf-password:{}", account.id()));
         super::downloads::remove_account(app, &account.id());
     }
     let state = &mut app.audiobooks;
@@ -225,11 +265,65 @@ pub fn disconnect(app: &mut App) {
 pub fn storage_note() -> String {
     if crate::platform::IS_WEB {
         t(
-            "Use your Audiobookshelf server address and local username and password. Tokens are kept in this browser's storage. OpenID sign-in is not available yet.",
+            "Use your Audiobookshelf server address and local username and password. Credentials are kept in this browser's storage. OpenID sign-in is not available yet.",
         )
     } else {
         t(
-            "Use your Audiobookshelf server address and local username and password. Tokens are stored separately in this computer's keychain. Download books for offline listening from their detail page. OpenID sign-in is not available yet.",
+            "Use your Audiobookshelf server address and local username and password. Credentials are saved in this computer's keychain. Selecting this connection in Connect also synchronizes the password so your other computers can sign in. Download books for offline listening from their detail page. OpenID sign-in is not available yet.",
         )
+    }
+}
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod tests {
+    use super::*;
+    use std::io::{Read, Write};
+
+    #[test]
+    fn shared_password_creates_an_independent_verified_session() {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let server_url = url::Url::parse(&format!("http://{}", listener.local_addr().unwrap())).unwrap();
+        let server = std::thread::spawn(move || {
+            for path in ["/login", "/api/libraries"] {
+                let (mut socket, _) = listener.accept().unwrap();
+                socket.set_read_timeout(Some(std::time::Duration::from_secs(5))).unwrap();
+                let mut request = Vec::new();
+                loop {
+                    let mut chunk = [0; 4096]; let count = socket.read(&mut chunk).unwrap(); assert!(count > 0);
+                    request.extend_from_slice(&chunk[..count]);
+                    if let Some(end) = request.windows(4).position(|w| w == b"\r\n\r\n") {
+                        let head = String::from_utf8_lossy(&request[..end]);
+                        let length: usize = head.lines().filter_map(|line| line.split_once(':')).find(|(name, _)| name.eq_ignore_ascii_case("content-length")).map(|(_, value)| value.trim().parse().unwrap()).unwrap_or(0);
+                        if request.len() >= end + 4 + length { break; }
+                    }
+                }
+                let text = String::from_utf8_lossy(&request);
+                assert_eq!(text.lines().next().unwrap().split(' ').nth(1).unwrap(), path);
+                let body = if path == "/login" {
+                    assert!(text.contains("fixture-password"));
+                    r#"{"user":{"id":"fixture-user","username":"fixture","accessToken":"independent-access","refreshToken":"independent-refresh"}}"#
+                } else {
+                    assert!(text.to_ascii_lowercase().contains("authorization: bearer independent-access"));
+                    r#"{"libraries":[{"id":"books","name":"Books","mediaType":"book"}]}"#
+                };
+                write!(socket, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).unwrap();
+            }
+        });
+        let shared = AudiobookshelfAccount::new(server_url, "fixture-user", "fixture", Some("Shared books"));
+        let mut app = App::connect_test_app();
+        let (tasks, updates) = crate::tasks::Tasks::new(egui::Context::default()); app.tasks = tasks;
+        restore_shared(&mut app, shared.clone(), "fixture-password".into());
+        updates.recv_timeout(std::time::Duration::from_secs(5)).unwrap()(&mut app);
+        let local = app.audiobooks.account.as_ref().expect("automatic sign-in succeeded");
+        assert_eq!(local.id(), shared.id());
+        assert_ne!(local.connection_id, shared.connection_id);
+        assert!(app.audiobooks.client.is_some());
+        assert_eq!(shared_password(local).as_deref(), Some("fixture-password"));
+        let tokens: AudiobookshelfTokens = serde_json::from_str(&secrets::get(TOKENS_SECRET).unwrap()).unwrap();
+        assert_eq!(tokens.refresh_token.as_deref(), Some("independent-refresh"));
+        server.join().unwrap();
+        secrets::delete(TOKENS_SECRET);
+        secrets::delete(&format!("audiobookshelf-password:{}", shared.id()));
+        storage::remove(ACCOUNT_KEY);
     }
 }

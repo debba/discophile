@@ -234,9 +234,7 @@ pub fn output_play(app: &mut App) {
 pub fn pause(app: &mut App) {
     app.player.control_generation += 1;
     if app.player.mode == Mode::Audiobook {
-        if app.player.status.playing {
-            features::audiobooks::toggle(app);
-        }
+        features::audiobooks::pause(app);
         return;
     }
     output_pause(app);

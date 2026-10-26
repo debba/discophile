@@ -23,9 +23,11 @@ pub enum SharedConnection {
     Music {
         account: ServerAccount,
     },
-    /// Tokens are intentionally excluded: refresh tokens cannot safely be cloned between computers.
+    /// Password-based reauthentication creates independent sessions; refresh tokens are never copied.
     Audiobookshelf {
         account: AudiobookshelfAccount,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        password: Option<String>,
     },
     Radio {
         station: InternetRadioStation,
@@ -43,7 +45,7 @@ impl SharedConnection {
     pub fn id(&self) -> String {
         match self {
             Self::Music { account } => account.id(),
-            Self::Audiobookshelf { account } => format!("abs:{}", account.id()),
+            Self::Audiobookshelf { account, .. } => format!("abs:{}", account.id()),
             Self::Radio { station } => format!("radio:{}", station.id),
         }
     }
@@ -54,11 +56,9 @@ impl SharedConnection {
                 account.display_name(),
                 account.credentials.server
             ),
-            Self::Audiobookshelf { account } => format!(
-                "{} · {}",
-                account.display_name(),
-                t("Sign in separately on each computer")
-            ),
+            Self::Audiobookshelf { account, password } => if password.is_some() { account.display_name() } else {
+                format!("{} · {}", account.display_name(), t("Sign in once to enable automatic synchronization"))
+            },
             Self::Radio { station } => station.name.clone(),
         }
     }
@@ -78,7 +78,12 @@ pub fn choices(app: &App) -> Vec<SharedConnection> {
         .chain(
             audiobook
                 .into_iter()
-                .map(|account| SharedConnection::Audiobookshelf { account }),
+                .map(|mut account| {
+                    let password = crate::features::audiobooks::account::shared_password(&account);
+                    // Session identity belongs to the local device and must not cause sync conflicts.
+                    account.connection_id = uuid::Uuid::nil();
+                    SharedConnection::Audiobookshelf { account, password }
+                }),
         )
         .chain(
             app.radio
@@ -136,9 +141,10 @@ impl Configuration {
                         && !c.password.is_empty()
                         && c.password.len() <= 16_384
                 }
-                SharedConnection::Audiobookshelf { account } => {
+                SharedConnection::Audiobookshelf { account, password } => {
                     validate_server(account.server.as_str(), account.server.scheme() == "http")
-                        .is_ok()
+                        .is_ok() && !account.user_id.is_empty() && !account.username.is_empty()
+                        && password.as_ref().is_none_or(|s| !s.is_empty() && s.len() <= 16_384)
                 }
                 SharedConnection::Radio { station } => InternetRadioStation::new(
                     Some(station.id),
@@ -173,8 +179,14 @@ pub fn import(app: &mut App, configuration: &Configuration) -> bool {
                 let mut form = crate::features::radio::StationForm::editing(station);
                 crate::features::radio::save_form(app, &mut form);
             }
-            SharedConnection::Audiobookshelf { account } => {
-                if app.audiobooks.account.as_ref().map(|a| a.id()) != Some(account.id()) {
+            SharedConnection::Audiobookshelf { account, password } => {
+                let connected = app.audiobooks.account.as_ref().is_some_and(|a| a.id() == account.id()) && app.audiobooks.client.is_some();
+                if connected {
+                    if let Some(password) = password { crate::features::audiobooks::account::save_password(account, password); }
+                    if app.audiobooks.account.as_ref().is_some_and(|a| a.name != account.name) {
+                        let _ = crate::features::audiobooks::account::rename(app, account.name.as_deref().unwrap_or_default());
+                    }
+                } else {
                     let form = &mut app.audiobooks.form;
                     form.server = account.server.to_string();
                     form.username = account.username.clone();
@@ -182,9 +194,11 @@ pub fn import(app: &mut App, configuration: &Configuration) -> bool {
                     form.allow_http = account.server.scheme() == "http";
                     form.prefilled = true;
                     storage::save("connect/audiobookshelf-template", account);
-                    app.connect.services.notice = Some(t(
-                        "The Audiobookshelf connection was copied. Sign in separately on this computer to authorize it.",
-                    ));
+                    if let Some(password) = password {
+                        crate::features::audiobooks::account::restore_shared(app, account.clone(), password.clone());
+                    } else {
+                        app.connect.services.notice = Some(t("Sign in once to Audiobookshelf on the source computer to enable automatic synchronization."));
+                    }
                 }
             }
         }
@@ -243,6 +257,25 @@ mod tests {
     fn shared(account: ServerAccount) -> Configuration {
         Configuration { version: 1, connections: vec![SharedConnection::Music { account }], preferences: Some(SharedPreferences { language: None, appearance: Appearance::Dark }) }
     }
+    #[test]
+    fn audiobook_connections_share_passwords_without_sharing_session_identity_or_tokens() {
+        let mut app = App::connect_test_app();
+        let mut account = AudiobookshelfAccount::new(url::Url::parse(&format!("https://{}.example.invalid", uuid::Uuid::new_v4())).unwrap(), "fixture-user", "fixture", None);
+        let secret = format!("audiobookshelf-password:{}", account.id());
+        crate::features::audiobooks::account::save_password(&account, "fixture-password");
+        app.audiobooks.account = Some(account.clone());
+        let first = choices(&app);
+        account.connection_id = uuid::Uuid::new_v4();
+        app.audiobooks.account = Some(account);
+        assert!(first == choices(&app), "independent sign-ins must not create synchronization conflicts");
+        let serialized = serde_json::to_value(&first).unwrap();
+        assert_eq!(serialized[0]["password"], "fixture-password");
+        assert_eq!(serialized[0]["account"]["connectionID"], uuid::Uuid::nil().to_string());
+        assert!(serialized[0].get("tokens").is_none());
+        secrets::delete(&secret);
+        assert!(serde_json::to_value(choices(&app)).unwrap()[0].get("password").is_none());
+    }
+
     #[test]
     fn import_preserves_local_connections_and_device_specific_settings() {
         let mut app = App::connect_test_app();

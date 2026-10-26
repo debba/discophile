@@ -1,6 +1,6 @@
 //! The desktop sidebar (the iOS tab bar's sections, plus the library sections) and the content toolbar.
 
-use discophile_core::l10n::t;
+use discophile_core::l10n::{t, tf};
 use egui::{Align, CornerRadius, Layout, Sense, Ui, vec2};
 
 use crate::app::App;
@@ -244,7 +244,7 @@ pub fn toolbar(app: &mut App, ui: &mut Ui) {
     });
 }
 
-fn library_menu(app: &mut App, ui: &mut Ui) {
+fn library_menu(app: &mut App, ui: &mut Ui) -> egui::Response {
     let palette = Palette::of_ui(ui);
     let label = app.session.active_account().filter(|_| ui.available_width() > 360.0).map(|account| {
         let name = account.display_name();
@@ -267,29 +267,32 @@ fn library_menu(app: &mut App, ui: &mut Ui) {
     if response.clicked() {
         response.request_focus();
     }
-    egui::Popup::menu(&response).align(egui::emath::RectAlign::BOTTOM_END).gap(8.0).width(312.0)
+    let popup_id = egui::Popup::default_response_id(&response);
+    let was_open = egui::Popup::is_id_open(ui.ctx(), popup_id);
+    egui::Popup::menu(&response).accessible_name(t("Switch library"))
+        .align(egui::emath::RectAlign::BOTTOM_END).gap(8.0).width(widgets::ACCOUNT_MENU_WIDTH)
         .frame(widgets::account_menu_frame(ui)).show(|ui| {
-        ui.set_width(296.0);
-        ui.spacing_mut().item_spacing = vec2(8.0, 2.0);
-        ui.spacing_mut().button_padding = vec2(12.0, 8.0);
+        widgets::account_menu_layout(ui);
         egui::Frame::new().inner_margin(egui::Margin::symmetric(12, 8)).show(ui, |ui| {
-            ui.label(theme::text(t("Switch library"), Font::Headline));
+            ui.label(theme::text(t("Switch library"), Font::Headline).font(egui::FontId::new(15.0, theme::semibold())));
         });
         if !app.session.accounts.is_empty() {
             let active = app.session.account_key();
             let accounts: Vec<(String, String, String)> =
                 app.session.accounts.iter().map(|a| (a.id(), a.display_name(), a.credentials.username.clone())).collect();
-            for (id, name, user) in accounts {
-                let current = id == active;
-                let short: String = name.chars().take(32).collect();
-                let label = format!("{}{}", short, if name.chars().count() > 32 { "…" } else { "" });
-                let response = widgets::account_menu_action(ui, icons::BOOKS, &label, current.then_some(icons::CHECK), current.then_some(palette.accent))
-                    .on_hover_text(format!("{name} · {user}"));
-                if response.clicked() {
-                    session::switch_account(app, &id);
-                    ui.close();
+            let max_height = (ui.ctx().content_rect().height() - 200.0).clamp(widgets::CONTROL_LARGE, 320.0);
+            egui::ScrollArea::vertical().max_height(max_height).auto_shrink([false, true]).show(ui, |ui| {
+                for (id, name, user) in accounts {
+                    let current = id == active;
+                    let response = widgets::account_menu_choice(ui, icons::BOOKS, &name, current)
+                        .on_hover_text(format!("{name} · {user}"));
+                    if response.has_focus() { response.scroll_to_me(Some(Align::Center)); }
+                    if response.clicked() {
+                        session::switch_account(app, &id);
+                        ui.close();
+                    }
                 }
-            }
+            });
             ui.add_space(widgets::space::S);
             ui.separator();
             ui.add_space(widgets::space::S);
@@ -303,6 +306,91 @@ fn library_menu(app: &mut App, ui: &mut Ui) {
             ui.close();
         }
     });
-    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, ui.is_enabled(), t("Switch library")));
-    response.on_hover_text(t("Switch library"));
+    let accessible_name = app.session.active_account().map(|account| tf("Switch library: %@", &[&account.display_name()])).unwrap_or_else(|| t("Switch library"));
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, ui.is_enabled(), &accessible_name));
+    let open = egui::Popup::is_id_open(ui.ctx(), popup_id);
+    if was_open && !open && ui.input(|i| i.key_pressed(egui::Key::Escape)) { response.request_focus(); }
+    ui.ctx().accesskit_node_builder(response.id, |node| {
+        node.set_has_popup(egui::accesskit::HasPopup::Menu);
+        node.set_expanded(open);
+    });
+    widgets::focus_ring(ui, &response, 10);
+    response.on_hover_text(t("Switch library"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use discophile_core::{Credentials, MusicProvider, ServerAccount};
+
+    fn fixture() -> App {
+        let mut app = App::connect_test_app();
+        let credentials = Credentials::simple("https://music.example.invalid", "fixture", "fixture", false, MusicProvider::Subsonic).unwrap();
+        let account = ServerAccount::new(credentials, "Una libreria con un nome molto lungo, accenti è e caratteri 日本語");
+        app.session.active = Some(account.id());
+        app.session.accounts.push(account);
+        app
+    }
+
+    fn key(key: egui::Key) -> egui::Event {
+        egui::Event::Key { key, physical_key: None, pressed: true, repeat: false, modifiers: egui::Modifiers::NONE }
+    }
+
+    #[test]
+    fn library_menu_exposes_full_names_selection_and_popup_state_at_large_text_sizes() {
+        for scale in [1.0, 1.5] {
+            let mut app = fixture();
+            let ctx = app.ctx().clone();
+            ctx.enable_accesskit();
+            theme::install_fonts(&ctx);
+            theme::apply(&ctx, true);
+            ctx.set_zoom_factor(scale);
+            let name = app.session.accounts[0].display_name();
+            let mut tree = None;
+            for frame in 0..3 {
+                let input = egui::RawInput { screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, vec2(900.0, 600.0))), ..Default::default() };
+                let mut output = ctx.run_ui(input, |ui| {
+                    let response = library_menu(&mut app, ui);
+                    if frame == 0 { egui::Popup::open_id(&ctx, egui::Popup::default_response_id(&response)); }
+                });
+                output.textures_delta.clear();
+                tree = output.platform_output.accesskit_update;
+            }
+            let tree = tree.unwrap();
+            let choice = tree.nodes.iter().map(|(_, node)| node).find(|node| node.role() == egui::Role::MenuItemRadio).unwrap();
+            assert_eq!(choice.label(), Some(name.as_str()), "assistive technology must receive the unabridged library name");
+            assert_eq!(choice.toggled(), Some(egui::accesskit::Toggled::True));
+            let bounds = choice.bounds().unwrap();
+            assert!(bounds.height() >= 44.0 && bounds.x0 >= 0.0 && bounds.x1 <= 900.0);
+            assert!(bounds.width() <= widgets::ACCOUNT_MENU_WIDTH as f64 * scale as f64, "long labels must not widen the menu");
+            assert!(tree.nodes.iter().any(|(_, node)| node.role() == egui::Role::Menu && node.label() == Some(t("Switch library").as_str())));
+            assert!(tree.nodes.iter().any(|(_, node)| node.has_popup() == Some(egui::accesskit::HasPopup::Menu) && node.is_expanded() == Some(true) && node.label().is_some_and(|label| label.contains(&name))));
+        }
+    }
+
+    #[test]
+    fn library_menu_supports_keyboard_opening_and_escape_restores_trigger_focus() {
+        let mut app = fixture();
+        let ctx = app.ctx().clone();
+        theme::install_fonts(&ctx);
+        let mut trigger = None;
+        let mut popup = None;
+        for frame in 0..5 {
+            let events = match frame { 1 => vec![key(egui::Key::Enter)], 2 => vec![key(egui::Key::ArrowDown)], 4 => vec![key(egui::Key::Escape)], _ => Vec::new() };
+            let mut output = ctx.run_ui(egui::RawInput { events, ..Default::default() }, |ui| {
+                let response = library_menu(&mut app, ui);
+                trigger = Some(response.id);
+                popup = Some(egui::Popup::default_response_id(&response));
+                if frame == 0 { response.request_focus(); }
+            });
+            output.textures_delta.clear();
+            if frame == 3 {
+                assert!(egui::Popup::is_id_open(&ctx, popup.unwrap()));
+                assert_ne!(ctx.memory(|memory| memory.focused()), trigger);
+                assert!(widgets::keyboard_navigation(&ctx));
+            }
+        }
+        assert!(!egui::Popup::is_id_open(&ctx, popup.unwrap()));
+        assert_eq!(ctx.memory(|memory| memory.focused()), trigger);
+    }
 }

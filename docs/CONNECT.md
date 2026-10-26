@@ -1,7 +1,7 @@
 # Discophile Connect
 
 Discophile Connect is an optional account for Discophile services. In this version, signing in shows your
-account and plan in Discophile for computers. You can separately pair computers and enable encrypted synchronization;
+account and plan in Discophile for computers. Compatible instances synchronize through the same account without exchanging codes;
 Discophile works fully without an account: standalone use and direct connections to your own servers never
 need one, and a plan never limits local playback.
 
@@ -67,7 +67,7 @@ Availability follows the instance capabilities and installed client version. Acc
 - Access tokens are stored only in this computer's keychain (or, when no keychain is available, in a file only
   you can read). Each sign-in belongs to one instance address and one account on it.
 - The chosen instance address is saved with Discophile's other settings.
-- Before pairing, no library or playback data is sent. After opting in, selected configuration and playback messages reach the instance only as authenticated ciphertext; audio files are never uploaded.
+- With account synchronization, sign-in associates the computer and starts synchronization. Connections are selected automatically up to the plan allowance; change the selection in Settings. Payloads are encrypted, and Connect holds an encrypted copy of the keys so another signed-in computer can recover them. This mode trusts the instance with key custody; audio files are never uploaded.
 
 Discophile contacts the instance when you choose it, sign in, refresh or sign out. Once paired, the running desktop app polls for services approximately every three seconds, with additional encrypted writes for shared changes and playback controls.
 
@@ -85,15 +85,18 @@ asks you to sign in again.
 ## Pair computers and synchronize
 
 In **Settings → Discophile Connect**, sign in and allow Connect services. Older account-only
-authorizations need a new sign-in. Create a recovery code on your first computer, save it
-privately, and confirm you saved it before creating the encrypted vault. On another computer,
-sign into the same instance/account and enter the recovery code from the trusted computer.
-Pairing copies the shared connections; local connections and downloads are preserved.
+authorizations need a new sign-in. On instances advertising `account-sync`, signing into the
+same instance and account associates each computer automatically. No recovery code is required.
+For an existing vault, open a previously connected computer once to migrate its key custody.
+Older instances retain manual recovery under their existing pairing flow. Local connections
+and downloads are preserved.
 
 Choose the connections to share and whether to synchronize language and appearance. Volume,
-effects, downloads, local paths and AI credentials stay on each computer. Audiobookshelf
-shares connection details but needs its own sign-in on every computer; its refresh tokens
-are never copied. An HTTP or localhost server address may need adjusting on another computer.
+effects, downloads, local paths and AI credentials stay on each computer. Selected Audiobookshelf
+connections include the saved password inside the encrypted configuration. Each computer signs
+in independently; refresh tokens are never copied. Older connections need one new sign-in on
+the source computer to save the password. A different local Audiobookshelf account is preserved.
+An HTTP or localhost server address may need adjusting on another computer.
 Automatic synchronization detects concurrent changes and asks which shared configuration
 to use. Removing a shared record never deletes another computer's local downloads.
 
@@ -107,9 +110,11 @@ remote controls and **Continue here**. Prices and manual email activation are sh
 Paired computers poll while the app is open. A sleeping, closed or unreachable destination
 cannot receive a transfer. Both computers need the same library configured and the destination
 must reach its music server; Connect never relays audio. Use a paired device's Play, Pause,
-Previous, Next, volume and seek controls, or **Continue here** to bring its queue and position
-to this computer. Queues are limited to 200 tracks. Audiobooks need separate authorization and
-the book available in the destination's loaded library or downloads.
+Previous, Next, volume and seek controls. The player bar's **Playback devices** menu offers
+**Play on this device** to send playback to another computer and **Continue here** to bring
+its queue and position here. Queues are limited to 200 tracks. An authenticated Audiobookshelf
+destination fetches the requested book even when it has never browsed it, preserving position,
+speed and whether playback is paused.
 
 The source keeps playing until the destination confirms that playback is ready. Failed or
 expired transfers do not stop the source. A new playback action on the source invalidates
@@ -117,14 +122,16 @@ an old transfer acknowledgement. Volume stays specific to the destination comput
 
 ## Recovery, revocation and backups
 
-Only the recovery code and trusted computers can decrypt the shared configuration. Connect
-cannot recover it through a password reset or social login. The code includes historical
-keys needed for retained backups; never email it to Discophile. The app shows whether keys
-use the system keychain or its protected local secrets file (including development builds).
+Account synchronization keeps an encrypted recovery bundle on Connect and restores it after
+sign-in. The server can recover these keys: this is not end-to-end confidentiality from the
+instance operator. Devices also retain keys in the system keychain or protected secrets file.
+An optional private recovery export remains under **Advanced recovery**. Older instances
+without account synchronization still require the owner's recovery code and cannot recover it.
 
-Revoking a device blocks it immediately. Rotate the encryption key from a remaining trusted
-computer, and transfer the updated recovery code privately to the others. They can continue
-after importing it. Previously downloaded data cannot be erased from a revoked computer.
+Revoking a device blocks its OAuth delegation immediately. A remaining connected computer
+rotates encryption, and the others retrieve the new keys through their account. Previously
+downloaded data cannot be erased from a revoked computer. Legacy instances still need manual
+distribution of updated recovery codes.
 
 Backups contain configurations, not audio. Review a snapshot and restore it locally before
 publishing it to other computers. Export and cloud deletion remain available on every tier,

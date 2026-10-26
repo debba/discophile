@@ -64,7 +64,7 @@ pub struct ConnectState {
     pub error: Option<String>,
     /// What happened after signing out or changing instance, such as an unconfirmed revocation.
     pub notice: Option<String>,
-    generation: u64,
+    pub(crate) generation: u64,
     instance_generation: u64,
 }
 

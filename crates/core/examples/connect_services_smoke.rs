@@ -30,8 +30,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let configuration = json!({"version":1,"connections":[{"kind":"music","account":connection}],"preferences":null});
     let initial = keys.seal(&info.instance_id, id_a, "configuration", 1, &configuration)?;
     client.service(&info, &a, &json!({"action":"join","deviceId":id_a,"deviceSecret":secret_a,"name":"Smoke A",
-        "vaultId":keys.vault_id,"epoch":1,"envelope":initial,"connectionCount":1})).await?;
-    let recovered = VaultKeys::recover(&keys.recovery_code())?;
+        "vaultId":keys.vault_id,"epoch":1,"envelope":initial,"connectionCount":1,"recoveryCode":keys.recovery_code()})).await?;
+    let account_recovery = client.service(&info, &b, &json!({"action":"recover"})).await?;
+    let recovered = VaultKeys::recover(account_recovery["recoveryCode"].as_str().ok_or("Missing account recovery")?)?;
     client.service(&info, &b, &json!({"action":"join","deviceId":id_b,"deviceSecret":secret_b,"name":"Smoke B",
         "vaultId":keys.vault_id,"epoch":1,"connectionCount":0})).await?;
     let update = keys.seal(&info.instance_id, id_a, "configuration", 2, &configuration)?;
@@ -40,7 +41,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let envelope: Envelope = serde_json::from_value(polled["vault"]["envelope"].clone())?;
     assert_eq!(recovered.open::<Value>(&envelope, &info.instance_id, "configuration")?, configuration);
     assert_eq!(polled["devices"].as_array().unwrap().len(), 2);
-    println!("PASS: two native clients pair and synchronize authenticated encrypted configuration.");
+    println!("PASS: two native clients associate through the same account and synchronize encrypted configuration without manual codes.");
     client.service(&info, &a, &json!({"action":"backup","deviceId":id_a})).await?;
     let polled = client.service(&info, &a, &json!({"action":"poll","deviceId":id_a})).await?;
     let backup_id = polled["backups"][0]["id"].clone();
@@ -62,8 +63,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     keys.rotate()?;
     let rotated = keys.seal(&info.instance_id, id_a, "configuration", 3, &configuration)?;
     assert!(old_keys.open::<Value>(&rotated, &info.instance_id, "configuration").is_err());
-    client.service(&info, &a, &json!({"action":"rotate","deviceId":id_a,"expectedRevision":2,"connectionCount":1,"envelope":rotated})).await?;
+    client.service(&info, &a, &json!({"action":"rotate","deviceId":id_a,"expectedRevision":2,"connectionCount":1,"envelope":rotated,"recoveryCode":keys.recovery_code()})).await?;
     assert!(client.service(&info, &b, &json!({"action":"poll","deviceId":id_b})).await.is_err());
+    assert!(client.service(&info, &b, &json!({"action":"recover"})).await.is_err());
     assert_eq!(keys.open::<Value>(&restored, &info.instance_id, "configuration")?, configuration);
     client.service(&info, &a, &json!({"action":"delete","deviceId":id_a})).await?;
     let empty = client.service(&info, &a, &json!({"action":"inspect"})).await?;

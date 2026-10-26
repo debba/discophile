@@ -1,7 +1,8 @@
 # Connect services, version 1
 
 The account protocol stays at version 1. Capabilities `devices`, `sync`, `backup`,
-`remote`, and `handoff` each advertise version 1. Desktop clients explicitly request
+`remote`, and `handoff` each advertise version 1. Optional `account-sync` version 1
+adds account-based key custody without manual codes. Desktop clients explicitly request
 the additional `connect:manage` OAuth scope. Old account-only clients keep working.
 The iPhone client is unchanged and must not advertise support for these services.
 
@@ -24,11 +25,22 @@ The native client stores a recovery bundle separately from its OAuth credential,
 namespaced by instance ID and account ID in the secrets store. The bundle contains
 the vault UUID, current epoch and historical epoch keys. A recovery code is `dc1_`
 followed by base64url of that JSON. It is a secret, not a short pairing PIN. It is
-shown only on explicit request, never logged, sent to Connect, or included in email.
-This release uses **personal recovery**, not public-key pairing: on a second trusted
-computer the owner enters the recovery code, the app authenticates the existing
-configuration, then registers a new device. Login alone cannot open the vault.
-First creation never overwrites a pre-existing vault. Loss of all keys is unrecoverable.
+shown only on explicit request, never logged or included in email. With `account-sync`,
+the native client sends this bundle over authenticated TLS when creating/migrating the
+vault, and atomically with key rotation. Another computer signs into the same account,
+retrieves the bundle through `recover`, authenticates the configuration, then registers.
+The instance can recover the keys: account synchronization is not end-to-end confidentiality
+from its operator. Dashboard/MCP tools do not expose keys or decrypted library data.
+First creation never overwrites a pre-existing vault. Legacy instances and unmigrated
+vaults retain personal recovery; an existing trusted client can migrate on its next join.
+
+Account custody stores `key_bundle` separately from configuration envelopes. The wrapping
+key is HKDF-SHA256 with IKM `BETTER_AUTH_SECRET` (UTF-8), salt instance ID (UTF-8), info
+`discophile-account-sync-v1` (UTF-8), length 32. AES-256-GCM uses a fresh 12-byte nonce
+and 16-byte tag. AAD is UTF-8 JSON of `["discophile-account-sync",1,instanceId,userId,vaultId,epoch]`.
+Storage is `v1.<nonce>.<ciphertext>.<tag>` with unpadded base64url members. The bundle must
+authenticate the configuration envelope before custody is accepted. Back up the server
+secret separately from the database; changing it without rewrapping loses server recovery.
 
 The secrets store uses the OS keychain in release builds, with the app's existing
 owner-protected file fallback where unavailable; debug builds use the protected
@@ -49,7 +61,10 @@ it cannot inspect or prove the contents of an encrypted record.
 Revoking a device blocks it immediately and marks the vault as requiring rotation.
 New configuration, presence and command writes are blocked until rotation. A trusted
 computer generates a fresh epoch key and commits a new encrypted configuration with
-CAS. Other computers must import the new recovery bundle before continuing. The
+CAS. With account custody other computers retrieve the updated bundle after sign-in;
+legacy computers must import it manually. Revocation also revokes that device's OAuth
+delegation, preventing it from fetching the replacement keys. Recovery is blocked while
+rotation is required. The
 bundle retains historical keys for backups. Revocation cannot erase previously
 copied content. A revoked device cannot reuse its old registration ID. Cloud deletion
 is separately available regardless of tier. No administrative tool can decrypt data.
@@ -75,14 +90,21 @@ tier; device registration count cannot race. Device IDs are globally unique UUID
 Operations (`action`):
 
 - `inspect`: vault metadata/configuration, no key or plaintext. Used for recovery.
+- `recover` (`account-sync`): the authenticated owner's vault and `recoveryCode`, or null
+  for an unmigrated vault. Requires an active OAuth delegation and an available device
+  allowance; suspended devices cannot recover keys. An existing computer can supply
+  `deviceId` and `deviceSecret` to recover after reauthentication without consuming
+  another device slot. Responses are never cached.
 - `join`: `deviceId`, `deviceSecret` (43-char random base64url), `name`, `vaultId`,
   `epoch`, optional initial `envelope` and `connectionCount`. First vault uses epoch 1,
-  revision 1. Rebinding an existing active registration requires the same device secret.
+  revision 1. Optional `recoveryCode` enables account custody after authenticating the
+  configuration. Rebinding an existing active registration requires the same device secret.
 - All remaining operations require `deviceId` bound to the current OAuth delegation.
 - `poll`: current vault, active device names/presence, up to 3 pending messages,
   backup metadata, effective plan. Presence becomes offline after 30 seconds.
 - `write`: `expectedRevision`, `connectionCount`, `envelope`; CAS creates revision + 1.
 - `rotate`: as write, but epoch + 1; allowed only after revocation.
+  Account-managed vaults require `recoveryCode` with the new keys in the same transaction.
 - `state`: encrypted playback state at a monotonically increasing device revision.
 - `send`: `id`, `targetId`, `kind` (`remote`/`handoff`), `envelope`; message ID is
   idempotent for the exact same content and otherwise conflicts. TTL is 60 seconds,
@@ -112,6 +134,16 @@ Commands contain a unique message ID plus timestamp, are authenticated, expire a
 Volume/seek ranges and queue length are validated locally. Handoff uses the existing
 PlaybackSnapshot music/radio format. The destination verifies the matching configured
 library, prepares playback, and sends TransferComplete only after audio output reports
-playing (or ready for an intentionally paused snapshot). Until that acknowledgement,
+playing (or ready for an intentionally paused snapshot). A direct Transfer with no
+`replyTo` sends playback from the source's device picker; a reply binds a requested
+transfer to its original TransferRequest. Audiobookshelf destinations fetch unknown
+book metadata before preparing playback; they preserve book position, speed and pause.
+Until that acknowledgement,
 the source keeps playing. Rejection/timeout leaves source playback untouched. A late
 acknowledgement is ignored if the source track or user playback state changed.
+
+Selected Audiobookshelf records may include an optional password inside the configuration
+envelope. Each destination uses it to authenticate independently and keeps its own rotating
+tokens in secrets storage. Tokens are never shared. Session-specific connection IDs are
+normalized out of shared records to avoid conflicts between independently signed-in devices.
+Legacy records without a password require one new login on the source computer.

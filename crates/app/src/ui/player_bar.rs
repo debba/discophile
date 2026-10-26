@@ -21,7 +21,7 @@ pub fn show(app: &mut App, ui: &mut Ui) {
     let rect = ui.max_rect();
     let compact = rect.width() < 820.0;
     let side = (rect.width() * 0.28).clamp(170.0, 340.0);
-    let right_width = if compact { 150.0 } else { side };
+    let right_width = if compact { 186.0 } else { side.max(300.0) };
     let left = Rect::from_min_max(rect.min, pos2(rect.left() + side, rect.bottom()));
     let right = Rect::from_min_max(pos2(rect.right() - right_width, rect.top()), rect.max);
     let center = Rect::from_min_max(pos2(left.right() + 16.0, rect.top()), pos2(right.left() - 16.0, rect.bottom()));
@@ -215,6 +215,8 @@ fn trailing(app: &mut App, ui: &mut Ui, compact: bool) {
         let song = app.player.current();
         actions::more_menu(ui, app, song.as_ref());
     });
+    #[cfg(not(target_arch = "wasm32"))]
+    crate::ui::connect::player_devices(app, ui);
     if !compact {
         let output = controls::thin_slider(ui, app.player.volume as f64, 0.0..=1.0, 96.0, true, 0.05, &t("Volume"));
         if let Some(volume) = output.changed {

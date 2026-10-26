@@ -17,6 +17,8 @@ mod services;
 mod profile;
 #[cfg(not(target_arch = "wasm32"))]
 pub use profile::toolbar;
+#[cfg(not(target_arch = "wasm32"))]
+pub use services::player_devices;
 
 pub fn settings(app: &mut App, ui: &mut Ui) {
     ui.add(egui::Label::new(theme::text(
