@@ -1,7 +1,7 @@
 use crate::{
     app::App,
     features::connect::services as service,
-    theme::{self, Font},
+    theme::{self, Font, Palette, icons},
     ui::{
         settings::{footer, group},
         widgets,
@@ -9,43 +9,158 @@ use crate::{
 };
 use discophile_core::connect::RemoteCommand;
 use discophile_core::l10n::{t, tf};
-use egui::Ui;
+use egui::{Response, Ui, vec2};
 
-pub fn player_devices(app: &mut App, ui: &mut Ui) {
-    let button = widgets::icon_button(ui, crate::theme::icons::DEVICES, &t("Playback devices"), 19.0);
-    egui::Popup::menu(&button).show(|ui| {
-        ui.set_min_width(260.0);
-        ui.label(theme::text(t("Playback devices"), Font::Headline));
-        if !app.connect.services.paired {
-            ui.add(egui::Label::new(t("Sign in to Connect on both computers to move playback between them.")).wrap());
-        } else if !service::paid(app, "playback.handoff") {
-            ui.add(egui::Label::new(t("Playback handoff is included in the Connect plan.")).wrap());
-        } else {
-            let own = app.connect.services.identity.as_ref().map(|i| i.device_id);
-            let peers: Vec<_> = app.connect.services.devices.iter().filter(|d| Some(d.id) != own).cloned().collect();
-            if peers.is_empty() { ui.label(t("No other computers connected")); }
-            for device in peers {
-                ui.separator();
-                ui.label(theme::text(&device.name, Font::Headline));
-                let state = app.connect.services.states.get(&device.id).cloned();
-                if let Some(state) = &state { ui.add(egui::Label::new(&state.title).truncate()); }
-                let available = device.online && !device.suspended && !service::changing(app) && !app.connect.busy;
-                if !device.online { ui.label(theme::secondary(ui, t("Offline"), Font::Footnote)); }
-                if ui.add_enabled(available && service::can_transfer(app), egui::Button::new(t("Play on this device"))).clicked() {
-                    service::transfer_to(app, device.id);
+#[cfg(test)]
+mod tests;
+
+pub fn player_devices(app: &mut App, ui: &mut Ui) -> Response {
+    let button = widgets::icon_button(ui, icons::DEVICES, &t("Playback devices"), 19.0);
+    if button.clicked() {
+        button.request_focus();
+    }
+    let popup_id = egui::Popup::default_response_id(&button);
+    let was_open = egui::Popup::is_id_open(ui.ctx(), popup_id);
+    let width = widgets::ACCOUNT_MENU_WIDTH.min(ui.ctx().content_rect().width() - 32.0);
+    egui::Popup::menu(&button)
+        .accessible_name(t("Playback devices"))
+        .align(egui::emath::RectAlign::TOP_END)
+        .gap(8.0)
+        .width(width)
+        .layout(egui::Layout::top_down(egui::Align::Min))
+        .frame(widgets::account_menu_frame(ui))
+        .show(|ui| {
+            ui.set_width(width - 24.0);
+            ui.spacing_mut().item_spacing.y = widgets::space::S;
+            playback_devices_contents(app, ui);
+        });
+    let open = egui::Popup::is_id_open(ui.ctx(), popup_id);
+    if was_open && !open && ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+        button.request_focus();
+    }
+    ui.ctx().accesskit_node_builder(button.id, |node| {
+        node.set_has_popup(egui::accesskit::HasPopup::Menu);
+        node.set_expanded(open);
+    });
+    button
+}
+
+fn playback_devices_contents(app: &mut App, ui: &mut Ui) {
+    let handoff = service::paid(app, "playback.handoff");
+    ui.label(theme::text(t("Playback devices"), Font::Headline));
+    let max_height = (ui.ctx().content_rect().height() - 260.0).clamp(widgets::CONTROL_LARGE, 360.0);
+    egui::ScrollArea::vertical()
+        .id_salt("playback-devices")
+        .max_height(max_height)
+        .auto_shrink([false, true])
+        .show(ui, |ui| {
+            if !app.connect.services.paired {
+                ui.add(egui::Label::new(t("Sign in to Connect on both computers to move playback between them.")).wrap());
+            } else {
+                let own = app.connect.services.identity.as_ref().map(|i| i.device_id);
+                let peers: Vec<_> = app.connect.services.devices.iter().filter(|d| Some(d.id) != own).cloned().collect();
+                if peers.is_empty() {
+                    ui.label(t("No other computers connected"));
                 }
-                if ui.add_enabled(available && !service::transfer_pending(app) && state.is_some_and(|s| s.can_handoff), egui::Button::new(t("Continue here"))).clicked() {
-                    service::request_transfer(app, device.id);
+                for device in peers {
+                    ui.push_id(device.id, |ui| {
+                        ui.separator();
+                        ui.add(egui::Label::new(theme::text(&device.name, Font::Headline)).wrap());
+                        let status = if device.suspended {
+                            t("Suspended by the current plan")
+                        } else if device.online {
+                            t("Online")
+                        } else {
+                            t("Offline")
+                        };
+                        ui.add(egui::Label::new(theme::secondary(ui, status, Font::Footnote)).wrap());
+                        let state = app.connect.services.states.get(&device.id).cloned();
+                        if let Some(state) = &state {
+                            ui.add(egui::Label::new(theme::secondary(ui, &state.title, Font::Callout)).wrap());
+                        }
+                        if !handoff {
+                            return;
+                        }
+                        let available = device.online && !device.suspended && !service::changing(app) && !app.connect.busy;
+                        if playback_action(
+                            ui,
+                            &t("Play on this device"),
+                            &tf("Play on %@", &[&device.name]),
+                            available && service::can_transfer(app),
+                        )
+                        .clicked()
+                        {
+                            service::transfer_to(app, device.id);
+                        }
+                        if playback_action(
+                            ui,
+                            &t("Continue here"),
+                            &tf("Continue here from %@", &[&device.name]),
+                            available && !service::transfer_pending(app) && state.is_some_and(|s| s.can_handoff),
+                        )
+                        .clicked()
+                        {
+                            service::request_transfer(app, device.id);
+                        }
+                    });
                 }
             }
-        }
-        if let Some(notice) = &app.connect.services.playback_notice { ui.add(egui::Label::new(notice).wrap()); }
-        if let Some(error) = &app.connect.services.error { super::error_text(ui, error); }
+            if let Some(notice) = &app.connect.services.playback_notice {
+                ui.add(egui::Label::new(notice).wrap());
+            }
+            if let Some(error) = &app.connect.services.error {
+                super::error_text(ui, error);
+            }
+        });
+    if app.connect.services.paired && !handoff {
         ui.separator();
-        if ui.button(t("Manage playback devices")).clicked() {
-            app.nav.push(crate::nav::Route::Settings(crate::nav::SettingsPage::Connect));
+        ui.add(egui::Label::new(theme::secondary(ui, t("Playback handoff is included in the Connect plan."), Font::Callout)).wrap());
+        if ui
+            .push_id("explore-connect", |ui| playback_action(ui, &t("Explore Connect"), &t("Explore Connect"), true))
+            .inner
+            .clicked()
+        {
+            app.ctx().open_url(egui::OpenUrl::new_tab(app.connect.origin.url("/plans").as_str()));
+            ui.close();
         }
-    });
+    }
+    ui.separator();
+    if ui
+        .push_id("manage-playback-devices", |ui| {
+            playback_action(ui, &t("Manage playback devices"), &t("Manage playback devices"), true)
+        })
+        .inner
+        .clicked()
+    {
+        app.nav.push(crate::nav::Route::Settings(crate::nav::SettingsPage::Connect));
+        ui.close();
+    }
+}
+
+fn playback_action(ui: &mut Ui, label: &str, accessible_name: &str, enabled: bool) -> Response {
+    let palette = Palette::of_ui(ui);
+    // Keep focus on the same device and action when presence or the live roster changes.
+    let id = ui.scope_id().with(label);
+    let response = ui
+        .scope_builder(egui::UiBuilder::new().scope_id(id), |ui| {
+            ui.add_enabled(
+                enabled,
+                egui::Button::new(theme::text(label, Font::Callout).color(palette.text))
+                    .wrap()
+                    .min_size(vec2(ui.available_width(), widgets::CONTROL_LARGE))
+                    .corner_radius(8),
+            )
+        })
+        .inner;
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::MenuItem, ui.is_enabled() && enabled, accessible_name));
+    if response.has_focus() {
+        response.scroll_to_me(Some(egui::Align::Center));
+        if widgets::keyboard_navigation(ui.ctx()) {
+            ui.painter()
+                .rect_stroke(response.rect.shrink(1.0), 8, egui::Stroke::new(2.0, palette.accent), egui::StrokeKind::Inside);
+        }
+    }
+    response
 }
 
 pub fn settings(app: &mut App, ui: &mut Ui) {
