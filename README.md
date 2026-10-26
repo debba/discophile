@@ -65,6 +65,8 @@ and every view shows just what is saved on this computer.
 Podcast episodes and tracks of 20 minutes or more continue where you left them, on this computer and on your other
 devices: the position is kept on the server as a Subsonic bookmark or as the Jellyfin resume point. Episode rows show
 the time left, finished ones read **Played**, and the track menu can mark an episode as played or unplayed.
+Playlists remember where you stopped: the track is marked in the list and **Continue from track** picks up from
+there, at the same point in the track. These playlist positions stay on this computer.
 
 <table>
   <tr>

@@ -48,6 +48,8 @@ pub struct App {
     pub info: info::InfoState,
     /// Positions of podcast episodes and long tracks.
     pub progress: features::progress::ProgressState,
+    /// Where listening stopped in each playlist.
+    pub playlist_resume: features::playlist_resume::PlaylistResumeState,
     /// The optional Discophile Connect account.
     pub connect: connect::ConnectState,
     #[cfg(not(target_arch = "wasm32"))]
@@ -96,6 +98,7 @@ impl App {
             lyrics: Default::default(),
             info: Default::default(),
             progress: Default::default(),
+            playlist_resume: Default::default(),
             connect: Default::default(),
             #[cfg(not(target_arch = "wasm32"))]
             mcp: Default::default(),
@@ -147,6 +150,7 @@ impl App {
             lyrics: Default::default(),
             info: Default::default(),
             progress: Default::default(),
+            playlist_resume: Default::default(),
             connect: Default::default(),
             #[cfg(not(target_arch = "wasm32"))]
             mcp: Default::default(),

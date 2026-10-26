@@ -451,7 +451,7 @@ pub fn tile_target(ui: &mut Ui, rect: Rect, id_salt: impl std::hash::Hash + std:
     response.on_hover_cursor(egui::CursorIcon::PointingHand)
 }
 
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone)]
 pub struct TrackRowOptions {
     /// Shows the track number instead of artwork (album pages).
     pub number: Option<i64>,
@@ -459,6 +459,8 @@ pub struct TrackRowOptions {
     pub show_album: bool,
     pub is_current: bool,
     pub is_playing: bool,
+    /// Added to the subtitle, such as where listening stopped in a playlist.
+    pub note: Option<String>,
 }
 
 pub struct TrackRow {
@@ -519,7 +521,7 @@ pub fn track_row(ui: &mut Ui, app: &mut App, song: &Song, options: TrackRowOptio
             let title_color = if options.is_current { palette.accent } else { palette.text };
             ui.add(egui::Label::new(theme::text(&song.title, Font::Body).color(title_color)).truncate().selectable(false));
             let mut subtitle = if options.show_album && !album_column { song.subtitle() } else { song.artist.clone().unwrap_or_default() };
-            if let Some((label, _)) = &progress {
+            for label in options.note.iter().chain(progress.as_ref().map(|(label, _)| label)) {
                 subtitle = if subtitle.is_empty() { label.clone() } else { format!("{subtitle} · {label}") };
             }
             if !subtitle.is_empty() {
@@ -538,8 +540,8 @@ pub fn track_row(ui: &mut Ui, app: &mut App, song: &Song, options: TrackRowOptio
     let play = response.double_clicked() || (response.has_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)));
     focus_ring(ui, &response, 8);
     let mut label = format!("{}, {}", song.title, song.artist.clone().unwrap_or_default());
-    if let Some((progress, _)) = &progress {
-        label = format!("{label}, {progress}");
+    for note in options.note.iter().chain(progress.as_ref().map(|(label, _)| label)) {
+        label = format!("{label}, {note}");
     }
     response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, &label));
     TrackRow { response, play }

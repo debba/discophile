@@ -158,6 +158,15 @@ pub fn play_songs(app: &mut App, songs: Vec<Song>, index: usize, shuffled: bool)
 }
 
 pub fn play_songs_with_context(app: &mut App, songs: Vec<Song>, index: usize, shuffled: bool, context: Option<PlayContext>) {
+    start_queue(app, songs, index, shuffled, context, 0.0);
+}
+
+/// Replaces the queue and starts `songs[index]` at `position` seconds (Continue in a playlist).
+pub fn play_songs_at(app: &mut App, songs: Vec<Song>, index: usize, position: f64) {
+    start_queue(app, songs, index, false, None, position);
+}
+
+fn start_queue(app: &mut App, songs: Vec<Song>, index: usize, shuffled: bool, context: Option<PlayContext>, position: f64) {
     #[cfg(not(target_arch = "wasm32"))]
     features::connect::services::take_local_control(app);
     app.player.control_generation += 1;
@@ -170,7 +179,7 @@ pub fn play_songs_with_context(app: &mut App, songs: Vec<Song>, index: usize, sh
     app.player.queue.replace(songs, index, shuffled);
     app.player.shuffled = shuffled;
     app.player.mode = Mode::Music;
-    load_current(app, 0.0, true);
+    load_current(app, position, true);
 }
 
 /// Stops audiobook or radio state before other content starts.
@@ -179,6 +188,7 @@ fn leave_current_content(app: &mut App) {
         features::audiobooks::on_replaced(app);
     }
     features::progress::leave(app);
+    features::playlist_resume::save(app);
     app.player.radio = None;
     app.player.context = None;
     app.player.pending_resume = None;
@@ -257,6 +267,7 @@ pub fn output_pause(app: &mut App) {
     app.player.status.playing = false;
     save_resume(app, true);
     features::progress::record_current(app, true);
+    features::playlist_resume::save(app);
 }
 
 pub fn toggle(app: &mut App) {
@@ -283,6 +294,7 @@ pub fn stop(app: &mut App) {
         features::audiobooks::on_replaced(app);
     }
     features::progress::leave(app);
+    features::playlist_resume::save(app);
     app.player.output.stop();
     app.player.status = OutputStatus::default();
     app.player.mode = Mode::Idle;

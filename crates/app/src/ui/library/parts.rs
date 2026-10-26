@@ -2,6 +2,7 @@
 //! rows, and the large detail header. Lists only draw rows inside the visible area, so long
 //! libraries scroll smoothly.
 
+use discophile_core::playback_progress::MINIMUM_RESUME_SECONDS;
 use discophile_core::{Album, Artist, Playlist, PodcastChannel, Song, l10n};
 use egui::{Align, Color32, CornerRadius, Layout, Rect, Response, Sense, Ui, UiBuilder, vec2};
 
@@ -24,6 +25,8 @@ pub struct TrackList {
     pub discs: bool,
     /// Enables "Remove from playlist" for this playlist.
     pub playlist: Option<String>,
+    /// Marks the track where listening stopped in a playlist: its index and position.
+    pub resume: Option<(usize, f64)>,
 }
 
 /// The current queue item, for highlighting.
@@ -66,12 +69,16 @@ fn track_rows(app: &mut App, ui: &mut Ui, songs: &[Song], options: &TrackList) {
             continue;
         }
         let is_current = current.as_deref() == Some(song.stream_identifier());
+        let note = options.resume.filter(|(at, _)| *at == index && !is_current).map(|(_, position)| {
+            if position >= MINIMUM_RESUME_SECONDS { l10n::tf("Stopped at %@", &[&l10n::time(position)]) } else { l10n::t("Continue from here") }
+        });
         let row_options = TrackRowOptions {
             number: options.numbers.then(|| song.track.unwrap_or(index as i64 + 1)),
             show_artwork: options.artwork,
             show_album: options.album,
             is_current,
             is_playing: is_current && playing,
+            note,
         };
         let row = widgets::track_row(ui, app, song, row_options, |ui, app| {
             let menu_button = egui::Button::new(theme::icon(icons::DOTS_THREE, 18.0).color(Palette::of_ui(ui).secondary)).frame(false);

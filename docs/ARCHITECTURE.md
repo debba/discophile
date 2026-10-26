@@ -85,6 +85,11 @@ queue, lyrics and the assistant, and modal windows instead of sheets.
   `finished` on `Ended`/`Advanced`, and `on_seek`. Uploads and refreshes run one at a time; items with a saved
   position are not prepared for gapless playback, so they load at their position. Positions of the Audiobookshelf
   player stay in `features/audiobooks/sync.rs`.
+- `discophile_core::playlist_resume` + `features/playlist_resume.rs`: where listening stopped in each playlist
+  (track index, stream identifier, position), on this computer only under `library/<account>/playlist-resume`.
+  A queue counts as a playlist while it plays one of the loaded playlists as listed, in order, without shuffle or a
+  `PlayContext`. The point moves on track start, every 15 seconds and on pause or stop, and is cleared by
+  `on_queue_finished`. `player::play_songs_at` starts Continue at the saved track and position.
 
 ## About and agents
 

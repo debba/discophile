@@ -30,6 +30,7 @@ pub mod offline_audiobook;
 pub mod offline_catalog;
 pub mod personal_radio;
 pub mod playback_progress;
+pub mod playlist_resume;
 pub mod podcast_directory;
 
 // Sound
