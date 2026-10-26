@@ -153,7 +153,8 @@ fn transport(app: &mut App, ui: &mut Ui) {
         if controls::transport_button(ui_b, icons::SHUFFLE, &t("Shuffle"), 17.0, music, shuffled && music).clicked() {
             player::toggle_shuffle(app);
         }
-        if controls::transport_button(ui_b, icons::SKIP_BACK, &t("Previous track"), 19.0, music, false).clicked() {
+        let (glyph, label) = actions::back_control(app);
+        if controls::transport_button(ui_b, glyph, &label, 19.0, music, false).clicked() {
             player::previous(app);
         }
     }
@@ -165,7 +166,8 @@ fn transport(app: &mut App, ui: &mut Ui) {
             player::next(app);
         }
     } else {
-        if controls::transport_button(ui_b, icons::SKIP_FORWARD, &t("Next track"), 19.0, music, false).clicked() {
+        let (glyph, label) = actions::forward_control(app);
+        if controls::transport_button(ui_b, glyph, &label, 19.0, music, false).clicked() {
             player::next(app);
         }
         let repeat = player::repeat_mode(app) != discophile_core::queue::RepeatMode::Off;

@@ -295,7 +295,7 @@ fn transport(app: &mut App, ui: &mut Ui, width: f32) {
     centered_row(ui, width, content, 90.0, |ui| {
         ui.spacing_mut().item_spacing.x = 36.0;
         let (back, back_label) =
-            if audiobook { (icons::ARROW_COUNTER_CLOCKWISE, t("Skip back")) } else { (icons::SKIP_BACK, t("Previous track")) };
+            if audiobook { (icons::ARROW_COUNTER_CLOCKWISE, t("Skip back")) } else { actions::back_control(app) };
         let enabled = music || audiobook;
         if big_icon(ui, back, &back_label, enabled).clicked() {
             player::previous(app);
@@ -304,7 +304,7 @@ fn transport(app: &mut App, ui: &mut Ui, width: f32) {
             actions::toggle(app);
         }
         let (forward, forward_label) =
-            if audiobook { (icons::ARROW_CLOCKWISE, t("Skip forward")) } else { (icons::SKIP_FORWARD, t("Next track")) };
+            if audiobook { (icons::ARROW_CLOCKWISE, t("Skip forward")) } else { actions::forward_control(app) };
         if big_icon(ui, forward, &forward_label, enabled).clicked() {
             player::next(app);
         }

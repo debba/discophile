@@ -303,11 +303,33 @@ pub fn stop(app: &mut App) {
     app.player.pending_resume = None;
 }
 
+/// Podcast episodes skip this many seconds in place of the previous and next track controls, as on Spotify.
+pub const PODCAST_SKIP_SECONDS: f64 = 15.0;
+
+/// A podcast episode plays (not an audiobook or radio station).
+pub fn plays_podcast(app: &App) -> bool {
+    app.player.mode == Mode::Music && app.player.queue.current().is_some_and(Song::is_podcast)
+}
+
+/// Moves within the episode playing now. A forward skip waits for a known duration, so it cannot run past the end.
+fn skip_podcast(app: &mut App, forward: bool) {
+    let position = app.player.position();
+    let target = if forward {
+        let Some(duration) = app.player.duration() else { return };
+        (position + PODCAST_SKIP_SECONDS).min(duration)
+    } else {
+        (position - PODCAST_SKIP_SECONDS).max(0.0)
+    };
+    seek(app, target);
+}
+
+/// The next track, or a forward skip within an audiobook or podcast episode.
 pub fn next(app: &mut App) {
     #[cfg(not(target_arch = "wasm32"))]
     if features::connect::services::route_command(app, discophile_core::connect::RemoteCommand::Next) { return; }
     app.player.control_generation += 1;
     match app.player.mode {
+        Mode::Music if plays_podcast(app) => skip_podcast(app, true),
         Mode::Music => {
             if app.player.queue.advance(false) {
                 load_current(app, 0.0, true);
@@ -318,12 +340,14 @@ pub fn next(app: &mut App) {
     }
 }
 
-/// Restarts the song after three seconds, otherwise goes to the previous one.
+/// Restarts the song after three seconds, otherwise goes to the previous one. Audiobooks and podcast episodes
+/// skip back instead.
 pub fn previous(app: &mut App) {
     #[cfg(not(target_arch = "wasm32"))]
     if features::connect::services::route_command(app, discophile_core::connect::RemoteCommand::Previous) { return; }
     app.player.control_generation += 1;
     match app.player.mode {
+        Mode::Music if plays_podcast(app) => skip_podcast(app, false),
         Mode::Music => {
             if app.player.position() > 3.0 || !app.player.queue.previous() {
                 seek(app, 0.0);
@@ -386,7 +410,7 @@ pub fn set_volume(app: &mut App, volume: f32) {
     app.settings.volume = volume;
 }
 
-/// Podcast and audiobook speed.
+/// Podcast and audiobook speed. The podcast speed is kept across launches, like on the iPhone.
 pub fn set_rate(app: &mut App, rate: f32) {
     app.player.control_generation += 1;
     app.player.rate = rate.clamp(0.5, 4.0);
@@ -397,6 +421,9 @@ pub fn set_rate(app: &mut App, rate: f32) {
     };
     if applies {
         app.player.output.set_rate(app.player.rate);
+    }
+    if plays_podcast(app) {
+        app.settings.podcast_rate = app.player.rate;
     }
 }
 
@@ -698,5 +725,54 @@ pub fn clear_resume(app: &mut App) {
         app.player.queue = PlaybackQueue::new();
         app.player.mode = Mode::Idle;
         app.player.status = OutputStatus::default();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use discophile_core::client::MusicClient;
+    use discophile_core::{Credentials, MusicProvider};
+
+    use super::*;
+
+    fn fixture() -> App {
+        let mut app = App::connect_test_app();
+        let credentials = Credentials::simple("https://music.example.invalid", "fixture", "fixture", false, MusicProvider::Subsonic).unwrap();
+        app.session.client = Some(MusicClient::new(credentials));
+        app
+    }
+
+    fn episode(id: &str) -> Song {
+        Song { is_podcast: Some(true), duration: Some(100.0), ..Song::new(id, id) }
+    }
+
+    #[test]
+    fn podcast_episodes_skip_fifteen_seconds_in_place_of_track_changes() {
+        let mut app = fixture();
+        play_songs(&mut app, vec![episode("a"), episode("b")], 0, false);
+        seek(&mut app, 50.0);
+        next(&mut app);
+        assert_eq!((app.player.queue.index(), app.player.output.status().position), (0, 65.0));
+        previous(&mut app);
+        previous(&mut app);
+        assert_eq!((app.player.queue.index(), app.player.output.status().position), (0, 35.0));
+        // A forward skip stops at the end; going back stops at the start.
+        seek(&mut app, 95.0);
+        next(&mut app);
+        assert_eq!(app.player.output.status().position, 100.0);
+        seek(&mut app, 5.0);
+        previous(&mut app);
+        assert_eq!((app.player.queue.index(), app.player.output.status().position), (0, 0.0));
+
+        // The episode speed is remembered for the next launch; music leaves it alone.
+        set_rate(&mut app, 1.5);
+        assert_eq!(app.settings.podcast_rate, 1.5);
+
+        // Music keeps changing tracks.
+        play_songs(&mut app, vec![Song::new("x", "X"), Song::new("y", "Y")], 0, false);
+        next(&mut app);
+        assert_eq!(app.player.queue.index(), 1);
+        set_rate(&mut app, 1.0);
+        assert_eq!(app.settings.podcast_rate, 1.5);
     }
 }

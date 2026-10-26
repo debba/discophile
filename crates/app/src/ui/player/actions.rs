@@ -71,7 +71,25 @@ pub fn repeat_icon(app: &App) -> &'static str {
 }
 
 fn podcast_playing(app: &App) -> bool {
-    app.player.mode == Mode::Music && app.player.current().is_some_and(|s| s.is_podcast())
+    player::plays_podcast(app)
+}
+
+/// The back control of music: previous track, or 15 seconds back in a podcast episode.
+pub fn back_control(app: &App) -> (&'static str, String) {
+    if podcast_playing(app) {
+        (icons::ARROW_COUNTER_CLOCKWISE, l10n::count("Back %lld seconds", player::PODCAST_SKIP_SECONDS as i64))
+    } else {
+        (icons::SKIP_BACK, t("Previous track"))
+    }
+}
+
+/// The forward control of music: next track, or 15 seconds forward in a podcast episode.
+pub fn forward_control(app: &App) -> (&'static str, String) {
+    if podcast_playing(app) {
+        (icons::ARROW_CLOCKWISE, l10n::count("Forward %lld seconds", player::PODCAST_SKIP_SECONDS as i64))
+    } else {
+        (icons::SKIP_FORWARD, t("Next track"))
+    }
 }
 
 /// The countdown of a timed sleep timer as `m:ss`, or a short label for end of track.

@@ -127,7 +127,8 @@ impl App {
         l10n::set_language(settings.effective_language());
         let (tasks, updates) = Tasks::new(ctx.clone());
         let output = crate::audio::create_output(&ctx);
-        let player = Player::new(output, settings.volume);
+        let mut player = Player::new(output, settings.volume);
+        player.rate = settings.podcast_rate.clamp(0.5, 4.0);
         let media_controls = crate::platform::media_controls::MediaControls::new(cc);
         let mut app = Self {
             tasks,

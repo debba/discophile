@@ -22,6 +22,8 @@ pub struct Settings {
     /// Music "Downloaded only" filter (desktop).
     pub downloaded_only: bool,
     pub volume: f32,
+    /// Podcast speed, kept across episodes and launches.
+    pub podcast_rate: f32,
     pub sidebar_collapsed: bool,
     pub advanced_unlocked: bool,
     /// Transitions (Equalizer and sound > Transitions).
@@ -56,6 +58,7 @@ impl Default for Settings {
             online_music_info: false,
             downloaded_only: false,
             volume: 1.0,
+            podcast_rate: 1.0,
             sidebar_collapsed: false,
             advanced_unlocked: false,
             gapless: true,
