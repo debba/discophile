@@ -46,6 +46,10 @@ pub struct App {
     pub effects: effects::EffectsState,
     pub lyrics: lyrics::LyricsState,
     pub info: info::InfoState,
+    /// Positions of podcast episodes and long tracks.
+    pub progress: features::progress::ProgressState,
+    /// Where listening stopped in each playlist.
+    pub playlist_resume: features::playlist_resume::PlaylistResumeState,
     /// The optional Discophile Connect account.
     pub connect: connect::ConnectState,
     #[cfg(not(target_arch = "wasm32"))]
@@ -93,6 +97,8 @@ impl App {
             effects: Default::default(),
             lyrics: Default::default(),
             info: Default::default(),
+            progress: Default::default(),
+            playlist_resume: Default::default(),
             connect: Default::default(),
             #[cfg(not(target_arch = "wasm32"))]
             mcp: Default::default(),
@@ -121,7 +127,8 @@ impl App {
         l10n::set_language(settings.effective_language());
         let (tasks, updates) = Tasks::new(ctx.clone());
         let output = crate::audio::create_output(&ctx);
-        let player = Player::new(output, settings.volume);
+        let mut player = Player::new(output, settings.volume);
+        player.rate = settings.podcast_rate.clamp(0.5, 4.0);
         let media_controls = crate::platform::media_controls::MediaControls::new(cc);
         let mut app = Self {
             tasks,
@@ -143,6 +150,8 @@ impl App {
             effects: Default::default(),
             lyrics: Default::default(),
             info: Default::default(),
+            progress: Default::default(),
+            playlist_resume: Default::default(),
             connect: Default::default(),
             #[cfg(not(target_arch = "wasm32"))]
             mcp: Default::default(),
@@ -627,6 +636,7 @@ impl eframe::App for App {
 
     fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
         self.settings.save();
+        features::progress::leave(self);
         if self.player.mode == player::Mode::Audiobook {
             audiobooks::on_replaced(self);
         }

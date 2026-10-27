@@ -10,6 +10,7 @@ use crate::models::{
     Album, Artist, Credentials, MusicProvider, Playlist, PlaylistAdditionResult, PodcastChannel, SearchResults,
     ServerInfo, Song, StreamingQuality,
 };
+use crate::playback_progress::{PlaybackProgress, ProgressUpload, RemoteProgress};
 pub use crate::subsonic::SearchLimits;
 use crate::subsonic::SubsonicClient;
 
@@ -190,6 +191,20 @@ impl MusicClient {
 
     pub async fn scrobble(&self, id: &str, submission: bool) -> MusicResult<()> {
         dispatch!(self, c => c.scrobble(id, submission).await)
+    }
+
+    /// Positions the server keeps for podcast episodes and long tracks: Subsonic bookmarks, or Jellyfin's
+    /// resumable audio. Servers without bookmarks answer `Unsupported`.
+    pub async fn remote_progress(&self) -> MusicResult<Vec<RemoteProgress>> {
+        match self {
+            MusicClient::Subsonic(c) => c.bookmarks().await,
+            MusicClient::Jellyfin(c) => c.resume_positions().await,
+        }
+    }
+
+    /// Uploads a saved position by stream identifier. Finished, unplayed and barely started items clear it.
+    pub async fn save_progress(&self, id: &str, progress: &PlaybackProgress) -> MusicResult<()> {
+        dispatch!(self, c => c.save_progress(id, ProgressUpload::from(progress)).await)
     }
 
     /// Jellyfin returns `Unsupported`.

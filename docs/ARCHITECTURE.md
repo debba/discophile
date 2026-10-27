@@ -73,6 +73,24 @@ queue, lyrics and the assistant, and modal windows instead of sheets.
 - **Scaling**: Settings > General > Text size and Ctrl + / Ctrl − change `Settings::interface_scale`
   (egui zoom). Layouts must reflow at 150%.
 
+## Listening positions
+
+- `discophile_core::playback_progress`: which items remember their position (podcast episodes, tracks of at least
+  20 minutes), `PlaybackProgress` (finished in the last 5%, at most 30 seconds; positions under 10 seconds start
+  over) and `ProgressArchive` (saved and pending positions; a strictly newer server position wins, synced positions
+  missing on the server are forgotten). `MusicClient::{remote_progress, save_progress}` map them to Subsonic
+  bookmarks and Jellyfin's `PlaybackPositionTicks`.
+- `features/progress.rs`: one archive per library under `library/<account>/progress`. The player calls
+  `start_position` when loading an item, `leave`/`record_current` when replacing, pausing or stopping it,
+  `finished` on `Ended`/`Advanced`, and `on_seek`. Uploads and refreshes run one at a time; items with a saved
+  position are not prepared for gapless playback, so they load at their position. Positions of the Audiobookshelf
+  player stay in `features/audiobooks/sync.rs`.
+- `discophile_core::playlist_resume` + `features/playlist_resume.rs`: where listening stopped in each playlist
+  (track index, stream identifier, position), on this computer only under `library/<account>/playlist-resume`.
+  A queue counts as a playlist while it plays one of the loaded playlists as listed, in order, without shuffle or a
+  `PlayContext`. The point moves on track start, every 15 seconds and on pause or stop, and is cleared by
+  `on_queue_finished`. `player::play_songs_at` starts Continue at the saved track and position.
+
 ## About and agents
 
 - `features/info.rs` + `ui/info.rs`: the About side panel (`SidePanel::Info`). `info::about_song`,

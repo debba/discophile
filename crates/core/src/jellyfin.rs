@@ -15,6 +15,7 @@ use crate::models::{
     Album, Artist, Authentication, Credentials, MusicBrainzId, MusicProvider, Playlist, PlaylistAdditionResult,
     PodcastChannel, SearchResults, ServerInfo, Song, StreamingQuality,
 };
+use crate::playback_progress::{ProgressUpload, REMOTE_LIMIT, RemoteProgress, parse_timestamp};
 use crate::subsonic::{SearchLimits, occurrence_index};
 
 const FIELDS: &str = "Genres,MediaStreams,ChildCount,Overview";
@@ -114,6 +115,10 @@ struct Named {
 struct UserInfo {
     #[serde(default)]
     is_favorite: Option<bool>,
+    #[serde(default)]
+    playback_position_ticks: Option<f64>,
+    #[serde(default)]
+    last_played_date: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -194,6 +199,12 @@ impl Item {
     }
     fn genre(&self) -> Option<String> {
         self.genres.as_ref().and_then(|g| g.first().cloned())
+    }
+    fn remote_progress(&self) -> Option<RemoteProgress> {
+        let data = self.user_data.as_ref()?;
+        let position = data.playback_position_ticks.filter(|t| t.is_finite() && *t > 0.0)? / TICKS_PER_SECOND;
+        let updated = data.last_played_date.as_deref().and_then(parse_timestamp);
+        Some(RemoteProgress { id: self.id.clone(), position, duration: self.seconds(), updated })
     }
 
     fn song(&self) -> Song {
@@ -536,6 +547,30 @@ impl JellyfinClient {
         Ok(self.items("Audio", 0, count, extra, &["Items"]).await?.iter().map(Item::song).collect())
     }
 
+    /// Audio left part-way, most recently played first, with Jellyfin's resume positions.
+    pub async fn resume_positions(&self) -> MusicResult<Vec<RemoteProgress>> {
+        let extra = query([
+            ("filters", "IsResumable".into()),
+            ("sortBy", "DatePlayed".into()),
+            ("sortOrder", "Descending".into()),
+        ]);
+        let items = self.items("Audio", 0, REMOTE_LIMIT, extra, &["Items"]).await?;
+        Ok(items.iter().filter_map(Item::remote_progress).collect())
+    }
+
+    /// Stores the resume position in the user's item data; clearing sets it back to the start.
+    pub async fn save_progress(&self, id: &str, upload: ProgressUpload) -> MusicResult<()> {
+        let body = match upload {
+            ProgressUpload::Save(position) => json!({
+                "PlaybackPositionTicks": (position.max(0.0) * TICKS_PER_SECOND).round() as i64,
+                "LastPlayedDate": chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+            }),
+            ProgressUpload::Clear => json!({ "PlaybackPositionTicks": 0 }),
+        };
+        let parameters = query([("userId", self.user_id())]);
+        self.data(&["UserItems", id, "UserData"], parameters, Method::POST, Some(body), true).await.map(|_| ())
+    }
+
     /// Jellyfin has no "now playing" scrobble here; a submission marks the item played.
     pub async fn scrobble(&self, id: &str, submission: bool) -> MusicResult<()> {
         if submission {
@@ -676,5 +711,83 @@ impl JellyfinClient {
             AssistantEditOperation::Delete => self.delete_playlist(id).await,
             AssistantEditOperation::Favorite | AssistantEditOperation::Unfavorite => Err(MusicError::InvalidResponse),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::client::test_server::TestServer;
+
+    fn client(server: &TestServer) -> JellyfinClient {
+        let credentials = Credentials::new(
+            &server.server(""),
+            "fixture",
+            "token-fixture",
+            true,
+            Authentication::Token,
+            MusicProvider::Jellyfin,
+            Some("user-fixture".into()),
+            Some("device-fixture".into()),
+        )
+        .unwrap();
+        JellyfinClient::new(credentials)
+    }
+
+    #[tokio::test]
+    async fn resume_positions_read_resumable_audio_most_recent_first() {
+        let server = TestServer::start(|_| {
+            (
+                200,
+                r#"{"Items":[
+                    {"Id":"mix","Name":"Mix","RunTimeTicks":36000000000,"UserData":{"PlaybackPositionTicks":12345000000,"LastPlayedDate":"2024-05-01T10:00:00.0000000Z"}},
+                    {"Id":"untimed","Name":"Untimed","UserData":{"PlaybackPositionTicks":10000000}},
+                    {"Id":"start","Name":"Start","UserData":{"PlaybackPositionTicks":0}},
+                    {"Id":"plain","Name":"Plain"}
+                ]}"#
+                .into(),
+            )
+        })
+        .await;
+        let positions = client(&server).resume_positions().await.unwrap();
+        assert_eq!(
+            positions,
+            vec![
+                RemoteProgress {
+                    id: "mix".into(),
+                    position: 1234.5,
+                    duration: Some(3600.0),
+                    updated: Some(1_714_557_600_000)
+                },
+                RemoteProgress { id: "untimed".into(), position: 1.0, duration: None, updated: None },
+            ]
+        );
+        let request = &server.requests()[0];
+        assert_eq!(request.path, "/Items");
+        assert_eq!(request.query("filters"), Some("IsResumable"));
+        assert_eq!(request.query("includeItemTypes"), Some("Audio"));
+        assert_eq!(request.query("sortBy"), Some("DatePlayed"));
+        assert_eq!(request.query("sortOrder"), Some("Descending"));
+        assert_eq!(request.query("limit"), Some("500"));
+        assert_eq!(request.query("userId"), Some("user-fixture"));
+    }
+
+    #[tokio::test]
+    async fn saving_progress_updates_the_user_item_data() {
+        let server = TestServer::start(|_| (200, "{}".into())).await;
+        let jellyfin = client(&server);
+        jellyfin.save_progress("mix", ProgressUpload::Save(1234.5)).await.unwrap();
+        jellyfin.save_progress("mix", ProgressUpload::Clear).await.unwrap();
+        let requests = server.requests();
+        assert_eq!((requests[0].method.as_str(), requests[0].path.as_str()), ("POST", "/UserItems/mix/UserData"));
+        assert_eq!(requests[0].query("userId"), Some("user-fixture"));
+        assert!(requests[0].header("authorization").unwrap().contains("Token=\"token-fixture\""));
+        let saved = requests[0].json();
+        assert_eq!(saved["PlaybackPositionTicks"], 12_345_000_000_i64);
+        assert!(saved["LastPlayedDate"].as_str().and_then(parse_timestamp).is_some());
+        assert_eq!(requests[1].json(), json!({ "PlaybackPositionTicks": 0 }));
+
+        let failing = TestServer::start(|_| (403, String::new())).await;
+        assert_eq!(client(&failing).save_progress("mix", ProgressUpload::Clear).await, Err(MusicError::Forbidden));
     }
 }

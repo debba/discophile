@@ -451,7 +451,7 @@ pub fn tile_target(ui: &mut Ui, rect: Rect, id_salt: impl std::hash::Hash + std:
     response.on_hover_cursor(egui::CursorIcon::PointingHand)
 }
 
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone)]
 pub struct TrackRowOptions {
     /// Shows the track number instead of artwork (album pages).
     pub number: Option<i64>,
@@ -459,12 +459,24 @@ pub struct TrackRowOptions {
     pub show_album: bool,
     pub is_current: bool,
     pub is_playing: bool,
+    /// Added to the subtitle, such as where listening stopped in a playlist.
+    pub note: Option<String>,
 }
 
 pub struct TrackRow {
     pub response: Response,
     /// Single click selects; double click (or Enter) plays, as on desktop players.
     pub play: bool,
+}
+
+/// "12m left" or "Played" for a podcast episode or long track with a saved position, with its completion.
+pub fn listening_progress(app: &App, song: &Song) -> Option<(String, Option<f64>)> {
+    let progress = crate::features::progress::saved(app, song)?;
+    if progress.finished {
+        return Some((l10n::t("Played"), None));
+    }
+    let remaining = progress.remaining()?;
+    Some((l10n::tf("%@ left", &[&l10n::short_duration(remaining)]), progress.fraction()))
 }
 
 /// A song row: number or artwork, title and artist, duration, and space for trailing controls.
@@ -491,6 +503,7 @@ pub fn track_row(ui: &mut Ui, app: &mut App, song: &Song, options: TrackRowOptio
         artwork(ui, app, &song.id, song.cover_art.as_deref(), 40.0, 6.0);
     }
     let duration = song.duration.map(l10n::time).unwrap_or_default();
+    let progress = listening_progress(app, song);
     let album_column = options.show_album && width >= 760.0;
     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
         trailing(ui, app);
@@ -503,19 +516,33 @@ pub fn track_row(ui: &mut Ui, app: &mut App, song: &Song, options: TrackRowOptio
                 ui.add(egui::Label::new(theme::secondary(ui, song.album.clone().unwrap_or_default(), Font::Callout)).truncate().selectable(false));
             });
         }
-        ui.with_layout(Layout::top_down(Align::Min), |ui| {
+        let text = ui.with_layout(Layout::top_down(Align::Min), |ui| {
             ui.add_space(if options.show_artwork { 6.0 } else { 3.0 });
             let title_color = if options.is_current { palette.accent } else { palette.text };
             ui.add(egui::Label::new(theme::text(&song.title, Font::Body).color(title_color)).truncate().selectable(false));
-            let subtitle = if options.show_album && !album_column { song.subtitle() } else { song.artist.clone().unwrap_or_default() };
+            let mut subtitle = if options.show_album && !album_column { song.subtitle() } else { song.artist.clone().unwrap_or_default() };
+            for label in options.note.iter().chain(progress.as_ref().map(|(label, _)| label)) {
+                subtitle = if subtitle.is_empty() { label.clone() } else { format!("{subtitle} · {label}") };
+            }
             if !subtitle.is_empty() {
                 ui.add(egui::Label::new(theme::secondary(ui, subtitle, Font::Footnote)).truncate().selectable(false));
             }
         });
+        // A thin bar under the title shows how far a started episode or long track got.
+        if let Some(fraction) = progress.as_ref().and_then(|(_, fraction)| *fraction) {
+            let column = text.response.rect;
+            let bar = Rect::from_min_size(egui::pos2(column.left(), rect.bottom() - 4.0), vec2(column.width().min(160.0), 3.0));
+            ui.painter().rect_filled(bar, CornerRadius::same(2), palette.separator);
+            let filled = Rect::from_min_size(bar.min, vec2(bar.width() * fraction as f32, bar.height()));
+            ui.painter().rect_filled(filled, CornerRadius::same(2), palette.accent);
+        }
     });
     let play = response.double_clicked() || (response.has_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)));
     focus_ring(ui, &response, 8);
-    let label = format!("{}, {}", song.title, song.artist.clone().unwrap_or_default());
+    let mut label = format!("{}, {}", song.title, song.artist.clone().unwrap_or_default());
+    for note in options.note.iter().chain(progress.as_ref().map(|(label, _)| label)) {
+        label = format!("{label}, {note}");
+    }
     response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, &label));
     TrackRow { response, play }
 }

@@ -13,6 +13,8 @@ pub mod lyrics;
 pub mod mentions;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod mcp;
+pub mod playlist_resume;
+pub mod progress;
 pub mod radio;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod software_update;
@@ -32,6 +34,8 @@ pub fn start(app: &mut App) {
     effects::start(app);
     lyrics::start(app);
     info::start(app);
+    progress::start(app);
+    playlist_resume::start(app);
     connect::start(app);
     #[cfg(not(target_arch = "wasm32"))]
     mcp::start(app);
@@ -49,6 +53,7 @@ pub fn tick(app: &mut App) {
     audiobooks::tick_always(app);
     assistant::tick(app);
     lyrics::tick(app);
+    progress::tick(app);
     effects::tick(app);
     #[cfg(not(target_arch = "wasm32"))]
     mcp::tick(app);
@@ -77,6 +82,8 @@ pub fn on_library_changed(app: &mut App) {
     assistant::on_library_changed(app);
     lyrics::on_library_changed(app);
     info::on_library_changed(app);
+    progress::on_library_changed(app);
+    playlist_resume::on_library_changed(app);
     #[cfg(not(target_arch = "wasm32"))]
     mcp::on_library_changed(app);
 }
@@ -85,14 +92,19 @@ pub fn on_library_changed(app: &mut App) {
 pub fn on_track_started(app: &mut App, song: &Song) {
     discovery::on_track_started(app, song);
     lyrics::on_track_started(app, song);
+    progress::on_track_started(app, song);
+    playlist_resume::on_track_started(app);
 }
 
 /// Every frame while music plays.
 pub fn on_music_tick(app: &mut App) {
     discovery::on_music_tick(app);
+    progress::on_music_tick(app);
+    playlist_resume::on_music_tick(app);
 }
 
 /// The music queue played to its end.
 pub fn on_queue_finished(app: &mut App) {
     discovery::on_queue_finished(app);
+    playlist_resume::on_queue_finished(app);
 }

@@ -567,6 +567,7 @@ pub fn load_playlist(app: &mut App, id: &str) {
 }
 
 pub fn load_podcast(app: &mut App, id: &str) {
+    super::progress::refresh(app, true);
     let id = id.to_string();
     let request_id = id.clone();
     load(

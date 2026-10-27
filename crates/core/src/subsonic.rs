@@ -14,6 +14,7 @@ use crate::models::{
     Album, Artist, Authentication, Credentials, MusicBrainzId, Playlist, PlaylistAdditionResult, PodcastChannel,
     SearchResults, ServerInfo, Song, StreamingQuality,
 };
+use crate::playback_progress::{ProgressUpload, RemoteProgress, parse_timestamp};
 
 pub const API_VERSION: &str = "1.16.1";
 pub const CLIENT_NAME: &str = "Discophile";
@@ -68,6 +69,8 @@ pub struct ApiResponse {
     pub artist_info2: Option<InfoPayload>,
     #[serde(default, rename = "albumInfo")]
     pub album_info: Option<InfoPayload>,
+    #[serde(default)]
+    pub bookmarks: Option<Bookmarks>,
 }
 
 /// `artistInfo2` and `albumInfo` share their descriptive fields.
@@ -134,6 +137,34 @@ pub struct ArtistIndex {
 pub struct Podcasts {
     #[serde(default)]
     pub channel: Option<Vec<PodcastChannel>>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct Bookmarks {
+    #[serde(default)]
+    pub bookmark: Option<Vec<Bookmark>>,
+}
+
+/// A saved position. `position` is in milliseconds; `entry` is the bookmarked media file.
+#[derive(Debug, Clone, Deserialize)]
+pub struct Bookmark {
+    #[serde(default)]
+    pub position: Option<f64>,
+    #[serde(default)]
+    pub changed: Option<String>,
+    #[serde(default)]
+    pub created: Option<String>,
+    #[serde(default)]
+    pub entry: Option<Song>,
+}
+
+impl Bookmark {
+    fn remote(&self) -> Option<RemoteProgress> {
+        let entry = self.entry.as_ref()?;
+        let position = self.position.filter(|p| p.is_finite() && *p >= 0.0)? / 1000.0;
+        let updated = self.changed.as_deref().or(self.created.as_deref()).and_then(parse_timestamp);
+        Some(RemoteProgress { id: entry.id.clone(), position, duration: entry.duration, updated })
+    }
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -507,6 +538,27 @@ impl SubsonicClient {
             parameters.push(("id", id.to_string()));
         }
         Ok(self.request("getPodcasts", &parameters).await?.podcasts.and_then(|p| p.channel).unwrap_or_default())
+    }
+
+    /// Every bookmark of the user: positions of podcast episodes and long tracks, by media file.
+    pub async fn bookmarks(&self) -> MusicResult<Vec<RemoteProgress>> {
+        let bookmarks = self.request("getBookmarks", &[]).await?.bookmarks.and_then(|b| b.bookmark).unwrap_or_default();
+        Ok(bookmarks.iter().filter_map(Bookmark::remote).collect())
+    }
+
+    /// Saves a position as a bookmark, or deletes the bookmark. A missing bookmark is already cleared.
+    pub async fn save_progress(&self, id: &str, upload: ProgressUpload) -> MusicResult<()> {
+        let result = match upload {
+            ProgressUpload::Save(position) => {
+                let milliseconds = (position.max(0.0) * 1000.0).round() as i64;
+                self.request("createBookmark", &[("id", id.into()), ("position", milliseconds.to_string())]).await
+            }
+            ProgressUpload::Clear => self.request("deleteBookmark", &[("id", id.into())]).await,
+        };
+        match (upload, result) {
+            (_, Ok(_)) | (ProgressUpload::Clear, Err(MusicError::NotFound)) => Ok(()),
+            (_, Err(error)) => Err(error),
+        }
     }
 
     /// The server fetches the feed and its episodes on its own schedule.
@@ -1171,6 +1223,60 @@ mod tests {
         let episode = Song { is_podcast: Some(true), ..Song::new("podcast:fixture", "Episode") };
         assert_eq!(client.lyrics(&episode).await, Ok(None));
         assert!(server.requests().is_empty());
+    }
+
+    #[tokio::test]
+    async fn bookmarks_become_positions_in_seconds_keyed_by_media_file() {
+        let body = r#"{"subsonic-response":{"status":"ok","bookmarks":{"bookmark":[
+            {"position":754500,"username":"fixture","created":"2024-05-01T09:00:00.000Z","changed":"2024-05-01T10:00:00.000Z","entry":{"id":"file-1","title":"Episode","duration":3000,"isPodcast":true}},
+            {"position":1000,"created":"2024-05-01T10:00:00Z","entry":{"id":42,"title":"Mix"}},
+            {"position":5000},
+            {"entry":{"id":"no-position","title":"Missing"}}
+        ]}}}"#;
+        let (server, client) = stub(200, body).await;
+        let positions = client.bookmarks().await.unwrap();
+        assert_eq!(server.requests()[0].last_path_component(), "getBookmarks.view");
+        assert_eq!(
+            positions,
+            vec![
+                RemoteProgress {
+                    id: "file-1".into(),
+                    position: 754.5,
+                    duration: Some(3000.0),
+                    updated: Some(1_714_557_600_000)
+                },
+                RemoteProgress { id: "42".into(), position: 1.0, duration: None, updated: Some(1_714_557_600_000) },
+            ]
+        );
+        let (_s, empty) = stub(200, OK).await;
+        assert_eq!(empty.bookmarks().await, Ok(Vec::new()));
+        let (_s, unsupported) = stub(200, &failed(30)).await;
+        assert_eq!(unsupported.bookmarks().await, Err(MusicError::Unsupported));
+    }
+
+    #[tokio::test]
+    async fn saving_progress_creates_or_deletes_the_bookmark() {
+        let (server, client) = serve(|r| {
+            if r.last_path_component() == "deleteBookmark.view" && r.query("id") == Some("gone") {
+                return reply(200, &failed(70));
+            }
+            reply(200, OK)
+        })
+        .await;
+        client.save_progress("file-1", ProgressUpload::Save(754.5)).await.unwrap();
+        client.save_progress("file-1", ProgressUpload::Clear).await.unwrap();
+        // A bookmark that no longer exists is already cleared.
+        client.save_progress("gone", ProgressUpload::Clear).await.unwrap();
+        let requests = server.requests();
+        assert_eq!(requests[0].last_path_component(), "createBookmark.view");
+        assert_eq!((requests[0].query("id"), requests[0].query("position")), (Some("file-1"), Some("754500")));
+        assert_eq!(requests[1].last_path_component(), "deleteBookmark.view");
+        assert_eq!(requests[1].query("id"), Some("file-1"));
+
+        let (_s, missing) = stub(200, &failed(70)).await;
+        assert_eq!(missing.save_progress("file-1", ProgressUpload::Save(30.0)).await, Err(MusicError::NotFound));
+        let (_s, forbidden) = stub(200, &failed(50)).await;
+        assert_eq!(forbidden.save_progress("file-1", ProgressUpload::Clear).await, Err(MusicError::Forbidden));
     }
 
     #[tokio::test]

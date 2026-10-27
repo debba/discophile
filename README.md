@@ -62,6 +62,14 @@ Create and edit playlists without duplicates, subscribe to podcasts from an Appl
 RSS feed, and download songs, albums, playlists or podcasts for offline listening. Switch on **Downloaded only**
 and every view shows just what is saved on this computer.
 
+Podcast episodes and tracks of 20 minutes or more continue where you left them, on this computer and on your other
+devices: the position is kept on the server as a Subsonic bookmark or as the Jellyfin resume point. Episode rows show
+the time left, finished ones read **Played**, and the track menu can mark an episode as played or unplayed.
+While an episode plays, as on Spotify, previous and next skip 15 seconds back and forward (also from media keys and
+the tray), Now Playing sets the speed from 0.5× to 3×, and the sleep timer can stop at the end of the episode.
+Playlists remember where you stopped: the track is marked in the list and **Continue from track** picks up from
+there, at the same point in the track. These playlist positions stay on this computer.
+
 <table>
   <tr>
     <td><picture><source media="(prefers-color-scheme: light)" srcset="docs/screenshots/light/albums.webp"><img src="docs/screenshots/albums.webp" alt="The album grid with colorful covers"></picture></td>

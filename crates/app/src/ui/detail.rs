@@ -5,7 +5,7 @@ use discophile_core::{Song, l10n};
 use egui::Ui;
 
 use crate::app::App;
-use crate::features::info;
+use crate::features::{info, playlist_resume};
 use crate::features::library::{self, keys};
 use crate::theme::{Font, icons};
 use crate::ui::library::parts::{self, Header, TrackList};
@@ -233,7 +233,18 @@ pub fn playlist(app: &mut App, ui: &mut Ui, id: &str) {
             details: vec![if songs.is_some() { widgets::songs_summary(&tracks) } else { String::new() }],
             description: meta.as_ref().and_then(|p| p.comment.clone()),
         };
+        let resume = playlist_resume::resume_point(app, id, &tracks);
         parts::header(app, ui, &header, |ui, app| {
+            if let Some((index, resume)) = &resume {
+                let label = l10n::tf("Continue from track %lld", &[&(*index as i64 + 1)]);
+                let mut button = widgets::pill_button(ui, icons::PLAY_CIRCLE, label, false);
+                if let Some(position) = resume.resume_position() {
+                    button = button.on_hover_text(l10n::tf("Stopped at %@", &[&l10n::time(position)]));
+                }
+                if button.clicked() {
+                    playlist_resume::continue_playlist(app, id, tracks.clone());
+                }
+            }
             parts::play_buttons(app, ui, &tracks, |app, ui| {
                 parts::collection_menu_items(app, ui, &tracks);
                 parts::download_all_item(app, ui, &tracks);
@@ -249,7 +260,13 @@ pub fn playlist(app: &mut App, ui: &mut Ui, id: &str) {
             Some(songs) if !songs.is_empty() => {
                 // Removing needs the full server order, so it is off while filtering or reloading.
                 let removable = !app.settings.downloaded_only && !loading && meta.is_some();
-                let options = TrackList { artwork: true, album: true, playlist: removable.then(|| id.to_string()), ..Default::default() };
+                let options = TrackList {
+                    artwork: true,
+                    album: true,
+                    playlist: removable.then(|| id.to_string()),
+                    resume: resume.as_ref().map(|(index, resume)| (*index, resume.position)),
+                    ..Default::default()
+                };
                 parts::track_list(app, ui, &songs, &options);
             }
             _ if loading => widgets::loading(ui),
