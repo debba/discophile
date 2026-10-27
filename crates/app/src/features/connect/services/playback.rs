@@ -80,6 +80,87 @@ pub struct Presence {
     pub rate: f32,
     #[serde(default)]
     pub device_kind: DeviceKind,
+    /// What plays, so other devices can show its artwork and details. Older clients omit it.
+    #[serde(default, skip_serializing_if = "Option::is_none", deserialize_with = "lenient_media")]
+    pub media: Option<PresenceMedia>,
+}
+
+/// A malformed `media` object must not discard the rest of a device's presence.
+fn lenient_media<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<Option<PresenceMedia>, D::Error> {
+    let value = serde_json::Value::deserialize(deserializer)?;
+    Ok(serde_json::from_value::<PresenceMedia>(value).ok().map(PresenceMedia::bounded))
+}
+
+/// Optional presence details: `type` is `music`, `podcast`, `radio` or `audiobook`. `accountKey` and `itemId` let a
+/// device signed in to the same library load the artwork with its own credentials; nothing else is shared.
+#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PresenceMedia {
+    #[serde(rename = "type", default)]
+    pub kind: String,
+    #[serde(default)]
+    pub title: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub artist: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub album: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub account_key: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub item_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cover_art: Option<String>,
+}
+
+impl PresenceMedia {
+    /// Bounds untrusted text from another device before it reaches the interface.
+    pub fn bounded(mut self) -> Self {
+        fn cap(value: &mut String) {
+            if let Some((index, _)) = value.char_indices().nth(500) {
+                value.truncate(index);
+            }
+        }
+        cap(&mut self.kind);
+        cap(&mut self.title);
+        for value in [&mut self.artist, &mut self.album, &mut self.account_key, &mut self.item_id, &mut self.cover_art] {
+            if let Some(text) = value.as_mut() {
+                cap(text);
+            }
+            if value.as_deref().is_some_and(|v| v.trim().is_empty()) {
+                *value = None;
+            }
+        }
+        self
+    }
+}
+
+fn local_media(app: &App) -> Option<PresenceMedia> {
+    match app.player.mode {
+        Mode::Radio => app.player.radio.as_ref().map(|station| PresenceMedia {
+            kind: "radio".into(),
+            title: station.display_name(),
+            ..Default::default()
+        }),
+        Mode::Audiobook => app.audiobooks.playback.as_ref().map(|playback| PresenceMedia {
+            kind: "audiobook".into(),
+            title: playback.book.title().to_string(),
+            artist: Some(playback.book.author()),
+            account_key: Some(playback.account.clone()),
+            item_id: Some(playback.book.id.clone()),
+            ..Default::default()
+        }),
+        Mode::Music => app.player.current().map(|song| PresenceMedia {
+            kind: if song.is_podcast() { "podcast" } else { "music" }.into(),
+            title: song.title.clone(),
+            artist: song.artist.clone(),
+            album: song.album.clone(),
+            account_key: Some(app.session.account_key()),
+            item_id: Some(song.id.clone()),
+            cover_art: song.cover_art.clone(),
+        }),
+        _ => None,
+    }
+    .map(PresenceMedia::bounded)
 }
 fn normal_rate() -> f32 {
     1.0
@@ -467,6 +548,7 @@ fn local_presence(app: &App) -> Presence {
         output_device: app.connect.services.remote_device,
         rate: if app.player.mode == Mode::Audiobook || app.player.current().is_some_and(|s| s.is_podcast()) { app.player.rate } else { 1.0 },
         device_kind: DeviceKind::current(),
+        media: local_media(app),
     }
 }
 
@@ -1212,6 +1294,25 @@ mod tests {
         assert_eq!(serde_json::from_value::<Presence>(legacy.clone()).unwrap().device_kind, DeviceKind::Unknown);
         legacy["deviceKind"] = json!("future-device");
         assert_eq!(serde_json::from_value::<Presence>(legacy).unwrap().device_kind, DeviceKind::Unknown);
+    }
+
+    #[test]
+    fn presence_media_is_optional_lenient_and_bounded() {
+        let keys = VaultKeys::new().unwrap(); let a_id = Uuid::new_v4(); let b_id = Uuid::new_v4();
+        let b = app(b_id, a_id, &keys);
+        let mut value = serde_json::to_value(local_presence(&b)).unwrap();
+        value.as_object_mut().unwrap().remove("media");
+        assert!(serde_json::from_value::<Presence>(value.clone()).unwrap().media.is_none());
+        value["media"] = json!("not an object");
+        let presence = serde_json::from_value::<Presence>(value.clone()).unwrap();
+        assert!(presence.media.is_none() && presence.volume.is_finite());
+        value["media"] = json!({"type": "music", "title": "x".repeat(900), "artist": " ", "coverArt": "al-1", "accountKey": "k", "itemId": "s-1"});
+        let media = serde_json::from_value::<Presence>(value).unwrap().media.unwrap();
+        assert_eq!(media.title.chars().count(), 500);
+        assert_eq!((media.artist.as_deref(), media.cover_art.as_deref(), media.item_id.as_deref()), (None, Some("al-1"), Some("s-1")));
+        let encoded = serde_json::to_value(&media).unwrap();
+        assert_eq!(encoded["type"], "music");
+        assert!(encoded.get("album").is_none());
     }
 
     #[test]

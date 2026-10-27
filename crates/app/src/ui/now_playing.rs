@@ -66,6 +66,10 @@ pub fn show(app: &mut App, ui: &mut Ui) {
         app.nav.now_playing = false;
         return;
     }
+    #[cfg(not(target_arch = "wasm32"))]
+    if crate::ui::connect::remote_player::now_playing(app, ui) {
+        return;
+    }
     let rect = ui.max_rect();
     let song = app.player.current();
     let corners = match &song {

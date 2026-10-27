@@ -120,6 +120,14 @@ The source keeps playing until the destination confirms that playback is ready. 
 expired transfers do not stop the source. A new playback action on the source invalidates
 an old transfer acknowledgement. Volume stays specific to the destination computer.
 
+While another device plays, the player bar shows its artwork, title and artist, and opens a
+remote Now Playing with the timeline, transport, volume, **Continue here** and **Listen
+independently here**. Presence carries an optional encrypted `media` object (`type` of
+`music`, `podcast`, `radio` or `audiobook`, `title`, `artist`, `album`, `accountKey`, `itemId`,
+`coverArt`). Artwork loads only when this computer is signed in to the same music library or
+Audiobookshelf account, with its own credentials; nothing is fetched from the other device.
+Devices that omit `media` still show the plain title.
+
 ## Recovery, revocation and backups
 
 Account synchronization keeps an encrypted recovery bundle on Connect and restores it after

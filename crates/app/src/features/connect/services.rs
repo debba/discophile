@@ -980,4 +980,4 @@ pub fn tick(app: &mut App) {
 
 pub use playback::{audiobook_failed, audiobook_prepared, audiobook_start_allowed};
 pub use playback::{can_transfer, request_transfer, send_command, transfer_pending, transfer_to};
-pub use playback::{DeviceKind, RemotePlayback, device_kind, listen_independently, remote_playback, route_command, take_local_control, transfer_status};
+pub use playback::{DeviceKind, PresenceMedia, RemotePlayback, device_kind, listen_independently, remote_playback, route_command, take_local_control, transfer_status};
