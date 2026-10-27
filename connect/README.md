@@ -53,6 +53,7 @@ Device pairing, encrypted synchronization, backups, remote control and playback 
    | Client identifier | App | Redirect URI |
    | --- | --- | --- |
    | `discophile-desktop` | Discophile for computers | `http://127.0.0.1:{port}/connect/callback`, any port from 1024 to 65535 |
+   | `discophile-android` | Discophile for Android | `it.discophile.android:/connect/callback` |
    | `discophile-ios` | Discophile for iPhone | `it.debba.discophile:/connect/callback` |
 
    Show an error page, without redirecting, for unknown clients or redirect URIs.

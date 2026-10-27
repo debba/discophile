@@ -71,7 +71,7 @@ for (const name of ["authorizationEndpoint", "tokenEndpoint", "revocationEndpoin
 }
 check("scopesSupported includes account:read", info.authorization?.scopesSupported?.includes("account:read"));
 check("scopesSupported includes offline_access", info.authorization?.scopesSupported?.includes("offline_access"));
-for (const client of ["discophile-desktop", "discophile-ios"]) {
+for (const client of ["discophile-desktop", "discophile-android", "discophile-ios"]) {
   check(`nativeClients includes ${client}`, info.authorization?.nativeClients?.includes(client));
 }
 check("resources.api is <origin>/api/v1", info.resources?.api === `${origin}/api/v1`, info.resources?.api);
