@@ -4,7 +4,7 @@ The account protocol stays at version 1. Capabilities `devices`, `sync`, `backup
 `remote`, and `handoff` each advertise version 1. Optional `account-sync` version 1
 adds account-based key custody without manual codes. Desktop clients explicitly request
 the additional `connect:manage` OAuth scope. Old account-only clients keep working.
-The iPhone client is unchanged and must not advertise support for these services.
+Native clients request and use only the capabilities and scopes advertised by the instance.
 
 ## Cryptographic specification and review boundary
 

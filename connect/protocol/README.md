@@ -11,6 +11,6 @@ This folder is written to be published on its own. It does not refer to the offi
 
 To build and run your own instance, start from the [guide](https://github.com/debba/discophile/blob/main/connect/README.md).
 
-Status: draft. The documents are licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) and the conformance script under the MIT License, so anyone can build a compatible server; see [LICENSE.md](https://github.com/debba/discophile/blob/main/connect/LICENSE.md). The desktop service extension is specified separately in services.md, with a public cryptographic compatibility fixture in vault-v1.json. iPhone currently supports the account protocol only.
+Status: draft. The documents are licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) and the conformance script under the MIT License, so anyone can build a compatible server; see [LICENSE.md](https://github.com/debba/discophile/blob/main/connect/LICENSE.md). The desktop service extension is specified separately in services.md, with a public cryptographic compatibility fixture in vault-v1.json. Native apps use the advertised account and service capabilities. Android requires the `discophile-android` native client and its exact registered callback.
 
 The published copy lives in [`connect/protocol`](https://github.com/debba/discophile/tree/main/connect/protocol) of the public Discophile repository.

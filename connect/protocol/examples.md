@@ -26,7 +26,7 @@ Cache-Control: public, max-age=300
     "tokenEndpoint": "https://connect.example.org/oauth/token",
     "revocationEndpoint": "https://connect.example.org/oauth/revoke",
     "scopesSupported": ["account:read", "offline_access"],
-    "nativeClients": ["discophile-desktop", "discophile-ios"]
+    "nativeClients": ["discophile-desktop", "discophile-android", "discophile-ios"]
   },
   "resources": { "api": "https://connect.example.org/api/v1" },
   "capabilities": { "account": { "version": 1 } },
