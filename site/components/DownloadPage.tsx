@@ -2,11 +2,12 @@ import { ConnectOverview } from "@/components/ConnectOverview";
 import { DesktopShot, WebShot } from "@/components/DesktopShot";
 import type { ReactNode } from "react";
 import { DownloadButton } from "@/components/Download";
+import { MobileDownload } from "@/components/MobileDownload";
 import { Screen, Window } from "@/components/Shots";
 import { SiteFooter } from "@/components/SiteFooter";
 import { TestFlightButton } from "@/components/TestFlight";
 import { localePath, ui, type Locale } from "@/lib/i18n";
-import { AUR_URL, RELEASES_URL, REPO_URL, latestRelease, megabytes, type Platform } from "@/lib/releases";
+import { AUR_URL, RELEASES_URL, REPO_URL, latestRelease, megabytes, type DesktopPlatform } from "@/lib/releases";
 
 type Download = { title: string; needs: string; body: ReactNode };
 type Row = [string, string, string, string];
@@ -15,8 +16,9 @@ type Copy = {
   title: string;
   lede: (version: string | null) => string;
   iphone: { title: string; needs: string; body: string; facts: ReactNode[]; soon: string; alt: string };
+  android: { title: string; needs: string; body: string };
   desktop: { title: string; body: string; facts: ReactNode[]; alt: string };
-  downloads: Record<Platform, Download> & { aur: ReactNode; button: Record<Platform, string>; fallback: string };
+  downloads: Record<DesktopPlatform, Download> & { aur: ReactNode; button: Record<DesktopPlatform, string>; fallback: string };
   web: { title: string; needs: string; body: string; facts: string[]; link: string; alt: string };
   compare: { title: string; caption: string; head: [string, string, string, string]; rows: Row[] };
   footer: ReactNode;
@@ -25,7 +27,7 @@ type Copy = {
 const COPY: Record<Locale, Copy> = {
   en: {
     title: "Wherever you listen.",
-    lede: (version) => `On your iPhone, at your desk, or in any browser from a server you host. Free on Mac, Windows and Linux${version ? `, version ${version}` : ""}.`,
+    lede: (version) => `On iPhone, Android, Mac, Windows, Linux, or in any browser from a server you host.${version ? ` Latest release: ${version}.` : ""}`,
     iphone: {
       title: "iPhone",
       needs: "iOS 17 or later",
@@ -35,8 +37,13 @@ const COPY: Record<Locale, Copy> = {
         <><b>Siri, the Lock Screen and AirPlay</b> control playback, and dictation turns your voice into a request.</>,
         <><b>Sport mode</b> keeps presets for running, walking, cycling and the gym, started from Shortcuts.</>,
       ],
-      soon: "Coming soon to the App Store. Until then, request an invitation to the beta.",
+      soon: "Awaiting App Store approval. Until then, use the sideload IPA when available below, or request a TestFlight invitation.",
       alt: "Discophile on iPhone, playing Discophile by Mina Sol",
+    },
+    android: {
+      title: "Android",
+      needs: "Android 8 or later",
+      body: "Your music server on your Android phone. Install the signed APK directly, without Google Play, and keep the same release version as the other Discophile players.",
     },
     desktop: {
       title: "Mac, Windows and Linux",
@@ -88,7 +95,7 @@ const COPY: Record<Locale, Copy> = {
   },
   it: {
     title: "Ovunque tu ascolti.",
-    lede: (version) => `Sul tuo iPhone, alla scrivania o in qualsiasi browser da un server che ospiti tu. Gratis su Mac, Windows e Linux${version ? `, versione ${version}` : ""}.`,
+    lede: (version) => `Su iPhone, Android, Mac, Windows, Linux o in qualsiasi browser da un server che ospiti tu.${version ? ` Ultima release: ${version}.` : ""}`,
     iphone: {
       title: "iPhone",
       needs: "iOS 17 o versioni successive",
@@ -98,8 +105,13 @@ const COPY: Record<Locale, Copy> = {
         <><b>Siri, la schermata di blocco e AirPlay</b> controllano la riproduzione, e la dettatura trasforma la tua voce in una richiesta.</>,
         <><b>La modalità sport</b> salva impostazioni per corsa, camminata, bici e palestra, da avviare con Comandi Rapidi.</>,
       ],
-      soon: "Presto sull'App Store. Nel frattempo richiedi un invito alla beta.",
+      soon: "In attesa dell'approvazione dell'App Store. Nel frattempo usa l'IPA per il sideloading, quando disponibile qui sotto, oppure richiedi un invito a TestFlight.",
       alt: "Discophile su iPhone mentre riproduce Discophile di Mina Sol",
+    },
+    android: {
+      title: "Android",
+      needs: "Android 8 o versioni successive",
+      body: "Il tuo server musicale sul telefono Android. Installa direttamente l'APK firmato, senza Google Play, con la stessa versione degli altri player Discophile.",
     },
     desktop: {
       title: "Mac, Windows e Linux",
@@ -157,7 +169,7 @@ export async function DownloadPage({ locale }: { locale: Locale }) {
   const release = await latestRelease();
   const d = c.downloads;
 
-  const card = (platform: Platform, extra?: ReactNode) => {
+  const card = (platform: DesktopPlatform, extra?: ReactNode) => {
     const file = release?.files[platform];
     return (
       <section className="download-card" id={platform} aria-labelledby={`${platform}-title`}>
@@ -188,9 +200,19 @@ export async function DownloadPage({ locale }: { locale: Locale }) {
             <p>{c.iphone.body}</p>
             <ul className="facts">{c.iphone.facts.map((fact, i) => <li key={i}>{fact}</li>)}</ul>
             <p className="fineprint">{c.iphone.soon}</p>
-            <div className="actions"><TestFlightButton /></div>
+            <MobileDownload locale={locale} platform="ios" release={release} />
+            <div className="actions"><TestFlightButton className="button" /></div>
           </div>
           <div className="phones single"><Screen name="now-playing" alt={c.iphone.alt} /></div>
+        </section>
+
+        <section className="mobile-device device" id="android" aria-labelledby="android-title">
+          <div className="feature-copy">
+            <h2 id="android-title">{c.android.title}</h2>
+            <p className="needs">{c.android.needs}</p>
+            <p>{c.android.body}</p>
+          </div>
+          <MobileDownload locale={locale} platform="android" release={release} />
         </section>
 
         <section className="desk device" id="desktop" aria-labelledby="desktop-title">

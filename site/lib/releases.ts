@@ -1,12 +1,12 @@
-/** The latest desktop release, read on the server from GitHub and cached for an hour. */
+/** Published client downloads, read on the server from GitHub and cached for an hour. */
 
 export const REPO_URL = "https://github.com/debba/discophile";
 export const RELEASES_URL = `${REPO_URL}/releases/latest`;
 export const WEB_GUIDE_URL = `${REPO_URL}/blob/main/docs/WEB.md`;
 export const AUR_URL = "https://aur.archlinux.org/packages/discophile-bin";
 
-export type Platform = "mac" | "windows" | "linux";
-
+export type Platform = "mac" | "windows" | "linux" | "android" | "ios";
+export type DesktopPlatform = Exclude<Platform, "android" | "ios">;
 export type DownloadFormat = Platform | "deb" | "appimage";
 
 export type Release = {
@@ -15,13 +15,38 @@ export type Release = {
   files: Partial<Record<DownloadFormat, { name: string; url: string; size: number }>>;
 };
 
-const PATTERNS: Record<DownloadFormat, RegExp> = {
-  mac: /-macos-universal\.dmg$/,
-  windows: /-windows-x86_64\.zip$/,
-  linux: /-linux-x86_64\.tar\.gz$/,
-  deb: /^discophile_[0-9.]+_amd64\.deb$/,
-  appimage: /^Discophile-[0-9.]+-x86_64\.AppImage$/,
+const FILENAMES: Record<DownloadFormat, string> = {
+  mac: "Discophile-VERSION-macos-universal.dmg",
+  windows: "Discophile-VERSION-windows-x86_64.zip",
+  linux: "Discophile-VERSION-linux-x86_64.tar.gz",
+  deb: "discophile_VERSION_amd64.deb",
+  appimage: "Discophile-VERSION-x86_64.AppImage",
+  android: "Discophile-VERSION-android.apk",
+  ios: "Discophile-VERSION-ios-unsigned.ipa",
 };
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+/** Never offer a stale-version asset, a draft, or an untrusted download URL. */
+export function parseRelease(value: unknown): Release | null {
+  if (!isObject(value) || value.draft || value.prerelease || typeof value.tag_name !== "string") return null;
+  const tag = value.tag_name;
+  const version = tag.replace(/^v/, "");
+  if (!/^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/.test(version)) return null;
+  const page = `${REPO_URL}/releases/tag/${tag}`;
+  if (value.html_url !== page || !Array.isArray(value.assets)) return null;
+  const files: Release["files"] = {};
+  for (const format of Object.keys(FILENAMES) as DownloadFormat[]) {
+    const name = FILENAMES[format].replace("VERSION", version);
+    const url = `${REPO_URL}/releases/download/${tag}/${name}`;
+    const asset = value.assets.find((entry: unknown) => isObject(entry) && entry.name === name
+      && entry.browser_download_url === url && typeof entry.size === "number" && Number.isFinite(entry.size) && entry.size > 0);
+    if (asset) files[format] = { name, url, size: asset.size };
+  }
+  return { version, page, files };
+}
 
 export async function latestRelease(): Promise<Release | null> {
   try {
@@ -29,18 +54,7 @@ export async function latestRelease(): Promise<Release | null> {
       headers: { Accept: "application/vnd.github+json" },
       next: { revalidate: 3600 },
     });
-    if (!response.ok) return null;
-    const json = (await response.json()) as {
-      tag_name: string;
-      html_url: string;
-      assets: { name: string; browser_download_url: string; size: number }[];
-    };
-    const files: Release["files"] = {};
-    for (const platform of Object.keys(PATTERNS) as DownloadFormat[]) {
-      const asset = json.assets.find((a) => PATTERNS[platform].test(a.name));
-      if (asset) files[platform] = { name: asset.name, url: asset.browser_download_url, size: asset.size };
-    }
-    return { version: json.tag_name.replace(/^v/, ""), page: json.html_url, files };
+    return response.ok ? parseRelease(await response.json()) : null;
   } catch {
     return null;
   }

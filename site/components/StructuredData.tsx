@@ -28,7 +28,7 @@ export async function StructuredData({ locale }: { locale: Locale }) {
         description: DESCRIPTION[locale],
         applicationCategory: "MultimediaApplication",
         applicationSubCategory: "Music player",
-        operatingSystem: "iOS 17, macOS 11, Windows 10, Linux, Web",
+        operatingSystem: "iOS 17, Android 8, macOS 11, Windows 10, Linux, Web",
         image: `${SITE_URL}/assets/icon-512.png`,
         screenshot: [`${SITE_URL}/assets/screens/desktop/now-playing.webp`, `${SITE_URL}/assets/screens/now-playing.webp`],
         softwareVersion: release?.version,

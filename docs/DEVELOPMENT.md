@@ -44,6 +44,12 @@ in a single keychain item. `DISCOPHILE_SECRETS=keychain` or `DISCOPHILE_SECRETS=
 - `deploy`: the web player's container files and Helm chart. See [WEB.md](WEB.md).
 - `docs/ARCHITECTURE.md`: structure, patterns and the Connect design.
 
+## Podcast ordering and reimport checks, 2026-10-28
+
+Episode pages save a newest/oldest-first preference and use it for displayed tracks and playback queues. Publication dates are retained in downloaded-song metadata; undated legacy downloads stay last. Reimport checks fresh server subscriptions and refreshes existing channel metadata without deleting the subscription or changing playback/progress identities. Feed matching preserves path/query case.
+
+Validation: all 382 core tests passed; native app, WASM core and WASM app checks passed; localization verification reported zero untranslated keys. Regression tests cover both sort directions, stable ties, missing/invalid dates, metadata round trips, existing/new feed imports and preflight failures without mutation. Native/browser UI and actual ongoing playback during reimport were not exercised. No release/tag was created. The linked release run failed because GitHub did not acquire a macOS runner; its other build jobs succeeded.
+
 ## Platform notes
 
 - **Linux**: playback prefers PipeWire, then PulseAudio, so it follows the output selected in the desktop sound
@@ -58,6 +64,8 @@ in a single keychain item. `DISCOPHILE_SECRETS=keychain` or `DISCOPHILE_SECRETS=
   only what it supports.
 
 ## Releases
+
+Mobile packaging, the shared iOS-owned version, required signing/repository secrets and the coordinated three-repository tag procedure are documented in [Unified mobile releases](MOBILE_RELEASES.md). A release now waits for both mobile builds and attaches the signed APK and unsigned sideload IPA alongside the desktop packages. Do not tag before device approval.
 
 Pushing a `v*` tag runs `.github/workflows/release.yml`. It builds a universal macOS disk image (signed with
 Developer ID and notarized), a Windows zip and Linux tarball, Debian and AppImage packages, then publishes them as a GitHub release. The app
@@ -81,8 +89,10 @@ The container files are in `Dockerfile` and `deploy/docker`, the chart in `deplo
 [WEB.md](WEB.md). Before changing the chart, run `helm lint deploy/helm/discophile-web`.
 
 ```sh
-# bump [workspace.package] version in Cargo.toml, commit, then:
-git tag v0.2.0 && git push origin main v0.2.0
+# First bump iOS, synchronize/check all client versions, and push matching mobile tags.
+python3 scripts/release-version.py --sync
+python3 scripts/release-version.py
+# Only after review, commit/push and tag the common version as described in MOBILE_RELEASES.md.
 ```
 
 The tag must match the workspace version. Running the workflow by hand builds the same files as artifacts

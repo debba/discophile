@@ -1387,7 +1387,7 @@ dependencies = [
 
 [[package]]
 name = "discophile"
-version = "0.1.8"
+version = "1.0.2"
 dependencies = [
  "chrono",
  "console_error_panic_hook",
@@ -1438,7 +1438,7 @@ dependencies = [
 
 [[package]]
 name = "discophile-core"
-version = "0.1.8"
+version = "1.0.2"
 dependencies = [
  "aes-gcm",
  "base64 0.22.1",

@@ -409,16 +409,22 @@ pub fn search_subscriptions(term: &str, channels: &[PodcastChannel], episode_lim
     PodcastSearchResults { channels: found, episodes }
 }
 
-/// True when the server already follows this feed, ignoring scheme, case and trailing slashes.
+/// Ignores HTTP(S), host case and trailing path slashes, but preserves path and query case.
 pub fn is_subscribed(feed: &str, channels: &[PodcastChannel]) -> bool {
-    let key = feed_key(feed);
-    channels.iter().any(|c| c.url.as_deref().map(feed_key).as_deref() == Some(key.as_str()))
+    let Some(key) = feed_key(feed) else { return false };
+    channels.iter().any(|c| c.url.as_deref().and_then(feed_key).as_ref() == Some(&key))
 }
 
-fn feed_key(value: &str) -> String {
-    let text = value.trim().to_lowercase();
-    let text = text.strip_prefix("https://").or_else(|| text.strip_prefix("http://")).unwrap_or(&text);
-    text.trim_end_matches('/').to_string()
+fn feed_key(value: &str) -> Option<Url> {
+    let mut url = Url::parse(value.trim()).ok()?;
+    if !matches!(url.scheme(), "http" | "https") || url.host_str().is_none() || !url.username().is_empty() || url.password().is_some() {
+        return None;
+    }
+    url.set_scheme("https").ok()?;
+    url.set_fragment(None);
+    let path = url.path().trim_end_matches('/').to_string();
+    url.set_path(&path);
+    Some(url)
 }
 
 #[cfg(test)]
@@ -428,6 +434,16 @@ mod tests {
     use std::cell::RefCell;
 
     const SHOW: &str = "0123456789abcdefABCDEF";
+
+    #[test]
+    fn feed_matching_preserves_path_query_and_port_identity() {
+        let channels = vec![PodcastChannel { url: Some("http://FEEDS.example:80/Show/?token=AbC#ignored".into()), ..Default::default() }];
+        assert!(is_subscribed("https://feeds.example/Show?token=AbC", &channels));
+        assert!(!is_subscribed("https://feeds.example/show?token=AbC", &channels));
+        assert!(!is_subscribed("https://feeds.example/Show?token=abc", &channels));
+        assert!(!is_subscribed("https://feeds.example:8080/Show?token=AbC", &channels));
+        assert!(!is_subscribed("invalid", &[PodcastChannel { url: Some("invalid".into()), ..Default::default() }]));
+    }
 
     fn query(url: &Url) -> Vec<(String, String)> {
         let mut pairs: Vec<_> = url.query_pairs().map(|(k, v)| (k.into_owned(), v.into_owned())).collect();

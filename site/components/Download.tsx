@@ -4,25 +4,13 @@ import { createContext, useCallback, useContext, useEffect, useId, useRef, useSt
 import { trackEvent } from "@/lib/analytics";
 import { localePath, ui, type Locale } from "@/lib/i18n";
 import { RELEASES_URL, megabytes, type DownloadFormat, type Platform, type Release } from "@/lib/releases";
-import { TestFlightButton } from "@/components/TestFlight";
+import { MobileInstallGuide } from "@/components/MobileInstallGuide";
+import { detectPlatform } from "@/lib/platform";
 
-const PLATFORMS: Platform[] = ["mac", "windows", "linux"];
+const PLATFORMS: Platform[] = ["mac", "windows", "linux", "android", "ios"];
 const AUR_COMMAND = "yay -S discophile-bin";
 
-type Detected = Platform | "ios" | null;
-
-function detect(): Detected {
-  const nav = navigator as Navigator & { userAgentData?: { platform?: string } };
-  const agent = nav.userAgent.toLowerCase();
-  if (/iphone|ipad|ipod/.test(agent)) return "ios";
-  if (agent.includes("android")) return null;
-  const name = (nav.userAgentData?.platform || agent).toLowerCase();
-  // iPadOS reports itself as a Mac; a touch screen gives it away.
-  if (name.includes("mac")) return navigator.maxTouchPoints > 1 ? "ios" : "mac";
-  if (name.includes("win")) return "windows";
-  if (name.includes("linux") || name.includes("x11")) return "linux";
-  return null;
-}
+type Detected = Platform | null;
 
 const DownloadContext = createContext<{ open: (platform?: Platform) => void; detected: Detected; locale: Locale }>({
   open: () => {},
@@ -39,13 +27,13 @@ export function DownloadProvider({ locale, release, children }: { locale: Locale
   const [platform, setPlatform] = useState<Platform>("mac");
   const [copied, setCopied] = useState(false);
   // The file being downloaded: the sheet then thanks the visitor and offers sponsorship and the newsletter.
-  const [started, setStarted] = useState<{ url: string; name: string } | null>(null);
+  const [started, setStarted] = useState<{ url: string; name: string; platform: Platform } | null>(null);
   const thanksRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
-    const found = detect();
+    const found = detectPlatform(navigator);
     setDetected(found);
-    if (found && found !== "ios") setPlatform(found);
+    if (found) setPlatform(found);
   }, []);
 
   const open = useCallback((choice?: Platform) => {
@@ -123,6 +111,11 @@ export function DownloadProvider({ locale, release, children }: { locale: Locale
                 tabIndex={platform === option ? 0 : -1}
                 onClick={() => select(index)}
                 onKeyDown={(event) => {
+                  if (event.key === "Home" || event.key === "End") {
+                    event.preventDefault();
+                    select(event.key === "Home" ? 0 : PLATFORMS.length - 1);
+                    return;
+                  }
                   const step = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
                   if (step) {
                     event.preventDefault();
@@ -161,7 +154,7 @@ export function DownloadProvider({ locale, release, children }: { locale: Locale
                         href={file.url}
                         onClick={() => {
                           trackEvent("Download", "File", format);
-                          setStarted({ url: file.url, name: file.name });
+                          setStarted({ url: file.url, name: file.name, platform });
                           requestAnimationFrame(() => thanksRef.current?.focus());
                         }}
                         aria-label={`${t.file} ${file.name}`}
@@ -191,6 +184,7 @@ export function DownloadProvider({ locale, release, children }: { locale: Locale
               )}
             </ul>
             <p className="download-tip">{formats.some((format) => release?.files[format]) ? t.tips[platform] : t.unavailable}</p>
+            {(platform === "ios" || platform === "android") && <MobileInstallGuide locale={locale} platform={platform} />}
             <p className="sr-only" role="status">{copied ? t.copied : ""}</p>
           </div>
         </div>
@@ -198,7 +192,7 @@ export function DownloadProvider({ locale, release, children }: { locale: Locale
         <div className="sheet-foot">
           <span>
             {t.iphone}{" "}
-            <TestFlightButton className="link-button" onBeforeOpen={close}>{t.iphoneLink}</TestFlightButton>
+            <a href={`${localePath(locale, "/download")}#iphone`} onClick={close}>{t.iphoneLink}</a>
           </span>
           <span>
             {t.web} <a href={localePath(locale, "/self-hosting")}>{t.webLink}</a>
@@ -221,7 +215,7 @@ function Thanks({
   onBack,
 }: {
   locale: Locale;
-  file: { url: string; name: string };
+  file: { url: string; name: string; platform: Platform };
   headingRef: React.RefObject<HTMLHeadingElement | null>;
   onBack: () => void;
 }) {
@@ -275,6 +269,10 @@ function Thanks({
         <span ref={headingRef} tabIndex={-1}>{t.startedBody}</span>{" "}
         <a href={file.url}>{t.directLink}</a>.
       </p>
+
+      {(file.platform === "ios" || file.platform === "android") && (
+        <MobileInstallGuide locale={locale} platform={file.platform} expanded />
+      )}
 
       <section className="thanks-card sponsor-card" aria-labelledby={`${id}-sponsor`}>
         <h3 id={`${id}-sponsor`}>{t.sponsorTitle}</h3>
@@ -337,30 +335,22 @@ const DOWNLOAD_ICON = (
   </svg>
 );
 
-/**
- * Opens the download sheet for the visitor's computer. On iPhone and iPad it shows `onIOS` instead,
- * or nothing with `hideOnIOS`.
- */
+/** Opens the matching desktop or mobile download sheet, including installation guidance. */
 export function DownloadButton({
   labels,
-  onIOS,
-  hideOnIOS,
   platform,
   className = "button primary",
 }: {
-  labels: { any: string; mac: string; windows: string; linux: string };
-  onIOS?: ReactNode;
-  hideOnIOS?: boolean;
+  labels: { any: string } & Partial<Record<Platform, string>>;
   platform?: Platform;
   className?: string;
 }) {
-  const { open, detected } = useContext(DownloadContext);
-  if (!platform && detected === "ios") return hideOnIOS ? null : <>{onIOS}</>;
-  const target = platform ?? (detected === "ios" ? null : detected);
+  const { open, detected, locale } = useContext(DownloadContext);
+  const target = platform ?? detected;
   return (
     <button type="button" className={className} aria-haspopup="dialog" onClick={() => open(target ?? undefined)}>
       {DOWNLOAD_ICON}
-      {target ? labels[target] : labels.any}
+      {target ? labels[target] ?? ui[locale].download.buttons[target] : labels.any}
     </button>
   );
 }

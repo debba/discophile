@@ -3,7 +3,7 @@
 use url::Url;
 
 use crate::assistant::edits::AssistantEditProposal;
-use crate::error::MusicResult;
+use crate::error::{MusicError, MusicResult};
 use crate::jellyfin::JellyfinClient;
 use crate::lyrics::SongLyrics;
 use crate::models::{
@@ -217,6 +217,19 @@ impl MusicClient {
         dispatch!(self, c => c.create_podcast_channel(feed).await)
     }
 
+    /// Reuses existing subscriptions, retaining episode IDs and their playback progress.
+    pub async fn import_podcast(&self, feed: &Url) -> MusicResult<Vec<PodcastChannel>> {
+        if !matches!(feed.scheme(), "http" | "https") || feed.host_str().is_none() || !feed.username().is_empty() || feed.password().is_some() {
+            return Err(MusicError::InvalidServer);
+        }
+        let channels = self.podcasts(None, Some(true)).await?;
+        if crate::podcast_directory::is_subscribed(feed.as_str(), &channels) {
+            return Ok(channels);
+        }
+        self.create_podcast_channel(feed).await?;
+        self.podcasts(None, Some(true)).await
+    }
+
     pub async fn delete_podcast_channel(&self, id: &str) -> MusicResult<()> {
         dispatch!(self, c => c.delete_podcast_channel(id).await)
     }
@@ -423,6 +436,63 @@ mod tests {
         let client =
             MusicClient::new(credentials(&server.server("/prefix"), MusicProvider::Jellyfin, "synthetic-token"));
         (server, client)
+    }
+
+    #[tokio::test]
+    async fn podcast_reimport_keeps_server_identity_without_mutating_playback_progress() {
+        let server = TestServer::start(|request| {
+            assert_eq!(request.last_path_component(), "getPodcasts.view");
+            assert_eq!(request.query("includeEpisodes"), Some("true"));
+            reply(200, r#"{"subsonic-response":{"status":"ok","podcasts":{"channel":[{
+                "id":"existing","title":"Updated show","url":"http://FEEDS.example/Show/?token=AbC",
+                "episode":[{"id":"playing","title":"Updated episode","streamId":"stream-1"}]
+            }]}}}"#)
+        }).await;
+        let client = MusicClient::new(credentials(&server.server("/"), MusicProvider::Subsonic, "fixture"));
+        let channels = client.import_podcast(&Url::parse("https://feeds.example/Show?token=AbC").unwrap()).await.unwrap();
+        assert_eq!(channels.len(), 1);
+        assert_eq!(channels[0].id, "existing");
+        let song = channels[0].episodes()[0].song(&channels[0]);
+        assert_eq!(song.id, "podcast:existing:playing");
+        assert_eq!(song.stream_identifier(), "stream-1");
+        assert_eq!(channels[0].title, "Updated show");
+        assert_eq!(server.requests.lock().unwrap().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn podcast_import_checks_server_before_creating_and_reloads_after_creation() {
+        use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
+        let created = Arc::new(AtomicBool::new(false));
+        let flag = created.clone();
+        let server = TestServer::start(move |request| {
+            match request.last_path_component() {
+                "getPodcasts.view" if !flag.load(Ordering::SeqCst) => reply(200, r#"{"subsonic-response":{"status":"ok","podcasts":{"channel":[]}}}"#),
+                "getPodcasts.view" => reply(200, r#"{"subsonic-response":{"status":"ok","podcasts":{"channel":[{"id":"new","title":"New show"}]}}}"#),
+                "createPodcastChannel.view" => {
+                    assert_eq!(request.method, "POST");
+                    assert_eq!(request.form_values("url"), ["https://feeds.example/new"]);
+                    flag.store(true, Ordering::SeqCst);
+                    reply(200, r#"{"subsonic-response":{"status":"ok"}}"#)
+                }
+                _ => panic!("Unexpected mutation"),
+            }
+        }).await;
+        let client = MusicClient::new(credentials(&server.server("/"), MusicProvider::Subsonic, "fixture"));
+        let channels = client.import_podcast(&Url::parse("https://feeds.example/new").unwrap()).await.unwrap();
+        assert_eq!(channels[0].id, "new");
+        assert!(created.load(Ordering::SeqCst));
+        assert_eq!(server.requests.lock().unwrap().len(), 3);
+    }
+
+    #[tokio::test]
+    async fn failed_podcast_duplicate_check_never_creates_a_subscription() {
+        let server = TestServer::start(|request| {
+            assert_eq!(request.last_path_component(), "getPodcasts.view");
+            reply(200, r#"{"subsonic-response":{"status":"failed","error":{"code":50,"message":"Forbidden"}}}"#)
+        }).await;
+        let client = MusicClient::new(credentials(&server.server("/"), MusicProvider::Subsonic, "fixture"));
+        assert_eq!(client.import_podcast(&Url::parse("https://feeds.example/show").unwrap()).await, Err(MusicError::Forbidden));
+        assert_eq!(server.requests.lock().unwrap().len(), 1);
     }
 
     #[test]

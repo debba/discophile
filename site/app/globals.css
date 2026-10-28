@@ -1033,8 +1033,8 @@ html:has(.video-page) { overflow: hidden; }
 .sheet h2 { font-size: clamp(1.6rem, 5vw, 2rem); margin: 0; }
 .sheet .dialog-close { margin: 0 -10px 0 0; }
 .sheet-body { padding: 12px 28px 8px; }
-.platform-switch { display: flex; width: 100%; }
-.platform-switch button { flex: 1; min-height: 44px; }
+.platform-switch { display: flex; width: 100%; max-width: 100%; overflow-x: auto; }
+.platform-switch button { flex: 1 0 auto; min-height: 44px; white-space: nowrap; }
 .download-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin: 18px 0 14px; font-size: 0.95rem; }
 .version-tag { padding: 4px 12px; border-radius: 999px; background: var(--rose); color: var(--accent-text); font-weight: 600; }
 .download-meta a { color: var(--link); font-weight: 600; text-decoration: none; }
@@ -1082,6 +1082,29 @@ html:has(.video-page) { overflow: hidden; }
 .card-actions .fineprint.file { margin: 0; }
 .card-actions .aur { margin: 6px 0 0; }
 .card-actions pre { margin: 0; }
+
+/* Mobile files stay tied to the published release; signing instructions travel with the download. */
+.mobile-device {
+  max-width: var(--max); margin: 0 auto; padding: clamp(40px, 6vw, 80px) var(--gutter);
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(24px, 5vw, 64px); align-items: start;
+}
+.mobile-download { display: grid; gap: 16px; min-width: 0; margin: 18px 0; }
+.mobile-download > p { margin: 0; }
+.mobile-download .file { overflow-wrap: anywhere; }
+.download-unavailable { color: var(--ink-soft); }
+.mobile-install-guide {
+  margin: 16px 0; padding: 6px 18px; border: 1.5px solid rgb(var(--line-rgb) / 0.2);
+  border-radius: 16px; background: var(--surface); font-size: 0.95rem; overflow-wrap: anywhere;
+}
+.mobile-install-guide summary { min-height: 44px; align-content: center; cursor: pointer; font-weight: 600; }
+.mobile-install-guide summary:hover { color: var(--link); }
+.mobile-install-guide p { max-width: none; }
+.mobile-install-guide ol { padding-left: 22px; }
+.mobile-install-guide li { padding-left: 4px; margin: 12px 0; }
+.mobile-install-guide .installation-warning { border-top: 1px solid rgb(var(--line-rgb) / 0.2); padding-top: 14px; }
+.mobile-download > .mobile-install-guide { margin: 0; }
+@media (max-width: 860px) { .mobile-device { grid-template-columns: minmax(0, 1fr); gap: 12px; } }
+@media (forced-colors: active) { .mobile-install-guide { border-color: CanvasText; } }
 
 /* Code samples with a title bar and a copy button */
 .code-block { margin: 16px 0; border-radius: 16px; overflow: hidden; background: var(--vinyl); }

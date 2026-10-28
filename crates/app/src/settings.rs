@@ -24,6 +24,7 @@ pub struct Settings {
     pub volume: f32,
     /// Podcast speed, kept across episodes and launches.
     pub podcast_rate: f32,
+    pub podcast_oldest_first: bool,
     pub sidebar_collapsed: bool,
     pub advanced_unlocked: bool,
     /// Transitions (Equalizer and sound > Transitions).
@@ -59,6 +60,7 @@ impl Default for Settings {
             downloaded_only: false,
             volume: 1.0,
             podcast_rate: 1.0,
+            podcast_oldest_first: false,
             sidebar_collapsed: false,
             advanced_unlocked: false,
             gapless: true,
@@ -110,5 +112,9 @@ mod tests {
         let settings: Settings = serde_json::from_str(r#"{"check_for_updates":false,"dismissed_update":"0.2.0"}"#).unwrap();
         assert!(!settings.check_for_updates);
         assert!(settings.last_seen_version.is_none());
+        assert!(!settings.podcast_oldest_first);
+        let changed = Settings { podcast_oldest_first: true, ..settings };
+        let restored: Settings = serde_json::from_str(&serde_json::to_string(&changed).unwrap()).unwrap();
+        assert!(restored.podcast_oldest_first);
     }
 }

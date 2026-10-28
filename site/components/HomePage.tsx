@@ -31,10 +31,10 @@ type Copy = {
 const COPY: Record<Locale, Copy> = {
   en: {
     title: "Your music server, played like a record collection.",
-    lede: "Discophile plays your Navidrome, Subsonic and Jellyfin libraries on iPhone, Mac, Windows, Linux and in the browser. Audiobookshelf audiobooks and internet radio live in the same app. No account required, no tracking. Optional Connect keeps your desktop computers in sync.",
+    lede: "Discophile plays your Navidrome, Subsonic and Jellyfin libraries on iPhone, Android, Mac, Windows, Linux and in the browser. Audiobookshelf audiobooks and internet radio live in the same app. No account required, no tracking. Optional Connect keeps your desktop computers in sync.",
     download: { any: "Get Discophile", mac: "Download for Mac", windows: "Download for Windows", linux: "Download for Linux" },
     free: <><b>Free for Mac, Windows and Linux.</b> Open source, signed and ready to download.</>,
-    soon: <><b>Coming soon to the App Store.</b> For iPhone with iOS 17 or later, in English and Italian.</>,
+    soon: <><b>Awaiting App Store approval.</b> <a href="/download#iphone">IPA download and sideloading guide</a> for iPhone with iOS 17 or later.</>,
     testflight: "Try the iPhone beta",
     listen: {
       title: "Something familiar. Something unexpected.",
@@ -111,10 +111,10 @@ const COPY: Record<Locale, Copy> = {
   },
   it: {
     title: "La tua musica. Il tuo mondo. Premi play.",
-    lede: "La tua libreria merita il palco. Ascolta la musica di Navidrome, Subsonic e Jellyfin su iPhone, Mac, Windows, Linux e nel browser, ritrova i tuoi audiolibri di Audiobookshelf e accendi le radio che ami. Tutto in Discophile, senza account obbligatorio e senza tracciamento. Connect sincronizza i tuoi computer, se lo desideri.",
+    lede: "La tua libreria merita il palco. Ascolta la musica di Navidrome, Subsonic e Jellyfin su iPhone, Android, Mac, Windows, Linux e nel browser, ritrova i tuoi audiolibri di Audiobookshelf e accendi le radio che ami. Tutto in Discophile, senza account obbligatorio e senza tracciamento. Connect sincronizza i tuoi computer, se lo desideri.",
     download: { any: "Scarica Discophile", mac: "Scarica per Mac", windows: "Scarica per Windows", linux: "Scarica per Linux" },
     free: <><b>Gratis per Mac, Windows e Linux.</b> Open source, firmato e pronto da scaricare.</>,
-    soon: <><b>Presto sull&apos;App Store.</b> Per iPhone con iOS 17 o versioni successive, in italiano e in inglese.</>,
+    soon: <><b>In attesa dell&apos;approvazione dell&apos;App Store.</b> <a href="/it/download#iphone">Download IPA e guida al sideloading</a> per iPhone con iOS 17 o versioni successive.</>,
     testflight: "Prova la beta per iPhone",
     listen: {
       title: "Riscopri i tuoi pezzi. Trova la prossima ossessione.",
@@ -215,7 +215,7 @@ export function HomePage({ locale }: { locale: Locale }) {
             <h1>{c.title}</h1>
             <p className="lede">{c.lede}</p>
             <div className="actions">
-              <DownloadButton labels={c.download} onIOS={<TestFlightButton />} />
+              <DownloadButton labels={c.download} />
               <HeroVideo locale={locale} />
             </div>
             <p className="fineprint soon">
@@ -334,8 +334,7 @@ export function HomePage({ locale }: { locale: Locale }) {
             {c.release.serverNames.map((server) => <li key={server}>{server}</li>)}
           </ul>
           <div className="actions">
-            {/* On iPhone the beta button below is the only action. */}
-            <DownloadButton labels={c.download} hideOnIOS />
+            <DownloadButton labels={c.download} />
             <TestFlightButton className="button">{c.testflight}</TestFlightButton>
           </div>
           <p className="fineprint"><a href={devices}>{c.release.devices}</a></p>

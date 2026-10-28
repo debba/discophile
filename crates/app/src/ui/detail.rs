@@ -281,7 +281,8 @@ pub fn podcast(app: &mut App, ui: &mut Ui, id: &str) {
         library::load_podcast(app, id);
     }
     let channel = library::find_podcast(app, id);
-    let songs = library::podcast_episodes(app, id);
+    let songs = library::podcast_episodes(app, id)
+        .map(|songs| discophile_core::podcast_order::songs(&songs, app.settings.podcast_oldest_first));
     let episodes = songs.clone().unwrap_or_default();
     widgets::page(ui, ("podcast", id), |ui| {
         let header = Header {
@@ -317,7 +318,20 @@ pub fn podcast(app: &mut App, ui: &mut Ui, id: &str) {
                 }
             });
         });
-        ui.label(widgets_secondary(ui, &l10n::t("Episodes available for streaming on your server, newest first.")));
+        let previous = app.settings.podcast_oldest_first;
+        ui.horizontal(|ui| {
+            ui.label(l10n::t("Sort episodes"));
+            egui::ComboBox::from_id_salt(("episode-order", id))
+                .selected_text(l10n::t(if previous { "Oldest first" } else { "Newest first" }))
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(&mut app.settings.podcast_oldest_first, false, l10n::t("Newest first"));
+                    ui.selectable_value(&mut app.settings.podcast_oldest_first, true, l10n::t("Oldest first"));
+                });
+        });
+        if previous != app.settings.podcast_oldest_first {
+            app.settings.save();
+        }
+        ui.label(widgets_secondary(ui, &l10n::t("Episodes available for streaming on your server.")));
         ui.add_space(8.0);
         let podcast_id = id.to_string();
         parts::load_error(app, ui, &key, move |app| library::load_podcast(app, &podcast_id));

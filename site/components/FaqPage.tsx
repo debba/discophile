@@ -65,20 +65,20 @@ const COPY: Record<Locale, Copy> = {
           {
             id: "requirements",
             q: "What do I need to run it?",
-            a: ["iPhone: iOS 17 or later. Mac: macOS 11 or later, on Apple silicon or Intel. Windows: Windows 10 or later, 64-bit. Linux: x86_64, with PipeWire, PulseAudio or ALSA. The web player runs on a server you host with Docker or Kubernetes, and opens in any modern browser."],
+            a: ["iPhone: iOS 17 or later. Android: Android 8 or later. Mac: macOS 11 or later, on Apple silicon or Intel. Windows: Windows 10 or later, 64-bit. Linux: x86_64, with PipeWire, PulseAudio or ALSA. The web player runs on a server you host with Docker or Kubernetes, and opens in any modern browser."],
             links: [{ label: "All downloads and requirements", href: "/download" }],
           },
           {
             id: "iphone-beta",
             q: "How can I try the iPhone app now?",
-            a: ["Request an invitation to the beta. It runs through TestFlight, Apple's app for trying apps before they launch, and needs an iPhone with iOS 17 or later."],
-            links: [{ label: "Request a TestFlight invitation", testflight: true }],
+            a: ["While App Store approval is pending, download the unsigned IPA when it appears in the latest release and sign it with Sideloadly or AltStore Classic. You need iOS 17 or later, a Mac or Windows computer and your own Apple Account. The download page explains installation, signature renewal and how to keep your existing app data. You can also request a TestFlight invitation."],
+            links: [{ label: "IPA and sideloading guide", href: "/download#iphone" }, { label: "Request a TestFlight invitation", testflight: true }],
           },
           {
             id: "android",
             q: "Is there an Android app?",
-            a: ["Not at the moment. If you host the web player, you can listen from the browser."],
-            links: [{ label: "Host the web player", href: "/self-hosting" }],
+            a: ["Yes. The Android client runs on Android 8 or later. The download page offers the signed APK when it is attached to the latest release, with instructions for installing and updating it without Google Play."],
+            links: [{ label: "Android APK and installation", href: "/download#android" }],
           },
           {
             id: "offline",
@@ -183,20 +183,20 @@ const COPY: Record<Locale, Copy> = {
           {
             id: "requirements",
             q: "Cosa mi serve per usarlo?",
-            a: ["iPhone: iOS 17 o versioni successive. Mac: macOS 11 o versioni successive, con Apple silicon o Intel. Windows: Windows 10 o versioni successive, a 64 bit. Linux: x86_64, con PipeWire, PulseAudio o ALSA. Il player web gira su un server che ospiti tu con Docker o Kubernetes, e si apre in qualsiasi browser moderno."],
+            a: ["iPhone: iOS 17 o versioni successive. Android: Android 8 o versioni successive. Mac: macOS 11 o versioni successive, con Apple silicon o Intel. Windows: Windows 10 o versioni successive, a 64 bit. Linux: x86_64, con PipeWire, PulseAudio o ALSA. Il player web gira su un server che ospiti tu con Docker o Kubernetes, e si apre in qualsiasi browser moderno."],
             links: [{ label: "Tutti i download e i requisiti", href: "/download" }],
           },
           {
             id: "iphone-beta",
             q: "Come posso provare subito l'app per iPhone?",
-            a: ["Richiedi un invito alla beta. Passa da TestFlight, l'app di Apple per provare le app prima del lancio, e ti serve un iPhone con iOS 17 o versioni successive."],
-            links: [{ label: "Richiedi un invito a TestFlight", testflight: true }],
+            a: ["In attesa dell'approvazione dell'App Store, scarica l'IPA non firmato quando compare nell'ultima release e firmalo con Sideloadly o AltStore Classic. Servono iOS 17 o versioni successive, un Mac o un PC Windows e il tuo Account Apple. La pagina Download spiega installazione, rinnovo della firma e come conservare i dati dell'app esistente. Puoi anche richiedere un invito a TestFlight."],
+            links: [{ label: "IPA e guida al sideloading", href: "/download#iphone" }, { label: "Richiedi un invito a TestFlight", testflight: true }],
           },
           {
             id: "android",
             q: "C'è un'app per Android?",
-            a: ["Al momento no. Se ospiti il player web, puoi ascoltare dal browser."],
-            links: [{ label: "Ospita il player web", href: "/self-hosting" }],
+            a: ["Sì. Il client Android funziona su Android 8 o versioni successive. La pagina Download offre l'APK firmato quando è allegato all'ultima release, con le istruzioni per installarlo e aggiornarlo senza Google Play."],
+            links: [{ label: "APK Android e installazione", href: "/download#android" }],
           },
           {
             id: "offline",

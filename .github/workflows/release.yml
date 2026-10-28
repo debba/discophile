@@ -1,7 +1,12 @@
 # Builds Discophile for macOS (universal, signed and notarized), Windows and Linux, plus the web player's container
 # image and Helm chart. A pushed `v*` tag that matches the workspace version publishes a GitHub release (which the
 # app offers as an update), ghcr.io/<owner>/discophile-web and oci://ghcr.io/<owner>/charts/discophile-web.
+# Android APK and unsigned sideload IPA are built from the same vX.Y.Z tags in the mobile repositories.
+# iOS owns the shared marketing version/build; mismatches stop every build before publication.
 # Running it by hand builds the same files as workflow artifacts without publishing.
+# Required mobile secrets: MOBILE_REPOS_TOKEN (read-only Contents on both private mobile repositories),
+# ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD.
+# See docs/MOBILE_RELEASES.md. No iOS device provisioning profiles are published.
 #
 # macOS secrets (signing is skipped when they are missing):
 #   MACOS_CERTIFICATE_P12       base64 of the Developer ID Application certificate and key (.p12)
@@ -18,6 +23,12 @@ on:
   push:
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      mobile_ref:
+        description: Matching branch or tag in both mobile repositories (manual builds never publish)
+        default: main
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -30,21 +41,94 @@ jobs:
   version:
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.version.outputs.version }}
+      version: ${{ steps.version.outputs.version || steps.local_version.outputs.version }}
+      build: ${{ steps.version.outputs.build }}
+      ios_sha: ${{ steps.sources.outputs.ios_sha }}
+      android_sha: ${{ steps.sources.outputs.android_sha }}
     steps:
       - uses: actions/checkout@v4
-      - id: version
+      - name: Require mobile repository access and stable Android signing
+        if: vars.DISCOPHILE_LOCAL_MOBILE != 'true'
+        env:
+          MOBILE_REPOS_TOKEN: ${{ secrets.MOBILE_REPOS_TOKEN }}
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          version=$(sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"/\1/p' Cargo.toml)
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          if [[ "$GITHUB_REF_TYPE" == "tag" && "$GITHUB_REF_NAME" != "v$version" ]]; then
-            echo "::error::Tag $GITHUB_REF_NAME does not match the workspace version $version"
-            exit 1
-          fi
+          for key in MOBILE_REPOS_TOKEN ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            [[ -n "${!key}" ]] || { echo "::error::Missing secret $key; see docs/MOBILE_RELEASES.md"; exit 1; }
+          done
+      - uses: actions/checkout@v4
+        if: vars.DISCOPHILE_LOCAL_MOBILE != 'true'
+        with:
+          repository: debba/discophile-ios
+          ref: ${{ github.ref_type == 'tag' && github.ref_name || inputs.mobile_ref }}
+          token: ${{ secrets.MOBILE_REPOS_TOKEN }}
+          persist-credentials: false
+          path: .mobile/ios
+      - uses: actions/checkout@v4
+        if: vars.DISCOPHILE_LOCAL_MOBILE != 'true'
+        with:
+          repository: debba/discophile-android
+          ref: ${{ github.ref_type == 'tag' && github.ref_name || inputs.mobile_ref }}
+          token: ${{ secrets.MOBILE_REPOS_TOKEN }}
+          persist-credentials: false
+          path: .mobile/android
+      - name: Test release tooling
+        run: python3 -m unittest discover -s scripts/tests
+      - id: version
+        name: Check all versions against iOS
+        if: vars.DISCOPHILE_LOCAL_MOBILE != 'true'
+        run: |
+          tag=()
+          if [[ "$GITHUB_REF_TYPE" == tag ]]; then tag=(--tag "$GITHUB_REF_NAME"); fi
+          python3 scripts/release-version.py --ios-root .mobile/ios --android-root .mobile/android \
+            --github-output "$GITHUB_OUTPUT" "${tag[@]}"
+      - id: local_version
+        name: Check desktop version for locally built mobile assets
+        if: vars.DISCOPHILE_LOCAL_MOBILE == 'true'
+        run: |
+          python3 - <<'PY'
+          import os, tomllib
+          from pathlib import Path
+          version = tomllib.loads(Path('Cargo.toml').read_text())['workspace']['package']['version']
+          if os.environ['GITHUB_REF_TYPE'] == 'tag' and os.environ['GITHUB_REF_NAME'] != f'v{version}':
+              raise SystemExit('Tag does not match desktop version')
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write(f'version={version}\n')
+          PY
+      - id: sources
+        name: Freeze source commits and record provenance
+        if: vars.DISCOPHILE_LOCAL_MOBILE != 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          BUILD: ${{ steps.version.outputs.build }}
+        run: |
+          mkdir -p dist
+          python3 - <<'PY'
+          import json, os, subprocess
+          from pathlib import Path
+          def sha(path):
+              return subprocess.check_output(['git', '-C', path, 'rev-parse', 'HEAD'], text=True).strip()
+          ios, android = sha('.mobile/ios'), sha('.mobile/android')
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write(f'ios_sha={ios}\nandroid_sha={android}\n')
+          sources = {'version': os.environ['VERSION'], 'build': int(os.environ['BUILD']),
+                     'desktop': sha('.'), 'ios': ios, 'android': android}
+          Path('dist/RELEASE-SOURCES.json').write_text(json.dumps(sources, indent=2) + '\n')
+          PY
+          cp packaging/mobile/INSTALLATION.md dist/MOBILE-INSTALLATION.md
+      - uses: actions/upload-artifact@v4
+        if: vars.DISCOPHILE_LOCAL_MOBILE != 'true'
+        with:
+          name: sources
+          path: dist/*
+          if-no-files-found: error
 
   macos:
     needs: version
-    runs-on: macos-14
+    runs-on: macos-15
     env:
       VERSION: ${{ needs.version.outputs.version }}
       MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
@@ -95,6 +179,97 @@ jobs:
         with:
           name: macos
           path: dist/*.dmg
+
+  android:
+    if: vars.DISCOPHILE_LOCAL_MOBILE != 'true'
+    needs: version
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      BUILD: ${{ needs.version.outputs.build }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: debba/discophile-android
+          ref: ${{ needs.version.outputs.android_sha }}
+          token: ${{ secrets.MOBILE_REPOS_TOKEN }}
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Install pinned SDK
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0' 'platform-tools'
+      - name: Prepare release signing key
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          python3 - <<'PY'
+          import base64, os
+          from pathlib import Path
+          path = Path(os.environ['RUNNER_TEMP']) / 'release-signing.keystore'
+          path.write_bytes(base64.b64decode(os.environ['ANDROID_KEYSTORE_BASE64'], validate=True))
+          path.chmod(0o600)
+          with open(os.environ['GITHUB_ENV'], 'a') as output:
+              output.write(f'ANDROID_KEYSTORE_PATH={path}\n')
+          PY
+      - name: Test and build signed release APK
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew :core:test :app:testDebugUnitTest :app:assembleRelease --no-daemon --max-workers=2
+      - name: Verify signature and embedded version
+        run: |
+          apk=app/build/outputs/apk/release/app-release.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$apk"
+          python3 - <<'PY'
+          import os, subprocess
+          aapt = os.environ['ANDROID_HOME'] + '/build-tools/35.0.0/aapt'
+          package = subprocess.check_output([aapt, 'dump', 'badging', 'app/build/outputs/apk/release/app-release.apk'], text=True).splitlines()[0]
+          assert "name='it.discophile.android'" in package, 'Wrong APK application ID'
+          assert f"versionName='{os.environ['VERSION']}'" in package, 'Wrong APK version'
+          assert f"versionCode='{os.environ['BUILD']}'" in package, 'Wrong APK build'
+          PY
+          mkdir -p dist
+          cp "$apk" "dist/Discophile-$VERSION-android.apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: dist/*.apk
+          if-no-files-found: error
+      - name: Remove signing material
+        if: always()
+        run: rm -f "$RUNNER_TEMP/release-signing.keystore"
+
+  ios:
+    if: vars.DISCOPHILE_LOCAL_MOBILE != 'true'
+    needs: version
+    # The app uses the iOS 27 SDK; the normal macOS image still defaults to Xcode 26.
+    runs-on: xcode-27
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      BUILD: ${{ needs.version.outputs.build }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: debba/discophile-ios
+          ref: ${{ needs.version.outputs.ios_sha }}
+          token: ${{ secrets.MOBILE_REPOS_TOKEN }}
+          persist-credentials: false
+          path: .mobile/ios
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Build public sideload IPA without device profiles
+        run: bash scripts/package-ios.sh .mobile/ios "$VERSION" "$BUILD" dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios
+          path: dist/*.ipa
+          if-no-files-found: error
 
   windows:
     needs: version
@@ -222,8 +397,8 @@ jobs:
           path: dist/*.tgz
 
   release:
-    if: github.ref_type == 'tag'
-    needs: [version, macos, windows, linux, helm-chart]
+    if: github.ref_type == 'tag' && vars.DISCOPHILE_LOCAL_MOBILE != 'true'
+    needs: [version, macos, windows, linux, helm-chart, android, ios]
     runs-on: ubuntu-latest
     env:
       VERSION: ${{ needs.version.outputs.version }}
@@ -233,16 +408,24 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: dist
-          pattern: "{macos,windows,linux,helm}"
+          pattern: "{macos,windows,linux,helm,android,ios,sources}"
           merge-multiple: true
-      - name: Publish
+      - name: Publish only the complete release
         run: |
+          for file in "Discophile-$VERSION-macos-universal.dmg" "Discophile-$VERSION-windows-x86_64.zip" \
+            "Discophile-$VERSION-linux-x86_64.tar.gz" "discophile_${VERSION}_amd64.deb" \
+            "Discophile-$VERSION-x86_64.AppImage" "discophile-web-$VERSION.tgz" \
+            "Discophile-$VERSION-android.apk" "Discophile-$VERSION-ios-unsigned.ipa" \
+            RELEASE-SOURCES.json MOBILE-INSTALLATION.md; do
+            [[ -s "dist/$file" ]] || { echo "::error::Missing release asset: $file"; exit 1; }
+          done
           (cd dist && sha256sum -- * > SHA256SUMS.txt)
           notes=(--generate-notes)
           if [[ -f "docs/releases/$VERSION.md" ]]; then
             notes+=(--notes-file "docs/releases/$VERSION.md")
           fi
-          gh release create "$GITHUB_REF_NAME" dist/* --title "Discophile $VERSION" "${notes[@]}" --verify-tag
+          gh release create "$GITHUB_REF_NAME" dist/* --draft --title "Discophile $VERSION" "${notes[@]}" --verify-tag
+          gh release edit "$GITHUB_REF_NAME" --draft=false
 
   aur:
     if: github.ref_type == 'tag' && !github.event.repository.private

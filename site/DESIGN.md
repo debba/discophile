@@ -137,6 +137,12 @@ Compact controls may reduce visual padding while preserving a comfortable touch 
 
 Carry these interaction rules into authentication and account forms. Social sign-in buttons should look native to Discophile while keeping provider identity recognizable. Administrative changes should explain their target, effect, and result. Destructive operations need a distinct, explicit action.
 
+## Download guidance
+
+The shared download dialog offers Mac, Windows, Linux, Android and iPhone as a horizontally scrollable tablist on narrow screens. Keep all platform names visible or reachable by scrolling/focus, retain 44-pixel targets, and support arrow keys, Home and End. The active platform follows detected mobile/desktop devices without replacing the explicit platform choices.
+
+Mobile file actions depend on actual matching-version release assets; missing files need explanatory text, not fabricated download URLs. Use native `details`/`summary` panels for installation instructions on the page and in the dialog, with the same localized copy. The IPA must be described as unsigned and requiring sideload signing, separately from pending App Store approval or a TestFlight invitation. Signing identity, app-data retention and renewal warnings belong beside the download and remain available after it starts. Follow existing paper/surface tokens and allow file names, settings paths and tool links to wrap.
+
 ## Data views
 
 Existing website tables use left-aligned headers, generous cell padding, horizontal separators, and minimal surrounding decoration. See the comparison and policy styles in [globals.css](app/globals.css) and [PolicyTable](components/PolicyTable.tsx).

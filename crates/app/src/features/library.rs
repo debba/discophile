@@ -971,7 +971,7 @@ pub fn remove_from_playlist(app: &mut App, playlist_id: &str, song: &Song, occur
     });
 }
 
-/// Subscribes the server to a podcast feed, then reloads the channel list.
+/// Imports a feed or refreshes an existing subscription without replacing its playback identity.
 pub fn add_podcast(app: &mut App, feed: url::Url, done: impl FnOnce(&mut App, MusicResult<()>) + MaybeSend + 'static) {
     let Some(client) = app.client() else { return done(app, Err(MusicError::MissingCredentials)) };
     if app.library.changing_podcasts {
@@ -980,19 +980,29 @@ pub fn add_podcast(app: &mut App, feed: url::Url, done: impl FnOnce(&mut App, Mu
     app.library.changing_podcasts = true;
     let generation = app.session.generation;
     app.tasks.spawn(async move {
-        let result = client.create_podcast_channel(&feed).await;
-        let channels = if result.is_ok() { Some(client.podcasts(None, Some(false)).await) } else { None };
+        let result = client.import_podcast(&feed).await;
         update(move |app: &mut App| {
             if app.session.generation != generation {
                 return;
             }
             app.library.changing_podcasts = false;
             invalidate_podcast_index(app);
-            if let Some(Ok(channels)) = channels {
-                app.library.snapshot.podcasts = channels;
-                save(app, Part::Podcasts);
+            match result {
+                Ok(channels) => {
+                    let mut metadata = Vec::with_capacity(channels.len());
+                    for mut channel in channels {
+                        let playable: Vec<_> = channel.episodes().iter().filter(|e| e.is_playable()).cloned().collect();
+                        let songs = podcast_order::newest_first(&playable).iter().map(|e| e.song(&channel)).collect();
+                        channel.episode = None;
+                        app.library.episodes.insert(channel.id.clone(), (channel.clone(), songs));
+                        metadata.push(channel);
+                    }
+                    app.library.snapshot.podcasts = metadata;
+                    save(app, Part::Podcasts);
+                    done(app, Ok(()));
+                }
+                Err(error) => done(app, Err(error)),
             }
-            done(app, result);
         })
     });
 }

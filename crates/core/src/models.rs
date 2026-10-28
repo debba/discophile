@@ -222,6 +222,8 @@ pub struct Song {
     #[serde(default)]
     pub is_podcast: Option<bool>,
     #[serde(default)]
+    pub podcast_publish_date: Option<String>,
+    #[serde(default)]
     pub year: Option<i64>,
     #[serde(default)]
     pub genre: Option<String>,
@@ -473,6 +475,7 @@ impl PodcastEpisode {
             duration: self.duration,
             stream_id: self.stream_id.clone(),
             is_podcast: Some(true),
+            podcast_publish_date: self.publish_date.clone(),
             ..Default::default()
         }
     }
@@ -507,25 +510,63 @@ impl StreamingQuality {
 }
 
 pub mod podcast_order {
-    use super::PodcastEpisode;
+    use super::{PodcastEpisode, Song};
     use chrono::DateTime;
 
     /// Newest first; undated episodes keep their server order after dated ones.
     pub fn newest_first(episodes: &[PodcastEpisode]) -> Vec<PodcastEpisode> {
-        let mut indexed: Vec<(usize, &PodcastEpisode, Option<i64>)> = episodes
+        ordered(episodes, false, |e| e.publish_date.as_deref())
+    }
+
+    pub fn songs(songs: &[Song], oldest_first: bool) -> Vec<Song> {
+        ordered(songs, oldest_first, |s| s.podcast_publish_date.as_deref())
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use crate::PodcastChannel;
+
+        #[test]
+        fn both_directions_keep_ties_stable_and_unknown_dates_last() {
+            let channel: PodcastChannel = serde_json::from_str(r#"{"id":"show","title":"Show","episode":[
+                {"id":"unknown","streamId":"1"},
+                {"id":"older","streamId":"2","publishDate":"2026-10-21T10:00:00+02:00"},
+                {"id":"newer","streamId":"3","publishDate":"2026-10-21T09:00:00.500Z"},
+                {"id":"tie","streamId":"4","publishDate":"2026-10-21T09:00:00.500Z"},
+                {"id":"invalid","streamId":"5","publishDate":"invalid"}
+            ]}"#).unwrap();
+            let entries: Vec<Song> = channel.episodes().iter().map(|e| e.song(&channel)).collect();
+            let restored: Vec<Song> = serde_json::from_str(&serde_json::to_string(&entries).unwrap()).unwrap();
+            for (oldest, expected) in [(false, ["3", "4", "2", "1", "5"]), (true, ["2", "3", "4", "1", "5"])] {
+                let sorted = songs(&restored, oldest);
+                assert_eq!(sorted.iter().map(Song::stream_identifier).collect::<Vec<_>>(), expected);
+            }
+            assert_eq!(restored[1].podcast_publish_date.as_deref(), Some("2026-10-21T10:00:00+02:00"));
+            assert!(songs(&[], true).is_empty());
+        }
+
+        #[test]
+        fn legacy_songs_without_dates_still_decode() {
+            let song: Song = serde_json::from_str(r#"{"id":"legacy","title":"Legacy","isPodcast":true}"#).unwrap();
+            assert!(song.podcast_publish_date.is_none());
+            assert_eq!(songs(&[song.clone()], true), vec![song]);
+        }
+    }
+
+    fn ordered<T: Clone>(values: &[T], oldest_first: bool, date: impl Fn(&T) -> Option<&str>) -> Vec<T> {
+        let mut indexed: Vec<(usize, &T, Option<i64>)> = values
             .iter()
             .enumerate()
             .map(|(i, e)| {
-                let date = e
-                    .publish_date
-                    .as_deref()
+                let date = date(e)
                     .and_then(|d| DateTime::parse_from_rfc3339(d).ok())
                     .map(|d| d.timestamp_millis());
                 (i, e, date)
             })
             .collect();
         indexed.sort_by(|l, r| match (l.2, r.2) {
-            (Some(a), Some(b)) if a != b => b.cmp(&a),
+            (Some(a), Some(b)) if a != b => if oldest_first { a.cmp(&b) } else { b.cmp(&a) },
             (Some(_), None) => std::cmp::Ordering::Less,
             (None, Some(_)) => std::cmp::Ordering::Greater,
             _ => l.0.cmp(&r.0),

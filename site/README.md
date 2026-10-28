@@ -10,6 +10,7 @@ rules for the website and related Discophile interfaces.
 npm install
 npm run dev        # http://localhost:3000
 npm run build      # production build and type check
+npm test           # release parsing, mobile detection and server-rendered download/guide regressions
 ```
 
 ## Languages
@@ -93,8 +94,18 @@ the button that opened it) and the banner. Text links use `--link`, since
 `tools/og-source.html` is the source of `public/assets/og.png`; open it in a browser
 at 1200x630 to capture it.
 
-## Desktop releases and Connect
+## Client releases and mobile installation
 
-`lib/releases.ts` reads the latest published GitHub release. The Linux download dialog offers the Debian package, AppImage and tarball when their assets exist; earlier releases still work. Names follow `discophile_VERSION_amd64.deb`, `Discophile-VERSION-x86_64.AppImage` and `Discophile-VERSION-linux-x86_64.tar.gz`. The AppImage name preserves compatibility with older desktop tarball updaters. Publish the desktop release before rebuilding the production site so its static pages immediately contain the new assets (otherwise the hourly cache refresh picks them up).
+`lib/releases.ts` reads the latest published GitHub release. It accepts only nonempty assets with the exact release version and this repository's GitHub download URLs, ignoring drafts, prereleases and malformed metadata. Desktop-only releases remain usable without inventing mobile links. The Linux dialog offers Debian, AppImage and tarball assets named `discophile_VERSION_amd64.deb`, `Discophile-VERSION-x86_64.AppImage` and `Discophile-VERSION-linux-x86_64.tar.gz`.
+
+The Download page and shared download dialog also support `Discophile-VERSION-android.apk` and `Discophile-VERSION-ios-unsigned.ipa`. Both English and Italian include installation guides. iPhone/Android detection selects the matching tab from the home-page action; iPadOS reporting macOS is recognized by its touch support. The five-tab picker scrolls on narrow screens and supports arrow keys, Home and End. Missing mobile assets show explicit availability text instead of a file download action.
+
+The public IPA is unsigned for sideloading while App Store approval is pending. The guide links to the official Sideloadly and AltStore Classic instructions, explains the computer/Apple Account requirement and typical free-account renewal period, and warns about keeping the signing identity/bundle identifier to preserve data. It does not collect Apple credentials or profiles. Android guidance explains installation-source permissions and signing-key conflicts without recommending uninstalling or disabling Play Protect. The same guides remain available after starting a mobile download. TestFlight invitation requests remain a secondary option, not a substitute for the IPA.
+
+The coordinated mobile release workflow is documented in [Unified releases](../docs/MOBILE_RELEASES.md). Publish an approved release before rebuilding the production site so static pages immediately contain the new assets; otherwise the hourly revalidation picks them up. These website edits do not publish a release, upload artifacts or deploy the site.
+
+Validation for this change: 13 automated tests passed, along with `npm run typecheck` and `npm run build` (Next.js 16.4.2). Tests cover matching-version mobile assets, stale/invalid metadata and URLs, older desktop-only releases, failed fetches, device detection, translated mobile cards/guides and server-rendered download pages. No browser, keyboard/screen-reader or device installation review was performed for this website change; earlier accessibility audit results above do not cover the new UI.
+
+## Connect
 
 Home and Download present optional desktop Connect plans and link to the Connect service for activation by email. Keep the plan copy, FAQ and privacy pages in both languages consistent with the deployed service. iPhone and browser Connect integration is not advertised as available.
