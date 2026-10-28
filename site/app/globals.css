@@ -96,6 +96,7 @@ h1, h2, h3 {
   line-height: 0.98;
   margin: 0 0 0.5em;
   text-wrap: balance;
+  overflow-wrap: anywhere;
 }
 h1 { font-size: clamp(2.9rem, 7.4vw, 6.4rem); font-weight: 750; }
 h2 { font-size: clamp(2.2rem, 4.6vw, 3.9rem); font-weight: 720; }
@@ -157,6 +158,7 @@ p { margin: 0 0 1em; max-width: 34em; text-wrap: pretty; }
 .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 30px 0 18px; }
 .button {
   display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 48px; padding: 0 22px;
+  max-width: 100%; text-align: center; overflow-wrap: anywhere;
   border-radius: 999px; border: 2px solid var(--ink); background: transparent;
   color: var(--ink); text-decoration: none; font: 600 1rem/1.2 var(--body); cursor: pointer;
   transition: background-color 0.15s, color 0.15s;
@@ -187,6 +189,8 @@ p { margin: 0 0 1em; max-width: 34em; text-wrap: pretty; }
     0 12px 24px -12px rgb(var(--shadow-rgb) / 0.35);
 }
 .phone img { width: 100%; height: auto; border-radius: 11.4% / 5.3%; }
+/* Hide partial controls visible underneath the captured player and assistant sheets. */
+.phone img[data-trim-bottom] { aspect-ratio: 645 / 1356; object-fit: cover; object-position: top; }
 .phone::after {
   content: ""; position: absolute; top: 1.35%; left: 50%; translate: -50% 0;
   width: 29%; height: 2.5%; border-radius: 999px; background: #000;
@@ -256,7 +260,8 @@ figcaption {
 .hero-phone { position: absolute; width: 46%; left: 0; bottom: -16%; rotate: -4deg; }
 
 @media (max-width: 860px) {
-  .hero { grid-template-columns: 1fr; }
+  .hero { grid-template-columns: minmax(0, 1fr); }
+  .hero-copy { min-width: 0; }
   .turntable { width: min(100%, 460px); margin: 10px auto 70px; }
   .deck { width: 88%; }
   .hero-phone { left: 0; bottom: -14%; width: 44%; }
@@ -507,7 +512,7 @@ html:has(dialog[open]) { overflow: hidden; }
   font-weight: 600; color: var(--ink);
 }
 .transcript summary:hover { color: var(--link); }
-.transcript h3 { margin: 16px 0 8px; font-size: 1.2rem; }
+.transcript h2, .transcript h3 { margin: 16px 0 8px; font-size: 1.2rem; }
 .transcript ol { padding-left: 1.3em; margin: 0; }
 .transcript li { margin-bottom: 6px; }
 .transcript li::marker { color: var(--raspberry); }
@@ -578,6 +583,7 @@ html:has(.cookie-banner) { scroll-padding-bottom: 280px; }
 /* Hero video: a hype sticker on the record opens the video full screen */
 .hype-sticker {
   display: inline-flex; align-items: center; gap: 12px; min-height: 48px; padding: 0 20px 0 8px;
+  max-width: 100%;
   /* A dark sticker in both themes */
   border: 2px solid #2b0d22; border-radius: 999px; cursor: pointer;
   background: #2b0d22; color: #fff6f9;
@@ -587,7 +593,7 @@ html:has(.cookie-banner) { scroll-padding-bottom: 280px; }
 @keyframes sticker-slap { from { scale: 1.5; opacity: 0; rotate: -6deg; } }
 /* The play button sits in a starburst, like the stickers on new records */
 .hype-play {
-  position: relative; display: grid; place-items: center; width: 34px; height: 34px; color: #fff;
+  position: relative; display: grid; place-items: center; width: 34px; height: 34px; flex: none; color: #fff;
 }
 .hype-play::before {
   content: ""; position: absolute; inset: -2px; z-index: -1; background: var(--raspberry);
@@ -598,7 +604,7 @@ html:has(.cookie-banner) { scroll-padding-bottom: 280px; }
 .hype-sticker { isolation: isolate; }
 .hype-label {
   font: 800 1.02rem/1 var(--display); font-variation-settings: "wdth" 75;
-  text-transform: uppercase; letter-spacing: 0.02em; white-space: nowrap;
+  text-transform: uppercase; letter-spacing: 0.02em; overflow-wrap: anywhere;
 }
 .hype-time { font: 600 0.82rem/1 var(--body); font-variant-numeric: tabular-nums; color: #f7a9c0; }
 .hype-sticker:hover, .hype-sticker:focus-visible { background: var(--plum); border-color: var(--plum); }
@@ -670,7 +676,7 @@ html[data-film] .record { animation-play-state: paused; }
 .film .transcript { margin: 14px auto 0; max-width: 46rem; text-align: left; color: #f1dce6; }
 .film .transcript summary { justify-content: center; width: 100%; color: #ffd8e2; text-decoration: underline; text-underline-offset: 0.2em; }
 .film .transcript summary:hover { color: #fff; }
-.film .transcript h3 { color: #ffd8e2; }
+.film .transcript h2, .film .transcript h3 { color: #ffd8e2; }
 .film .transcript li::marker { color: #f7789c; }
 .film .transcript[open] { padding: 4px 20px 16px; border-radius: 16px; background: rgb(29 16 32 / 0.85); }
 .film :focus-visible { outline-color: #f7789c; }
@@ -769,6 +775,8 @@ html:has(.video-page) { overflow: hidden; }
 .assistant .device-switch button { color: #f1dce6; }
 .assistant .device-switch button[aria-selected="true"] { background: #f26f96; color: var(--vinyl); }
 .device-panel { width: 100%; animation: panel-in 0.25s ease-out; }
+.device-screens-note { margin: 0 auto 18px; max-width: 32em; text-align: center; color: var(--ink-soft); font-size: 0.9rem; }
+.assistant .device-screens-note { color: #f1dce6; }
 /* On wide screens one dock on the side switches every section, and the per-section switches step aside.
    It sits just left of the content column, and slides in while screenshots are on screen. */
 .device-dock { display: none; }
@@ -833,14 +841,34 @@ html:has(.video-page) { overflow: hidden; }
 @media (max-width: 1240px) { .next-steps { border-radius: 0; } }
 
 /* Download page */
+.platform-jump { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 28px; }
+.platform-jump a {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; min-height: 88px;
+  padding: 18px; border: 1px solid rgb(var(--line-rgb) / 0.16); border-radius: 18px;
+  background: var(--paper); color: var(--ink); text-decoration: none;
+}
+.platform-jump a:hover { background: var(--surface); color: var(--link); }
+.download-icon { display: inline-grid; place-items: center; flex: none; width: 38px; height: 38px; border-radius: 12px; background: rgb(var(--line-rgb) / 0.07); color: var(--link); }
+.download-icon svg { width: 21px; height: 21px; }
+.platform-heading { display: flex; align-items: center; gap: 14px; }
+.platform-jump-label { flex: 1; min-width: 0; }
+.platform-jump strong, .platform-jump small { display: block; }
+.platform-jump strong { font-size: 1.06rem; }
+.platform-jump small { margin-top: 5px; color: var(--ink-soft); font-size: 0.85rem; line-height: 1.35; }
+.platform-jump-arrow { color: var(--link); font-size: 1.15rem; line-height: 1; }
+@media (max-width: 860px) { .platform-jump { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 360px) { .platform-jump a { padding: 14px; } }
 .device .needs, .download-card .needs { margin: -6px 0 10px; font-weight: 600; color: var(--accent-text); }
+.device .feature-copy .download-kicker { margin: 0 0 10px; color: var(--link); font-size: 0.8rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
 .device .actions { margin-top: 20px; }
-.desk.device { margin-top: clamp(20px, 4vw, 40px); }
+#iphone.device { align-items: start; padding-bottom: clamp(32px, 5vw, 64px); }
+#iphone.device > .phones { align-self: start; }
+.desk.device { margin-top: 0; }
 .desk-downloads { max-width: var(--max); margin: clamp(48px, 7vw, 90px) auto 0; padding: 0 var(--gutter); }
 .desk-downloads .download-card { background: var(--rose); }
-.download-card h3 { font: 700 clamp(1.6rem, 2.4vw, 2rem)/1.1 var(--display); font-variation-settings: "wdth" 85; margin: 0 0 8px; }
+.download-card h3 { display: flex; align-items: center; gap: 12px; font: 700 clamp(1.6rem, 2.4vw, 2rem)/1.1 var(--display); font-variation-settings: "wdth" 85; margin: 0 0 8px; }
 .compare { max-width: var(--max); margin: 0 auto; padding: clamp(60px, 9vw, 110px) var(--gutter) clamp(20px, 4vw, 40px); }
-.compare table { width: 100%; min-width: 640px; border-collapse: collapse; }
+.compare table { width: 100%; min-width: 820px; border-collapse: collapse; }
 .compare th, .compare td { padding: 14px 18px; text-align: left; vertical-align: top; border-bottom: 1px solid rgb(var(--line-rgb) / 0.2); }
 .compare thead th { font: 700 1.15rem/1.2 var(--display); font-variation-settings: "wdth" 85; border-bottom: 2px solid var(--ink); }
 .compare tbody th { font-weight: 600; }
@@ -994,16 +1022,16 @@ html:has(.video-page) { overflow: hidden; }
 .device .facts + .fineprint { margin-top: 22px; }
 .download-card .fineprint.file { margin: 8px 0 0; font-size: 0.82rem; overflow-wrap: anywhere; }
 @media (max-width: 560px) { .phones.single { grid-template-columns: minmax(0, 220px); } }
-/* On phones the comparison becomes one card per feature */
-@media (max-width: 640px) {
+/* Stack the comparison where all five columns would otherwise need horizontal scrolling. */
+@media (max-width: 920px) {
   .compare .table-scroll { overflow: visible; background: none; }
-  .compare table { min-width: 0; }
-  .compare thead { display: none; }
+  .compare table, .compare tbody { display: block; width: 100%; min-width: 0; }
+  .compare thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .compare tr { display: block; margin-bottom: 12px; padding: 14px 18px; border-radius: 16px; background: var(--paper); }
   .compare tbody th { display: block; padding: 0 0 6px; border: 0; font-size: 1.05rem; }
-  .compare td { display: flex; justify-content: space-between; gap: 16px; padding: 6px 0; border-bottom: 1px solid rgb(var(--line-rgb) / 0.12); }
+  .compare td { display: flex; justify-content: space-between; gap: 16px; padding: 6px 0; border-bottom: 1px solid rgb(var(--line-rgb) / 0.12); overflow-wrap: anywhere; }
   .compare tr td:last-child { border-bottom: 0; }
-  .compare td::after { content: attr(data-label); order: -1; font-weight: 600; color: var(--plum); }
+  .compare td::after { content: attr(data-label); order: -1; font-weight: 600; color: var(--accent-text); }
   .compare td[data-value="yes"]::before { content: none; }
   .compare td[data-value="yes"] { color: var(--link); font-weight: 600; }
 }
@@ -1033,8 +1061,9 @@ html:has(.video-page) { overflow: hidden; }
 .sheet h2 { font-size: clamp(1.6rem, 5vw, 2rem); margin: 0; }
 .sheet .dialog-close { margin: 0 -10px 0 0; }
 .sheet-body { padding: 12px 28px 8px; }
-.platform-switch { display: flex; width: 100%; max-width: 100%; overflow-x: auto; }
-.platform-switch button { flex: 1 0 auto; min-height: 44px; white-space: nowrap; }
+.platform-switch { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); width: 100%; max-width: 100%; border-radius: 22px; }
+.platform-switch button { min-width: 0; min-height: 44px; padding: 8px; line-height: 1.2; }
+@media (max-width: 560px) { .platform-switch { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .download-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin: 18px 0 14px; font-size: 0.95rem; }
 .version-tag { padding: 4px 12px; border-radius: 999px; background: var(--rose); color: var(--accent-text); font-weight: 600; }
 .download-meta a { color: var(--link); font-weight: 600; text-decoration: none; }
@@ -1073,24 +1102,52 @@ html:has(.video-page) { overflow: hidden; }
 .sheet-foot { align-items: baseline; }
 .sheet-foot .link-button { display: inline; min-height: 0; padding: 0; font-size: inherit; }
 .nowrap { white-space: nowrap; }
-/* Download cards share rows, so titles, requirements, text and buttons line up across cards */
-.desk-downloads { grid-auto-rows: auto; }
-.desk-downloads .download-card { display: grid; grid-row: span 4; grid-template-rows: subgrid; align-items: start; gap: 0; }
+/* Each platform keeps its own download options and installation guidance together. */
+.desk-downloads { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: auto; }
+.desk-downloads .download-card { display: flex; grid-row: auto; min-width: 0; align-items: stretch; gap: 0; }
 .desk-downloads .download-card > p { margin: 0 0 14px; }
 .desk-downloads .download-card .needs { margin: 0 0 10px; }
+.desk-downloads .card-actions { margin-top: 8px; }
+.desk-downloads #linux { grid-column: 1 / -1; }
+.desk-downloads .linux-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; gap: 20px; width: 100%; }
+.linux-actions .download-file { align-content: start; padding: 18px; border: 1px solid rgb(var(--line-rgb) / 0.15); border-radius: 16px; }
+.linux-actions .download-file .fineprint:not(.file) { margin-top: 6px; }
+.linux-extra { grid-column: 1 / -1; width: 100%; }
+.linux-extra .code-block { max-width: 440px; margin: 10px 0 0; }
+@media (max-width: 860px) {
+  .desk-downloads .linux-actions { grid-template-columns: 1fr; gap: 12px; }
+  .linux-extra { grid-column: auto; }
+}
+@media (max-width: 720px) {
+  .desk-downloads { grid-template-columns: minmax(0, 1fr); }
+  .desk-downloads #linux { grid-column: auto; }
+  .desk-downloads .download-card { display: flex; grid-row: auto; min-width: 0; }
+  .desk-downloads .download-card > p { max-width: 100%; overflow-wrap: anywhere; }
+  .desk-downloads .card-actions { width: 100%; min-width: 0; }
+  .desk-downloads .button { max-width: 100%; text-align: center; }
+}
 .card-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+.download-file { display: grid; justify-items: start; gap: 6px; max-width: 100%; min-width: 0; }
 .card-actions .fineprint.file { margin: 0; }
 .card-actions .aur { margin: 6px 0 0; }
 .card-actions pre { margin: 0; }
 
 /* Mobile files stay tied to the published release; signing instructions travel with the download. */
 .mobile-device {
-  max-width: var(--max); margin: 0 auto; padding: clamp(40px, 6vw, 80px) var(--gutter);
+  max-width: var(--max); margin: 0 auto; padding: clamp(32px, 5vw, 64px) var(--gutter) clamp(60px, 9vw, 120px);
   display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(24px, 5vw, 64px); align-items: start;
 }
-.mobile-download { display: grid; gap: 16px; min-width: 0; margin: 18px 0; }
+.mobile-download {
+  display: grid; gap: 16px; min-width: 0; margin: 24px 0 18px; padding: clamp(18px, 2.5vw, 28px);
+  border: 1px solid rgb(var(--line-rgb) / 0.15); border-radius: 22px; background: var(--paper);
+}
+.mobile-device > .mobile-download { margin: 0; }
+.mobile-download > h3 { display: flex; align-items: center; gap: 12px; margin: 0; font-size: 1.3rem; line-height: 1.2; }
 .mobile-download > p { margin: 0; }
 .mobile-download .file { overflow-wrap: anywhere; }
+.testflight-download { background: var(--surface); }
+.testflight-download .button { justify-self: start; max-width: 100%; }
+.testflight-download + .mobile-download { margin-top: 12px; }
 .download-unavailable { color: var(--ink-soft); }
 .mobile-install-guide {
   margin: 16px 0; padding: 6px 18px; border: 1.5px solid rgb(var(--line-rgb) / 0.2);
@@ -1105,6 +1162,36 @@ html:has(.video-page) { overflow: hidden; }
 .mobile-download > .mobile-install-guide { margin: 0; }
 @media (max-width: 860px) { .mobile-device { grid-template-columns: minmax(0, 1fr); gap: 12px; } }
 @media (forced-colors: active) { .mobile-install-guide { border-color: CanvasText; } }
+
+/* Keep the phone platforms side by side, with independent heights. */
+.mobile-platforms { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-areas: "showcase showcase" "iphone android"; align-items: start; gap: clamp(16px, 2.4vw, 28px); max-width: var(--max); margin: 0 auto; padding: clamp(40px, 6vw, 80px) var(--gutter); }
+.mobile-platforms #iphone, .mobile-platforms #android { display: block; min-width: 0; margin: 0; padding: clamp(20px, 2.5vw, 28px); border-radius: 24px; background: var(--rose); }
+.mobile-platforms #iphone { grid-area: iphone; }
+.mobile-platforms #android { grid-area: android; }
+.mobile-showcase { grid-area: showcase; display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 0.95fr); align-items: center; gap: 32px; min-height: 430px; padding: clamp(28px, 5vw, 64px); overflow: hidden; border-radius: 28px; background: radial-gradient(ellipse at 75% 55%, #872b4b 0%, #3a162c 35%, #1b101b 75%); color: #fff4f8; }
+.mobile-showcase-copy { position: relative; z-index: 1; }
+.mobile-showcase-copy .mobile-showcase-kicker { margin: 0 0 14px; color: #ffaac4; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+.mobile-showcase-copy h2 { max-width: 11ch; margin: 0; color: #fff4f8; font-size: clamp(2.4rem, 4.5vw, 4.3rem); line-height: 1.02; }
+.mobile-showcase-copy > p:not(.mobile-showcase-kicker) { max-width: 28em; margin: 18px 0 0; color: #ecd4df; font-size: 1.08rem; }
+.mobile-showcase-badges { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+.mobile-showcase-badges span { padding: 7px 13px; border: 1px solid rgb(255 221 235 / 0.3); border-radius: 999px; color: #fff4f8; font-size: 0.82rem; font-weight: 700; }
+.mobile-showcase-phones { display: flex; align-items: center; justify-content: center; gap: clamp(14px, 2.5vw, 28px); }
+.mobile-showcase-phone { width: min(44%, 190px); flex: none; }
+.showcase-iphone { transform: translateY(16px) rotate(-5deg); }
+.showcase-android { transform: translateY(-12px) rotate(5deg); }
+.android-phone::before { inset: -1% -2.2%; border-radius: 8% / 3.8%; background: linear-gradient(135deg, #68616a, #19161c 45%, #454047); }
+.android-screen { overflow: hidden; border-radius: 7% / 3.4%; background: #faf8fa; }
+.android-status { display: flex; align-items: center; justify-content: space-between; aspect-ratio: 10 / 1; padding: 0 7%; color: #19171b; background: #faf8fa; font: 600 clamp(5px, .55vw, 9px)/1 sans-serif; }
+.android-status svg { width: 22%; height: 60%; }
+.android-screen-capture { overflow: hidden; }
+.android-phone .android-screen-capture img { display: block; margin-top: -11.85%; border-radius: 0; }
+.android-phone::after { display: block; z-index: 1; top: 1.1%; left: 50%; width: 5%; height: auto; aspect-ratio: 1; border-radius: 50%; }
+:root[data-theme="dark"] .android-screen, :root[data-theme="dark"] .android-status { color: #f5f2f5; background: #100e12; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .android-screen, :root:not([data-theme="light"]) .android-status { color: #f5f2f5; background: #100e12; } }
+.mobile-showcase-phone .phone::before { box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.2), 0 24px 45px rgb(0 0 0 / 0.38); }
+.mobile-platforms #android > .mobile-download { margin: 24px 0 0; }
+@media (max-width: 860px) { .mobile-platforms { grid-template-columns: minmax(0, 1fr); grid-template-areas: "showcase" "iphone" "android"; } }
+@media (max-width: 560px) { .mobile-showcase { grid-template-columns: minmax(0, 1fr); gap: 36px; } .mobile-showcase-phones { padding: 10px 0 8px; } .mobile-showcase-phone { width: min(38%, 155px); } }
 
 /* Code samples with a title bar and a copy button */
 .code-block { margin: 16px 0; border-radius: 16px; overflow: hidden; background: var(--vinyl); }

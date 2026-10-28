@@ -160,7 +160,7 @@ export function DownloadProvider({ locale, release, children }: { locale: Locale
                         aria-label={`${t.file} ${file.name}`}
                       >
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M5 21h14" /></svg>
-                        {file.name.endsWith(".tar.gz") ? ".tar.gz" : `.${file.name.split(".").pop()}`}
+                        {t.file} {file.name.endsWith(".tar.gz") ? ".tar.gz" : `.${file.name.split(".").pop()}`}
                       </a>
                     ) : (
                       <a className="button" href={release?.page ?? RELEASES_URL}>GitHub</a>
@@ -190,10 +190,7 @@ export function DownloadProvider({ locale, release, children }: { locale: Locale
         </div>
 
         <div className="sheet-foot">
-          <span>
-            {t.iphone}{" "}
-            <a href={`${localePath(locale, "/download")}#iphone`} onClick={close}>{t.iphoneLink}</a>
-          </span>
+          <span><a href={localePath(locale, "/download")} onClick={close}>{t.allPlatforms}</a></span>
           <span>
             {t.web} <a href={localePath(locale, "/self-hosting")}>{t.webLink}</a>
           </span>

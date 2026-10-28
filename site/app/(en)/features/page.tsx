@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { FeaturesPage } from "@/components/FeaturesPage";
 import { OG_ALT, pageMetadata } from "@/lib/seo";
 
-const description = "Listen Now mixes, your whole library, synced lyrics, a music assistant, audiobooks, statistics and a ten-band equalizer, on iPhone and on the desktop.";
+const description = "Listen Now mixes, your whole library, synced lyrics, a music assistant, audiobooks, statistics and a ten-band equalizer, on iPhone, Android and the desktop.";
 
 export const metadata: Metadata = pageMetadata({
   locale: "en",

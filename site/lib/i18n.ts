@@ -47,7 +47,7 @@ export const ui = {
     menu: "Menu",
     mainNav: "Main",
     nav: { features: "Features", download: "Download", selfHosting: "Self-hosting", faq: "FAQ" },
-    shots: { group: "Screenshots for", switch: "Show screenshots for", iphone: "iPhone", desktop: "Desktop" },
+    shots: { group: "Screenshots for", switch: "Show screenshots for", iphone: "Mobile", desktop: "Desktop", mobileNote: "Mobile screenshots show the iPhone app. Discophile is also available on Android." },
     theme: { label: "Appearance", auto: "Automatic", light: "Light", dark: "Dark" },
     newsletter: {
       started: "Your download is starting.",
@@ -79,6 +79,7 @@ export const ui = {
       notes: "Release notes",
       newTab: "(opens in a new tab)",
       file: "Download",
+      allPlatforms: "All downloads and installation guides",
       copy: "Copy",
       copied: "Copied",
       options: {
@@ -228,7 +229,7 @@ export const ui = {
     menu: "Menu",
     mainNav: "Navigazione principale",
     nav: { features: "Funzionalità", download: "Download", selfHosting: "Self-hosting", faq: "FAQ" },
-    shots: { group: "Schermate per", switch: "Mostra le schermate per", iphone: "iPhone", desktop: "Desktop" },
+    shots: { group: "Schermate per", switch: "Mostra le schermate per", iphone: "Mobile", desktop: "Desktop", mobileNote: "Le schermate mobile mostrano l'app per iPhone. Discophile è disponibile anche per Android." },
     theme: { label: "Aspetto", auto: "Automatico", light: "Chiaro", dark: "Scuro" },
     newsletter: {
       started: "Il download sta per iniziare.",
@@ -260,6 +261,7 @@ export const ui = {
       notes: "Note di rilascio",
       newTab: "(si apre in una nuova scheda)",
       file: "Scarica",
+      allPlatforms: "Tutti i download e le guide di installazione",
       copy: "Copia",
       copied: "Copiato",
       options: {

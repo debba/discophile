@@ -15,17 +15,17 @@ const body = Public_Sans({ subsets: ["latin"], weight: ["400", "500", "600"], st
 const copy = {
   en: {
     title: "Discophile, a music player for your own server",
-    description: "A music player for your Navidrome, Subsonic and Jellyfin libraries, with audiobooks, radio and a music assistant. On iPhone, Mac, Windows, Linux and the web.",
-    ogDescription: "Your music server, played like a record collection. A player for Navidrome, Subsonic, Jellyfin and Audiobookshelf on iPhone, Mac, Windows, Linux and the web.",
-    twitterDescription: "A player for Navidrome, Subsonic, Jellyfin and Audiobookshelf on iPhone, Mac, Windows, Linux and the web.",
+    description: "A music player for your Navidrome, Subsonic and Jellyfin libraries, with audiobooks, radio and a music assistant. On iPhone, Android, Mac, Windows, Linux and the web.",
+    ogDescription: "Your music server, played like a record collection. A player for Navidrome, Subsonic, Jellyfin and Audiobookshelf on iPhone, Android, Mac, Windows, Linux and the web.",
+    twitterDescription: "A player for Navidrome, Subsonic, Jellyfin and Audiobookshelf on iPhone, Android, Mac, Windows, Linux and the web.",
     ogAlt: "Discophile on two iPhones in front of a vinyl record, with the headline Your music server, played like a record collection.",
     ogLocale: "en_US",
   },
   it: {
     title: "Discophile, un player musicale per il tuo server",
-    description: "Un player per le tue librerie Navidrome, Subsonic e Jellyfin, con audiolibri, radio e un assistente musicale. Su iPhone, Mac, Windows, Linux e web.",
-    ogDescription: "La musica del tuo server, come una collezione di dischi. Un player per Navidrome, Subsonic, Jellyfin e Audiobookshelf su iPhone, Mac, Windows, Linux e web.",
-    twitterDescription: "Un player musicale per Navidrome, Subsonic, Jellyfin e Audiobookshelf su iPhone, Mac, Windows, Linux e web.",
+    description: "Un player per le tue librerie Navidrome, Subsonic e Jellyfin, con audiolibri, radio e un assistente musicale. Su iPhone, Android, Mac, Windows, Linux e web.",
+    ogDescription: "La musica del tuo server, come una collezione di dischi. Un player per Navidrome, Subsonic, Jellyfin e Audiobookshelf su iPhone, Android, Mac, Windows, Linux e web.",
+    twitterDescription: "Un player musicale per Navidrome, Subsonic, Jellyfin e Audiobookshelf su iPhone, Android, Mac, Windows, Linux e web.",
     ogAlt: "Discophile su due iPhone davanti a un disco in vinile, con il titolo in inglese Your music server, played like a record collection.",
     ogLocale: "it_IT",
   },

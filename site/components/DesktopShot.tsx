@@ -17,7 +17,7 @@ export function DesktopShot({ name, alt, eager }: { name: string; alt: string; e
 
 /** An iPhone screenshot in both appearances, like DesktopShot. */
 export function PhoneShot({ name, alt, eager }: { name: string; alt: string; eager?: boolean }) {
-  const common = { width: 645, height: 1398, loading: "lazy" as const, fetchPriority: eager ? ("high" as const) : undefined };
+  const common = { width: 645, height: 1398, loading: "lazy" as const, fetchPriority: eager ? ("high" as const) : undefined, "data-trim-bottom": name === "now-playing" || name.startsWith("ai-") ? "true" : undefined };
   return (
     <>
       <img className="theme-light-only" src={`/assets/screens/light/${name}.webp${V}`} alt={alt} {...common} />

@@ -17,7 +17,7 @@ python3 -m unittest discover -s scripts/tests
 
 The synchronizer updates Cargo.toml, both workspace package versions in Cargo.lock, Android's source build configuration and the Helm chart. It never changes the iOS source or publishes anything. Alternate paths are accepted through `--ios-root`, `--android-root` and `--desktop-root`. Source snapshots and release artifacts must agree; CI never silently stamps a different version into a mobile checkout.
 
-Current alignment is **1.0.2**, mobile build **8**. The website and Connect service are not player clients and retain their independent package/deployment versions.
+The published version is **1.0.2**. Its original mobile packages used build **8**; the Android APK was subsequently updated in the same release to build **9**, with its source commit and original tag commit recorded in `RELEASE-SOURCES.json`. The iPhone IPA remains build 8, and the published tags were not moved. Before the next unified release, set the iOS build number above 9 and synchronize the sibling repositories. The website and Connect service are not player clients and retain their independent package/deployment versions.
 
 ## Before enabling the workflow
 

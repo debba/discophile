@@ -32,6 +32,7 @@ export function VideoContent({ locale, standalone = false, stageRef, videoRef, o
 }) {
   const t = ui[locale].video;
   const Heading = standalone ? "h1" : "h2";
+  const TranscriptHeading = standalone ? "h2" : "h3";
   const [captions, setCaptions] = useState(false);
   return (
         <div className="film-inner">
@@ -60,11 +61,11 @@ export function VideoContent({ locale, standalone = false, stageRef, videoRef, o
             <p className="film-links"><Link href={localePath(locale, standalone ? "/" : "/video")}>{standalone ? t.home : t.permalink}</Link> · <a href={VIDEO} download>{t.download}</a></p>
             <details className="transcript">
             <summary>{t.transcript}</summary>
-            <h3>{t.shows}</h3>
+            <TranscriptHeading>{t.shows}</TranscriptHeading>
             <ol>
               {t.scenes.map((scene) => <li key={scene}>{scene}</li>)}
             </ol>
-            <h3>{t.lyrics}</h3>
+            <TranscriptHeading>{t.lyrics}</TranscriptHeading>
             <p lang="en">
               Pick a record, any record you like. Drop the needle, here we go, press play.
               Discophile, discophile, uh, uh-huh, uh-huh.

@@ -32,7 +32,7 @@ const COPY: Record<Locale, Copy> = {
           {
             id: "what",
             q: "What is Discophile?",
-            a: ["A music player for the music you host yourself. It plays your Navidrome, Subsonic and Jellyfin libraries, Audiobookshelf audiobooks and internet radio, on iPhone, Mac, Windows, Linux and in the browser."],
+            a: ["A music player for the music you host yourself. It plays your Navidrome, Subsonic and Jellyfin libraries, Audiobookshelf audiobooks and internet radio, on iPhone, Android, Mac, Windows, Linux and in the browser."],
             links: [{ label: "See everything Discophile does", href: "/features" }],
           },
           {
@@ -83,7 +83,7 @@ const COPY: Record<Locale, Copy> = {
           {
             id: "offline",
             q: "Can I listen offline?",
-            a: ["Yes, on iPhone and on the desktop: download albums, playlists and whole audiobooks and they play without a connection. The web player streams only."],
+            a: ["Yes, on iPhone, Android and the desktop: download albums, playlists and whole audiobooks and they play without a connection. The web player streams only."],
           },
           {
             id: "updates",
@@ -105,7 +105,7 @@ const COPY: Record<Locale, Copy> = {
           {
             id: "assistant",
             q: "How does the music assistant work?",
-            a: ["Describe what you want to hear and it picks songs from your library, so everything it suggests can be played right away. On iPhone it uses Apple Intelligence on the device, on the desktop and in the web player a local model such as Ollama or LM Studio, and on iPhone and desktop you can also connect your ChatGPT account.", "Changes to your server, such as editing a playlist, are applied only after you confirm them."],
+            a: ["Describe what you want to hear and it picks songs from your library, so everything it suggests can be played right away. On supported iPhones it uses Apple Intelligence, on desktop and the web a local model such as Ollama or LM Studio. You can connect ChatGPT on iPhone, Android and desktop. An on-device Android model is limited to compatible phones and is still being validated.", "Changes to your server, such as editing a playlist, are applied only after you confirm them."],
           },
           {
             id: "chatgpt",
@@ -150,7 +150,7 @@ const COPY: Record<Locale, Copy> = {
           {
             id: "what",
             q: "Cos'è Discophile?",
-            a: ["Un player per la musica che ospiti tu. Riproduce le tue librerie Navidrome, Subsonic e Jellyfin, gli audiolibri di Audiobookshelf e le radio online, su iPhone, Mac, Windows, Linux e nel browser."],
+            a: ["Un player per la musica che ospiti tu. Riproduce le tue librerie Navidrome, Subsonic e Jellyfin, gli audiolibri di Audiobookshelf e le radio online, su iPhone, Android, Mac, Windows, Linux e nel browser."],
             links: [{ label: "Scopri tutto quello che fa Discophile", href: "/features" }],
           },
           {
@@ -201,7 +201,7 @@ const COPY: Record<Locale, Copy> = {
           {
             id: "offline",
             q: "Posso ascoltare offline?",
-            a: ["Sì, su iPhone e sul computer: scarica album, playlist e audiolibri interi e li ascolti anche senza connessione. Il player web funziona solo in streaming."],
+            a: ["Sì, su iPhone, Android e sul computer: scarica album, playlist e audiolibri interi e li ascolti anche senza connessione. Il player web funziona solo in streaming."],
           },
           {
             id: "updates",
@@ -223,7 +223,7 @@ const COPY: Record<Locale, Copy> = {
           {
             id: "assistant",
             q: "Come funziona l'assistente musicale?",
-            a: ["Descrivi cosa vuoi ascoltare e sceglie i brani dalla tua libreria, così tutto quello che propone si può riprodurre subito. Su iPhone usa Apple Intelligence sul dispositivo, sul computer e nel player web un modello locale come Ollama o LM Studio, e su iPhone e computer puoi anche collegare il tuo account ChatGPT.", "Le modifiche al tuo server, come cambiare una playlist, vengono applicate solo dopo la tua conferma."],
+            a: ["Descrivi cosa vuoi ascoltare e sceglie i brani dalla tua libreria, così tutto quello che propone si può riprodurre subito. Sugli iPhone supportati usa Apple Intelligence, sul computer e nel player web un modello locale come Ollama o LM Studio. Puoi collegare ChatGPT su iPhone, Android e computer. Il modello sul dispositivo Android è limitato ai telefoni compatibili ed è ancora in fase di verifica.", "Le modifiche al tuo server, come cambiare una playlist, vengono applicate solo dopo la tua conferma."],
           },
           {
             id: "chatgpt",

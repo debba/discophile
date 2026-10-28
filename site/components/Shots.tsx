@@ -68,7 +68,7 @@ export function DeviceShots({
   desktop,
   layout = "trio",
 }: {
-  labels: { group: string; iphone: string; desktop: string };
+  labels: { group: string; iphone: string; desktop: string; mobileNote: string };
   iphone?: Shot[];
   desktop?: Shot[];
   layout?: PhoneLayout;
@@ -109,6 +109,11 @@ export function DeviceShots({
             tabIndex={device === option ? 0 : -1}
             onClick={() => setDevice(option, true)}
             onKeyDown={(event) => {
+              if (event.key === "Home" || event.key === "End") {
+                event.preventDefault();
+                select(event.key === "Home" ? 0 : options.length - 1);
+                return;
+              }
               if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
                 event.preventDefault();
                 select((index + 1) % options.length);
@@ -120,6 +125,7 @@ export function DeviceShots({
         ))}
       </div>
       <div id={`${id}-panel`} role="tabpanel" aria-labelledby={`${id}-${device}-tab`} className="device-panel">
+        {device === "iphone" && <p className="device-screens-note">{labels.mobileNote}</p>}
         {device === "iphone" ? phones : windows}
       </div>
     </div>

@@ -75,7 +75,7 @@ const COPY: Record<Locale, Copy> = {
     limits: {
       title: "Good to know",
       items: [
-        "The web player streams only. Downloads for offline listening and ChatGPT sign-in are on the desktop and iPhone apps.",
+        "The web player streams only. Downloads for offline listening and ChatGPT sign-in are on the desktop, iPhone and Android apps.",
         "Credentials are kept in the browser's local storage, so use it on computers you trust.",
         "It doesn't check for updates. Pull a newer image or upgrade the chart; browsers get the new version on the next visit.",
       ],
@@ -136,7 +136,7 @@ const COPY: Record<Locale, Copy> = {
     limits: {
       title: "Da sapere",
       items: [
-        "Il player web funziona solo in streaming. I download per l'ascolto offline e l'accesso a ChatGPT sono nelle app desktop e iPhone.",
+        "Il player web funziona solo in streaming. I download per l'ascolto offline e l'accesso a ChatGPT sono nelle app desktop, iPhone e Android.",
         "Le credenziali sono conservate nello storage locale del browser, quindi usalo su computer di cui ti fidi.",
         "Non controlla gli aggiornamenti. Scarica un'immagine più recente o aggiorna il chart; i browser ricevono la nuova versione alla visita successiva.",
       ],

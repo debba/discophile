@@ -26,7 +26,7 @@ type Copy = {
 const COPY: Record<Locale, Copy> = {
   en: {
     title: "Everything Discophile does.",
-    lede: "One app on iPhone and on the desktop, with the same mixes, library, assistant and audiobooks. Use the switch above each set of screenshots to see it on either.",
+    lede: "Your library, music and audiobooks on iPhone, Android, desktop and the web. The screenshots show the iPhone and desktop apps; features can vary by platform.",
     features: [
       {
         id: "listen",
@@ -68,7 +68,7 @@ const COPY: Record<Locale, Copy> = {
         id: "assistant",
         title: "Ask for a playlist. Get songs you own.",
         body: [
-          "The music assistant turns a sentence into a selection from your library, so every song it suggests is one you can play right now. Use Apple Intelligence on the iPhone, a local model such as Ollama on the desktop, or connect your ChatGPT account.",
+          "The music assistant turns a sentence into a selection from your library, so every song it suggests is one you can play right now. Use Apple Intelligence on supported iPhones, a local model such as Ollama on the desktop, or connect ChatGPT on iPhone, Android and desktop. Android also offers an on-device model on compatible phones, still under validation.",
           <>Edits such as removing tracks or renaming a playlist open a review first. Nothing changes on your server until you confirm. <b>About</b> writes an overview of an artist, album, song or podcast from your server&apos;s notes and, if you allow it, MusicBrainz and Wikipedia.</>,
         ],
         facts: [
@@ -129,14 +129,14 @@ const COPY: Record<Locale, Copy> = {
     },
     next: {
       title: "Where will you listen?",
-      body: "Discophile runs on iPhone, Mac, Windows and Linux, and in any browser from a server you host.",
+      body: "Discophile runs on iPhone, Android, Mac, Windows and Linux, and in any browser from a server you host.",
       devices: "Download Discophile",
       selfHosting: "Host the web player",
     },
   },
   it: {
     title: "Tutto quello che fa Discophile.",
-    lede: "Un'unica app su iPhone e sul computer, con gli stessi mix, la stessa libreria, lo stesso assistente e gli stessi audiolibri. Usa il selettore sopra ogni gruppo di schermate per vederli su entrambi.",
+    lede: "La tua libreria, la musica e gli audiolibri su iPhone, Android, desktop e web. Le schermate mostrano le app iPhone e desktop; alcune funzioni variano a seconda della piattaforma.",
     features: [
       {
         id: "listen",
@@ -178,7 +178,7 @@ const COPY: Record<Locale, Copy> = {
         id: "assistant",
         title: "Tu dai l’idea. La tua musica fa il resto.",
         body: [
-          "Descrivi l’atmosfera, un’occasione o quello che ti va di ascoltare. L’assistente sceglie i brani dalla tua libreria e li mette subito a portata di play. Usa Apple Intelligence sull’iPhone, un modello locale come Ollama sul desktop, oppure collega il tuo account ChatGPT.",
+          "Descrivi l’atmosfera, un’occasione o quello che ti va di ascoltare. L’assistente sceglie i brani dalla tua libreria e li mette subito a portata di play. Usa Apple Intelligence sugli iPhone supportati, un modello locale come Ollama sul desktop oppure collega ChatGPT su iPhone, Android e desktop. Su Android il modello sul dispositivo è disponibile solo sui telefoni compatibili ed è ancora in fase di verifica.",
           <>Vuoi togliere brani o rinominare una playlist? Prima ti viene mostrato un riepilogo, e sul tuo server non cambia nulla finché non confermi. <b>Informazioni</b> scrive una panoramica di un artista, un album, un brano o un podcast a partire dalle note del tuo server e, se lo consenti, da MusicBrainz e Wikipedia.</>,
         ],
         facts: [
@@ -205,7 +205,7 @@ const COPY: Record<Locale, Copy> = {
       {
         id: "audiobooks",
         title: "Un altro capitolo. Poi un altro ancora.",
-        body: ["Porta con te le storie di Audiobookshelf, insieme alla musica o anche da sole. Discophile salva il punto di ascolto anche offline e lo sincronizza con il server ogni pochi secondi. Passa dall’iPhone al computer o al web e riprendi da dove eri rimasto."],
+        body: ["Porta con te le storie di Audiobookshelf, insieme alla musica o anche da sole. Discophile salva il punto di ascolto anche offline e lo sincronizza con il server ogni pochi secondi. Passa dal telefono al computer o al web e riprendi da dove eri rimasto."],
         facts: [
           "Velocità da 0,5x a 4x, capitoli e libro sulla barra di avanzamento, e salti di 30 secondi.",
           "Timer di spegnimento, anche a fine capitolo.",
@@ -239,7 +239,7 @@ const COPY: Record<Locale, Copy> = {
     },
     next: {
       title: "Dove vuoi ascoltare?",
-      body: "Discophile funziona su iPhone, Mac, Windows e Linux, e in qualsiasi browser da un server che ospiti tu.",
+      body: "Discophile funziona su iPhone, Android, Mac, Windows e Linux, e in qualsiasi browser da un server che ospiti tu.",
       devices: "Scarica Discophile",
       selfHosting: "Ospita il player web",
     },

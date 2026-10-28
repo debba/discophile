@@ -31,9 +31,9 @@ type Copy = {
 const COPY: Record<Locale, Copy> = {
   en: {
     title: "Your music server, played like a record collection.",
-    lede: "Discophile plays your Navidrome, Subsonic and Jellyfin libraries on iPhone, Android, Mac, Windows, Linux and in the browser. Audiobookshelf audiobooks and internet radio live in the same app. No account required, no tracking. Optional Connect keeps your desktop computers in sync.",
+    lede: "Discophile plays your Navidrome, Subsonic and Jellyfin libraries on iPhone, Android, Mac, Windows, Linux and in the browser. Audiobookshelf audiobooks and internet radio live in the same app. No account required, no tracking. Optional Connect keeps your devices in sync.",
     download: { any: "Get Discophile", mac: "Download for Mac", windows: "Download for Windows", linux: "Download for Linux" },
-    free: <><b>Free for Mac, Windows and Linux.</b> Open source, signed and ready to download.</>,
+    free: <><b>Free downloads for Android and desktop.</b> Pick your device and installation guide.</>,
     soon: <><b>Awaiting App Store approval.</b> <a href="/download#iphone">IPA download and sideloading guide</a> for iPhone with iOS 17 or later.</>,
     testflight: "Try the iPhone beta",
     listen: {
@@ -48,7 +48,7 @@ const COPY: Record<Locale, Copy> = {
     assistant: {
       title: "Ask for a playlist. Get songs you own.",
       body: [
-        "The music assistant turns a sentence into a selection from your library, so every song it suggests is one you can play right now. Use Apple Intelligence on the iPhone, a local model on the desktop, or connect your ChatGPT account for bigger requests.",
+        "The music assistant turns a sentence into a selection from your library, so every song it suggests is one you can play right now. Use Apple Intelligence on supported iPhones, a local model on the desktop, or connect ChatGPT on iPhone, Android and desktop. Android also offers an on-device model on compatible devices, still under validation.",
         <>Edits such as removing tracks or renaming a playlist open a review first. Nothing changes on your server until you confirm.</>,
       ],
       facts: [
@@ -72,9 +72,10 @@ const COPY: Record<Locale, Copy> = {
     },
     everywhere: {
       title: "One collection, every screen.",
-      body: "The same mixes, library, assistant and audiobooks, wherever you listen.",
+      body: "Your library, music and audiobooks across your devices, with features suited to each platform.",
       cards: [
         { title: "iPhone", body: "Native on iOS, with Siri, the Lock Screen, AirPlay and an assistant that runs on the device.", link: "Discophile for iPhone", href: "/download#iphone" },
+        { title: "Android", body: "Music, audiobooks and offline listening on Android, with ChatGPT and a signed APK.", link: "Discophile for Android", href: "/download#android" },
         { title: "Mac, Windows and Linux", body: "A window made for a big screen, with media keys, a tray menu, an equalizer curve and agents.", link: "Download for desktop", href: "/download#desktop" },
         { title: "Any browser", body: "Host the web player next to your server with Docker or Kubernetes, and listen from anywhere.", link: "Host the web player", href: "/self-hosting" },
       ],
@@ -97,7 +98,7 @@ const COPY: Record<Locale, Copy> = {
     },
     release: {
       title: "Get Discophile.",
-      body: "Free for Mac, Windows and Linux today, and coming soon to the App Store for iPhone. Bring your own server: it works with the music and audiobooks you already host.",
+      body: "Download for Android, Mac, Windows and Linux, or use the iPhone IPA while App Store approval is pending. Bring your own server: it works with the music and audiobooks you already host.",
       servers: "Supported servers",
       serverNames: ["Navidrome", "Subsonic and OpenSubsonic", "Jellyfin", "Audiobookshelf", "Internet radio"],
       devices: "All downloads and requirements",
@@ -111,9 +112,9 @@ const COPY: Record<Locale, Copy> = {
   },
   it: {
     title: "La tua musica. Il tuo mondo. Premi play.",
-    lede: "La tua libreria merita il palco. Ascolta la musica di Navidrome, Subsonic e Jellyfin su iPhone, Android, Mac, Windows, Linux e nel browser, ritrova i tuoi audiolibri di Audiobookshelf e accendi le radio che ami. Tutto in Discophile, senza account obbligatorio e senza tracciamento. Connect sincronizza i tuoi computer, se lo desideri.",
+    lede: "La tua libreria merita il palco. Ascolta la musica di Navidrome, Subsonic e Jellyfin su iPhone, Android, Mac, Windows, Linux e nel browser, ritrova i tuoi audiolibri di Audiobookshelf e accendi le radio che ami. Tutto in Discophile, senza account obbligatorio e senza tracciamento. Connect sincronizza i tuoi dispositivi, se lo desideri.",
     download: { any: "Scarica Discophile", mac: "Scarica per Mac", windows: "Scarica per Windows", linux: "Scarica per Linux" },
-    free: <><b>Gratis per Mac, Windows e Linux.</b> Open source, firmato e pronto da scaricare.</>,
+    free: <><b>Download gratuiti per Android e desktop.</b> Scegli il tuo dispositivo e la guida di installazione.</>,
     soon: <><b>In attesa dell&apos;approvazione dell&apos;App Store.</b> <a href="/it/download#iphone">Download IPA e guida al sideloading</a> per iPhone con iOS 17 o versioni successive.</>,
     testflight: "Prova la beta per iPhone",
     listen: {
@@ -128,7 +129,7 @@ const COPY: Record<Locale, Copy> = {
     assistant: {
       title: "Tu dai l’idea. La tua musica fa il resto.",
       body: [
-        "Descrivi l’atmosfera, un’occasione o quello che ti va di ascoltare. L’assistente sceglie i brani dalla tua libreria e li mette subito a portata di play. Usa Apple Intelligence sull’iPhone, un modello locale sul desktop, oppure collega il tuo account ChatGPT.",
+        "Descrivi l’atmosfera, un’occasione o quello che ti va di ascoltare. L’assistente sceglie i brani dalla tua libreria e li mette subito a portata di play. Usa Apple Intelligence sugli iPhone supportati, un modello locale sul desktop oppure collega ChatGPT su iPhone, Android e desktop. Su Android il modello sul dispositivo è disponibile solo sui telefoni compatibili ed è ancora in fase di verifica.",
         <>Vuoi togliere brani o rinominare una playlist? Prima ti viene mostrato un riepilogo, e sul tuo server non cambia nulla finché non confermi.</>,
       ],
       facts: [
@@ -141,7 +142,7 @@ const COPY: Record<Locale, Copy> = {
     },
     audiobooks: {
       title: "Un altro capitolo. Poi un altro ancora.",
-      body: "Porta con te le storie di Audiobookshelf, insieme alla musica o anche da sole. Discophile salva il punto di ascolto anche offline e lo sincronizza con il server ogni pochi secondi. Passa dall’iPhone al computer o al web e riprendi da dove eri rimasto.",
+      body: "Porta con te le storie di Audiobookshelf, insieme alla musica o anche da sole. Discophile salva il punto di ascolto anche offline e lo sincronizza con il server ogni pochi secondi. Passa dal telefono al computer o al web e riprendi da dove eri rimasto.",
       facts: [
         "Velocità di riproduzione da 0,5x a 4x, capitoli sulla barra di avanzamento e salti precisi nel punto che vuoi.",
         "Timer di spegnimento, anche a fine capitolo.",
@@ -152,9 +153,10 @@ const COPY: Record<Locale, Copy> = {
     },
     everywhere: {
       title: "Una collezione, ogni schermo.",
-      body: "Gli stessi mix, la stessa libreria, lo stesso assistente e gli stessi audiolibri, ovunque tu ascolti.",
+      body: "La tua libreria, la musica e gli audiolibri sui tuoi dispositivi, con funzioni adatte a ogni piattaforma.",
       cards: [
         { title: "iPhone", body: "Nativo su iOS, con Siri, la schermata di blocco, AirPlay e un assistente che funziona sul dispositivo.", link: "Discophile per iPhone", href: "/download#iphone" },
+        { title: "Android", body: "Musica, audiolibri e ascolto offline su Android, con ChatGPT e un APK firmato.", link: "Discophile per Android", href: "/download#android" },
         { title: "Mac, Windows e Linux", body: "Una finestra pensata per lo schermo grande, con tasti multimediali, area di notifica, curva dell'equalizzatore e agenti.", link: "Scarica per desktop", href: "/download#desktop" },
         { title: "Qualsiasi browser", body: "Ospita il player web accanto al tuo server con Docker o Kubernetes, e ascolta da dove vuoi.", link: "Ospita il player web", href: "/self-hosting" },
       ],
@@ -177,7 +179,7 @@ const COPY: Record<Locale, Copy> = {
     },
     release: {
       title: "Il prossimo ascolto comincia qui.",
-      body: "Gratis per Mac, Windows e Linux da oggi, e presto sull’App Store per iPhone. Porta il tuo server: funziona con la musica e gli audiolibri che ospiti già.",
+      body: "Scarica Discophile per Android, Mac, Windows e Linux, oppure usa l’IPA per iPhone in attesa dell’approvazione dell’App Store. Porta il tuo server: funziona con la musica e gli audiolibri che ospiti già.",
       servers: "Server supportati",
       serverNames: ["Navidrome", "Subsonic e OpenSubsonic", "Jellyfin", "Audiobookshelf", "Radio online"],
       devices: "Tutti i download e i requisiti",
@@ -195,6 +197,7 @@ const DETAIL_ICONS: IconName[] = ["gapless", "equalizer", "lyrics", "radio", "sp
 
 const DEVICE_ICONS: ReactNode[] = [
   <path key="phone" d="M8 2h8a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Zm3 17h2" />,
+  <path key="android" d="M8 2h8a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Zm3 17h2" />,
   <path key="desktop" d="M4 4h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Zm4 16h8m-4-4v4" />,
   <path key="browser" d="M3 5h18v14H3zM3 9h18M6 7h.01M9 7h.01" />,
 ];
