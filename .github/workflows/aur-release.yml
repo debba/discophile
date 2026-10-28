@@ -1,0 +1,46 @@
+name: Update AUR from release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Published release tag
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  aur:
+    if: '!github.event.repository.private'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ inputs.tag }}
+      AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+    steps:
+      - name: Validate release tag
+        run: |
+          [[ "$RELEASE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+          [[ -n "$AUR_SSH_PRIVATE_KEY" ]]
+          gh release view "$RELEASE_TAG" -R "$GITHUB_REPOSITORY" --json isDraft,isPrerelease --jq '(.isDraft or .isPrerelease) | not' | grep -qx true
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+      - name: Download released Linux package and update PKGBUILD
+        run: |
+          version="${RELEASE_TAG#v}"
+          gh release download "$RELEASE_TAG" -R "$GITHUB_REPOSITORY" -p "Discophile-$version-linux-x86_64.tar.gz" -D dist
+          sum=$(sha256sum "dist/Discophile-$version-linux-x86_64.tar.gz" | cut -d' ' -f1)
+          sed -i -e "s/^pkgver=.*/pkgver=$version/" -e 's/^pkgrel=.*/pkgrel=1/' \
+            -e "s/^sha256sums=.*/sha256sums=('$sum')/" packaging/aur/discophile-bin/PKGBUILD
+      - uses: KSXGitHub/github-actions-deploy-aur@v4.2.0
+        with:
+          pkgname: discophile-bin
+          pkgbuild: packaging/aur/discophile-bin/PKGBUILD
+          test: true
+          commit_username: ${{ secrets.AUR_USERNAME }}
+          commit_email: ${{ secrets.AUR_EMAIL }}
+          ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          commit_message: Update to ${{ inputs.tag }}
