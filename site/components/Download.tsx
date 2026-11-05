@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useId, useRef, useSt
 import { trackEvent } from "@/lib/analytics";
 import { localePath, ui, type Locale } from "@/lib/i18n";
 import { RELEASES_URL, megabytes, type DownloadFormat, type Platform, type Release } from "@/lib/releases";
+import { AppStoreLink } from "@/components/AppStore";
 import { MobileInstallGuide } from "@/components/MobileInstallGuide";
 import { detectPlatform } from "@/lib/platform";
 
@@ -64,10 +65,11 @@ export function DownloadProvider({ locale, release, children }: { locale: Locale
     }
   };
 
-  const formats: DownloadFormat[] = platform === "linux"
+  // The iPhone app comes from the App Store, so its tab lists no release files.
+  const formats: DownloadFormat[] = platform === "ios" ? [] : platform === "linux"
     ? (["deb", "appimage", "linux"] as const).filter((format) => !!release?.files[format])
     : [platform];
-  if (formats.length === 0) formats.push(platform);
+  if (formats.length === 0 && platform !== "ios") formats.push(platform);
 
   return (
     <DownloadContext.Provider value={{ open, detected, locale }}>
@@ -128,12 +130,14 @@ export function DownloadProvider({ locale, release, children }: { locale: Locale
             ))}
           </div>
 
-          <div className="download-meta">
-            {release && <span className="version-tag">{t.version} {release.version}</span>}
-            <a href={release?.page ?? RELEASES_URL} target="_blank" rel="noopener noreferrer">
-              {t.notes}<span aria-hidden="true"> ↗</span><span className="sr-only"> {t.newTab}</span>
-            </a>
-          </div>
+          {platform !== "ios" && (
+            <div className="download-meta">
+              {release && <span className="version-tag">{t.version} {release.version}</span>}
+              <a href={release?.page ?? RELEASES_URL} target="_blank" rel="noopener noreferrer">
+                {t.notes}<span aria-hidden="true"> ↗</span><span className="sr-only"> {t.newTab}</span>
+              </a>
+            </div>
+          )}
 
           <div id="download-panel" role="tabpanel" aria-labelledby={`download-tab-${platform}`}>
             <ul className="download-options">
@@ -168,6 +172,15 @@ export function DownloadProvider({ locale, release, children }: { locale: Locale
                   </li>
                 );
               })}
+              {platform === "ios" && (
+                <li>
+                  <div>
+                    <strong>{t.options.ios[0][0]}</strong>
+                    <span>{t.options.ios[0][1]}</span>
+                  </div>
+                  <AppStoreLink locale={locale} source="Download sheet" />
+                </li>
+              )}
               {platform === "linux" && (
                 <li className="download-command">
                   <div>
@@ -183,8 +196,8 @@ export function DownloadProvider({ locale, release, children }: { locale: Locale
                 </li>
               )}
             </ul>
-            <p className="download-tip">{formats.some((format) => release?.files[format]) ? t.tips[platform] : t.unavailable}</p>
-            {(platform === "ios" || platform === "android") && <MobileInstallGuide locale={locale} platform={platform} />}
+            <p className="download-tip">{platform === "ios" || formats.some((format) => release?.files[format]) ? t.tips[platform] : t.unavailable}</p>
+            {platform === "android" && <MobileInstallGuide locale={locale} platform="android" />}
             <p className="sr-only" role="status">{copied ? t.copied : ""}</p>
           </div>
         </div>
@@ -267,9 +280,7 @@ function Thanks({
         <a href={file.url}>{t.directLink}</a>.
       </p>
 
-      {(file.platform === "ios" || file.platform === "android") && (
-        <MobileInstallGuide locale={locale} platform={file.platform} expanded />
-      )}
+      {file.platform === "android" && <MobileInstallGuide locale={locale} platform="android" expanded />}
 
       <section className="thanks-card sponsor-card" aria-labelledby={`${id}-sponsor`}>
         <h3 id={`${id}-sponsor`}>{t.sponsorTitle}</h3>
@@ -326,13 +337,19 @@ function Thanks({
   );
 }
 
+/** A second button for the iPhone app, left out on an iPhone, where the main download button already opens the App Store. */
+export function AppStoreButton({ className = "button" }: { className?: string }) {
+  const { detected, locale } = useContext(DownloadContext);
+  return detected === "ios" ? null : <AppStoreLink locale={locale} source="Second button" className={className} />;
+}
+
 const DOWNLOAD_ICON = (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <path d="M12 3v12m0 0-5-5m5 5 5-5M5 21h14" />
   </svg>
 );
 
-/** Opens the matching desktop or mobile download sheet, including installation guidance. */
+/** Opens the matching download sheet with installation guidance; on an iPhone, the App Store instead. */
 export function DownloadButton({
   labels,
   platform,
@@ -344,6 +361,7 @@ export function DownloadButton({
 }) {
   const { open, detected, locale } = useContext(DownloadContext);
   const target = platform ?? detected;
+  if (target === "ios") return <AppStoreLink locale={locale} source="Download button" className={className}>{labels.ios}</AppStoreLink>;
   return (
     <button type="button" className={className} aria-haspopup="dialog" onClick={() => open(target ?? undefined)}>
       {DOWNLOAD_ICON}

@@ -65,7 +65,7 @@ Validation: all 382 core tests passed; native app, WASM core and WASM app checks
 
 ## Releases
 
-Mobile packaging, the shared iOS-owned version, required signing/repository secrets and the coordinated three-repository tag procedure are documented in [Unified mobile releases](MOBILE_RELEASES.md). A release now waits for both mobile builds and attaches the signed APK and unsigned sideload IPA alongside the desktop packages. Do not tag before device approval.
+Mobile packaging, the shared iOS-owned version, required signing/repository secrets and the coordinated three-repository tag procedure are documented in [Unified mobile releases](MOBILE_RELEASES.md). A release now waits for the Android build and attaches the signed APK alongside the desktop packages; the iPhone app ships only through the App Store. Do not tag before device approval.
 
 Pushing a `v*` tag runs `.github/workflows/release.yml`. It builds a universal macOS disk image (signed with
 Developer ID and notarized), a Windows zip and Linux tarball, Debian and AppImage packages, then publishes them as a GitHub release. The app

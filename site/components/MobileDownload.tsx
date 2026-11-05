@@ -1,20 +1,17 @@
 import { DownloadFileLink } from "@/components/DownloadFileLink";
-import { DownloadIcon } from "@/components/DownloadIcon";
 import { MobileInstallGuide } from "@/components/MobileInstallGuide";
 import { ui, type Locale } from "@/lib/i18n";
 import { RELEASES_URL, megabytes, type Release } from "@/lib/releases";
 
-export function MobileDownload({ locale, platform, release, title }: {
+export function MobileDownload({ locale, platform, release }: {
   locale: Locale;
-  platform: "ios" | "android";
+  platform: "android";
   release: Release | null;
-  title?: string;
 }) {
   const t = ui[locale];
   const file = release?.files[platform];
   return (
     <div className="mobile-download">
-      {title && <h3><DownloadIcon name="ipa" />{title}</h3>}
       {file ? (
         <div className="card-actions">
           <DownloadFileLink file={file} format={platform} label={t.download.buttons[platform]} />

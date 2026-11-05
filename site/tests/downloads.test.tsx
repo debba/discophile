@@ -5,13 +5,16 @@ import { DownloadButton, DownloadProvider } from "../components/Download";
 import { MobileDownload } from "../components/MobileDownload";
 import { MobileInstallGuide } from "../components/MobileInstallGuide";
 import { DownloadPage } from "../components/DownloadPage";
+import { FaqPage } from "../components/FaqPage";
+import { StructuredData } from "../components/StructuredData";
 import { PhoneShot } from "../components/DesktopShot";
 import { detectPlatform } from "../lib/platform";
-import { latestRelease, parseRelease, REPO_URL, type Release } from "../lib/releases";
+import { APP_STORE_URL, latestRelease, parseRelease, REPO_URL, type Release } from "../lib/releases";
 import { ui } from "../lib/i18n";
 
 const asset = (name: string, tag = "v1.0.1") => ({ name, browser_download_url: `${REPO_URL}/releases/download/${tag}/${name}`, size: 24_000_000 });
 const payload = (assets: unknown[] = []) => ({ tag_name: "v1.0.1", html_url: `${REPO_URL}/releases/tag/v1.0.1`, draft: false, prerelease: false, assets });
+// Release 1.0.2 shipped an unsigned IPA before the App Store launch; the site must never offer it.
 const mobileAssets = [asset("Discophile-1.0.1-android.apk"), asset("Discophile-1.0.1-ios-unsigned.ipa")];
 const release = parseRelease(payload(mobileAssets)) as Release;
 afterEach(() => mock.restoreAll());
@@ -23,10 +26,10 @@ test("only screenshots with partially captured sheet controls are trimmed", () =
   assert.doesNotMatch(renderToStaticMarkup(<PhoneShot name="album" alt="" />), /data-trim-bottom/);
 });
 
-test("recognizes APK and unsigned IPA from the same published version", () => {
+test("recognizes the APK from the published version and ignores an IPA", () => {
   assert.equal(release.version, "1.0.1");
   assert.equal(release.files.android?.name, mobileAssets[0].name);
-  assert.equal(release.files.ios?.name, mobileAssets[1].name);
+  assert.deepEqual(Object.keys(release.files), ["android"]);
 });
 
 test("does not mix older mobile assets into a newer release or advertise debug APKs", () => {
@@ -42,7 +45,6 @@ test("older desktop-only releases still work without inventing mobile URLs", () 
   assert.ok(result?.files.mac);
   assert.ok(result?.files.deb);
   assert.equal(result?.files.android, undefined);
-  assert.equal(result?.files.ios, undefined);
 });
 
 test("rejects drafts, prereleases and malformed release metadata", () => {
@@ -85,7 +87,7 @@ test("detects Android as mobile rather than Linux, and touch Macs as iPads", () 
 
 test("mobile cards expose localized download actions only when the asset exists", () => {
   for (const locale of ["en", "it"] as const) {
-    for (const platform of ["ios", "android"] as const) {
+    for (const platform of ["android"] as const) {
       const present = renderToStaticMarkup(<MobileDownload locale={locale} platform={platform} release={release} />);
       assert.ok(present.includes(ui[locale].download.buttons[platform]));
       assert.ok(present.includes(`href="${release.files[platform]!.url}"`));
@@ -102,37 +104,30 @@ test("download page links directly to each available Linux package", async () =>
   const linuxAssets = [asset("discophile_1.0.1_amd64.deb"), asset("Discophile-1.0.1-x86_64.AppImage"), asset("Discophile-1.0.1-linux-x86_64.tar.gz")];
   mock.method(globalThis, "fetch", async () => Response.json(payload([...mobileAssets, ...linuxAssets])));
   const html = renderToStaticMarkup(await DownloadPage({ locale: "it" }));
-  for (const file of [...mobileAssets, ...linuxAssets]) assert.ok(html.includes(`href="${file.browser_download_url}"`));
+  for (const file of [mobileAssets[0], ...linuxAssets]) assert.ok(html.includes(`href="${file.browser_download_url}"`));
   assert.match(html, /Scarica \.deb/);
   assert.match(html, /Scarica AppImage/);
   assert.match(html, /Scarica \.tar\.gz/);
 });
 
-test("iPhone download recommends TestFlight before the IPA option", async () => {
+test("iPhone section sends visitors to the App Store, with the price, and never to an IPA or TestFlight", async () => {
   mock.method(globalThis, "fetch", async () => Response.json(payload(mobileAssets)));
   for (const locale of ["en", "it"] as const) {
     const html = renderToStaticMarkup(await DownloadPage({ locale }));
     const iphone = html.slice(html.indexOf('id="iphone"'), html.indexOf('id="android"'));
-    const recommended = locale === "it" ? "Consigliato: TestFlight" : "Recommended: TestFlight";
-    const alternative = locale === "it" ? "Alternativa: installa l&#x27;IPA" : "Alternative: sideload the IPA";
-    assert.ok(iphone.indexOf(recommended) >= 0);
-    assert.ok(iphone.indexOf(alternative) > iphone.indexOf(recommended));
-    assert.match(iphone, /class="button primary"[^>]*aria-haspopup="dialog"/);
-    assert.ok(iphone.includes(`class="button primary" href="${mobileAssets[1].browser_download_url}"`));
+    assert.ok(iphone.includes(`class="button primary" href="${APP_STORE_URL}"`));
+    assert.ok(iphone.includes(ui[locale].download.buttons.ios));
+    assert.ok(iphone.includes(locale === "it" ? "2,99 €" : "€2.99"));
+    assert.doesNotMatch(html, /\.ipa|TestFlight|sideload/i);
   }
 });
 
-test("iPhone guide identifies the unsigned IPA, official tools and renewal/data risks", () => {
-  const html = renderToStaticMarkup(<MobileInstallGuide locale="it" platform="ios" expanded />);
-  assert.match(html, /<details[^>]* open=""/);
-  assert.match(html, /approvazione/);
-  assert.match(html, /non è firmato/);
-  assert.match(html, /https:\/\/sideloadly\.io\//);
-  assert.match(html, /https:\/\/faq\.altstore\.io\/altstore-classic\//);
-  assert.match(html, /7 giorni/);
-  assert.match(html, /Non disinstallare/);
-  assert.match(html, /Apple Watch/);
-  assert.doesNotMatch(html, /<input|<form/);
+test("on an iPhone the download button opens the App Store instead of the dialog", () => {
+  const html = renderToStaticMarkup(<DownloadProvider locale="en" release={release}><DownloadButton platform="ios" labels={{ any: "Download" }} /></DownloadProvider>);
+  const button = html.slice(0, html.indexOf("<dialog"));
+  assert.ok(button.includes(`href="${APP_STORE_URL}"`));
+  assert.ok(button.includes("Download on the App Store"));
+  assert.doesNotMatch(button, /aria-haspopup/);
 });
 
 test("Android guide does not suggest turning off Play Protect or deleting app data", () => {
@@ -142,11 +137,11 @@ test("Android guide does not suggest turning off Play Protect or deleting app da
 });
 
 test("the shared download dialog exposes all five named platform tabs", () => {
-  const html = renderToStaticMarkup(<DownloadProvider locale="it" release={release}><DownloadButton platform="ios" labels={{ any: "Download", ios: "Scarica IPA" }} /></DownloadProvider>);
+  const html = renderToStaticMarkup(<DownloadProvider locale="it" release={release}><DownloadButton platform="ios" labels={{ any: "Download" }} /></DownloadProvider>);
   for (const platform of ["mac", "windows", "linux", "android", "ios"]) {
     assert.ok(html.includes(`id="download-tab-${platform}"`));
   }
-  assert.match(html, /Scarica IPA/);
+  assert.match(html, /Scarica su App Store/);
 });
 
 test("download page includes mobile files and installation guides in both languages", async () => {
@@ -156,11 +151,24 @@ test("download page includes mobile files and installation guides in both langua
     assert.match(html, /id="android"/);
     assert.match(html, /id="iphone"/);
     assert.match(html, /Discophile-1\.0\.1-android\.apk/);
-    assert.match(html, /Discophile-1\.0\.1-ios-unsigned\.ipa/);
-    assert.match(html, /Sideloadly/);
+    assert.doesNotMatch(html, /ios-unsigned/);
     assert.match(html, /<th scope="col">Android<\/th>/);
     assert.match(html, /data-label="Android"/);
     assert.match(html, /role="region" aria-label="[^"]+" tabindex="0"/);
     assert.match(html, locale === "it" ? /dispositiv[io] compatibil/ : /compatible (devices|phones)/);
   }
+});
+
+test("FAQ and search data state the iPhone price and link the App Store", async () => {
+  mock.method(globalThis, "fetch", async () => Response.json(payload(mobileAssets)));
+  for (const locale of ["en", "it"] as const) {
+    const faq = renderToStaticMarkup(FaqPage({ locale }));
+    assert.ok(faq.includes(`href="${APP_STORE_URL}"`));
+    assert.ok(faq.includes(locale === "it" ? "2,99 €" : "€2.99"));
+    assert.doesNotMatch(faq, /coming soon|arriva presto|try the beta|provare la beta|testflight: true/i);
+  }
+  const data = JSON.parse(renderToStaticMarkup(await StructuredData({ locale: "en" })).replace(/^<script[^>]*>|<\/script>$/g, ""));
+  const offers = data["@graph"][1].offers;
+  assert.deepEqual(offers.map((offer: { price: string }) => offer.price), ["0", "2.99"]);
+  assert.equal(offers[1].url, APP_STORE_URL);
 });

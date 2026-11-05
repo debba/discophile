@@ -1,4 +1,4 @@
-# Unified desktop, web, Android and iPhone releases
+# Unified desktop, web and Android releases
 
 ## One version, owned by iOS
 
@@ -17,7 +17,7 @@ python3 -m unittest discover -s scripts/tests
 
 The synchronizer updates Cargo.toml, both workspace package versions in Cargo.lock, Android's source build configuration and the Helm chart. It never changes the iOS source or publishes anything. Alternate paths are accepted through `--ios-root`, `--android-root` and `--desktop-root`. Source snapshots and release artifacts must agree; CI never silently stamps a different version into a mobile checkout.
 
-The published version is **1.0.2**. Its original mobile packages used build **8**; the Android APK was subsequently updated in the same release to build **9**, with its source commit and original tag commit recorded in `RELEASE-SOURCES.json`. The iPhone IPA remains build 8, and the published tags were not moved. Before the next unified release, set the iOS build number above 9 and synchronize the sibling repositories. The website and Connect service are not player clients and retain their independent package/deployment versions.
+The published version is **1.0.2**. Its original mobile packages used build **8**; the Android APK was subsequently updated in the same release to build **9**, with its source commit and original tag commit recorded in `RELEASE-SOURCES.json`. The unsigned iPhone IPA first attached to it (build 8) was withdrawn when the iPhone app launched on the App Store, and the published tags were not moved. Before the next unified release, set the iOS build number above 9 and synchronize the sibling repositories. The website and Connect service are not player clients and retain their independent package/deployment versions.
 
 ## Before enabling the workflow
 
@@ -29,9 +29,9 @@ The two mobile repositories are private. Configure these secrets on `debba/disco
 
 Back up the Android key securely; changing it prevents ordinary updates to previously signed APKs. Release builds fail if signing configuration is absent and never fall back to the debug keystore. Debug builds are unaffected. Locally, release Gradle tasks accept `ANDROID_KEYSTORE_PATH` plus the three signing parameters above. No secrets have been configured by the source changes described here.
 
-The public IPA is intentionally **unsigned for sideloading**. CI archives the existing iPhone-only XcodeGen project without signing and rejects any embedded provisioning profile, wrong bundle ID or version. It publishes no device IDs, Apple development certificates or development profiles. App Store/TestFlight distribution remains a separate signed export/upload procedure. See [mobile installation guidance](../packaging/mobile/INSTALLATION.md).
+The iPhone app is a paid app distributed only through the [App Store](https://apps.apple.com/app/discophile/id6825932680), with its own signed archive and upload from the iOS repository. This workflow builds no IPA, and GitHub releases must never carry one, since a public IPA would give the paid app away. The iOS checkout is still required, because it owns the shared version and build. See [mobile installation guidance](../packaging/mobile/INSTALLATION.md).
 
-The iOS job uses GitHub's `xcode-27` label because the source requires the iOS 27 SDK. It fails clearly if an older SDK is selected. Runner availability/capacity and actual Xcode archive success still require a real CI run; local Linux checks cannot validate them. The desktop macOS job uses `macos-15`.
+The desktop macOS job uses `macos-15`.
 
 ## Release procedure (only after device approval)
 
@@ -40,14 +40,14 @@ The iOS job uses GitHub's `xcode-27` label because the source requires the iOS 2
 3. Commit and push each repository's reviewed changes. Create and push the **same** `vX.Y.Z` tag in both mobile repositories first. Never move a published tag.
 4. Add reviewed release notes as `docs/releases/X.Y.Z.md` in the desktop repository, then commit and push the desktop changes and matching tag. That tag starts the unified workflow.
 5. The preflight checks all source versions against iOS and the tag, then resolves the mobile tags once into immutable commit SHAs. Build jobs use those SHAs, not moving branches. `RELEASE-SOURCES.json` records all three source commits and the common version/build.
-6. Publishing waits for macOS, Windows, Linux, Android, iPhone, web image and Helm builds. It requires every expected desktop/Helm/APK/IPA asset plus installation guidance and provenance, calculates SHA-256 checksums, uploads into a **draft** GitHub release, then makes it public only after upload succeeds. A failed upload can leave a draft requiring inspection before retry. Container/chart pushes still happen in their tag-triggered build jobs, as before; GitHub draft gating is not an atomic deployment of those registries.
+6. Publishing waits for macOS, Windows, Linux, Android, web image and Helm builds. It requires every expected desktop/Helm/APK asset plus installation guidance and provenance, calculates SHA-256 checksums, uploads into a **draft** GitHub release, then makes it public only after upload succeeds. A failed upload can leave a draft requiring inspection before retry. Container/chart pushes still happen in their tag-triggered build jobs, as before; GitHub draft gating is not an atomic deployment of those registries.
 
 Manual `workflow_dispatch` takes a `mobile_ref` (default `main`) that must exist in both mobile repositories. It performs the same checks and builds downloadable workflow artifacts, but does not create a GitHub release, push container/chart tags or update AUR. Required mobile access/signing secrets are checked before build jobs start even for manual runs.
 
 ## Locally built mobile packages
 
-The owner requested locally built IPA and APK packages for the current release when CI mobile signing and repository access are not configured. Preserve the persistent Android release signing key and make a secure backup. A release APK signed with a new key cannot update an installation signed with the development key. The public IPA must be unsigned and must not include a provisioning profile.
+The owner requested locally built APK packages for the current release when CI mobile signing and repository access are not configured. Preserve the persistent Android release signing key and make a secure backup. A release APK signed with a new key cannot update an installation signed with the development key. Do not add an IPA: the iPhone app ships only through the App Store.
 
 For this fallback, check all three source versions and tags locally before building. Set the repository variable `DISCOPHILE_LOCAL_MOBILE` to `true` before pushing the desktop tag. The workflow then builds the desktop and Helm artifacts without mobile access and does not publish a GitHub release. After all required desktop and Helm jobs succeed, collect their workflow artifacts, add the locally verified mobile packages, installation guide and a `RELEASE-SOURCES.json` identifying the three tagged commits and shared version/build, and publish them together as a draft before making it public. Reset the variable after the workflow run so later releases use the normal unified checks. After publication, run the `Update AUR from release` workflow with the published tag to update AUR.
 
-Do not trigger a workflow or push a tag merely to test these source changes. Local tooling tests cover synchronization/idempotence, strict iOS versions, matching tags, nondecreasing Android builds, missing manifest fields, IPA identity/version and exclusion of private provisioning profiles. Live private-repository access, release signing, the Xcode archive and publishing require configured CI and explicit release approval.
+Do not trigger a workflow or push a tag merely to test these source changes. Local tooling tests cover synchronization/idempotence, strict iOS versions, matching tags, nondecreasing Android builds and missing manifest fields. Live private-repository access, release signing and publishing require configured CI and explicit release approval.

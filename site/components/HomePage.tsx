@@ -1,14 +1,14 @@
 import { ConnectOverview } from "@/components/ConnectOverview";
 import { DesktopShot, HeroPreload, PhoneShot } from "@/components/DesktopShot";
 import type { ReactNode } from "react";
-import { DownloadButton } from "@/components/Download";
+import { AppStoreLink } from "@/components/AppStore";
+import { AppStoreButton, DownloadButton } from "@/components/Download";
 import { HeroVideo } from "@/components/HeroVideo";
 import { Icon, type IconName } from "@/components/Icon";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SpinningRecord } from "@/components/SpinningRecord";
 import { StructuredData } from "@/components/StructuredData";
 import { DeviceDock, DeviceShots, type Shot } from "@/components/Shots";
-import { TestFlightButton } from "@/components/TestFlight";
 import { localePath, ui, type Locale } from "@/lib/i18n";
 
 type Copy = {
@@ -16,8 +16,8 @@ type Copy = {
   lede: string;
   download: { any: string; mac: string; windows: string; linux: string };
   free: ReactNode;
-  soon: ReactNode;
-  testflight: string;
+  iphone: ReactNode;
+  appStore: string;
   listen: { title: string; body: ReactNode[]; iphone: Shot[]; desktop: Shot[] };
   assistant: { title: string; body: ReactNode[]; facts: ReactNode[]; iphone: Shot[]; desktop: Shot[] };
   audiobooks: { title: string; body: string; facts: string[]; iphone: Shot[]; desktop: Shot[] };
@@ -34,8 +34,8 @@ const COPY: Record<Locale, Copy> = {
     lede: "Discophile plays your Navidrome, Subsonic and Jellyfin libraries on iPhone, Android, Mac, Windows, Linux and in the browser. Audiobookshelf audiobooks and internet radio live in the same app. No account required, no tracking. Optional Connect keeps your devices in sync.",
     download: { any: "Get Discophile", mac: "Download for Mac", windows: "Download for Windows", linux: "Download for Linux" },
     free: <><b>Free downloads for Android and desktop.</b> Pick your device and installation guide.</>,
-    soon: <><b>Awaiting App Store approval.</b> <a href="/download#iphone">IPA download and sideloading guide</a> for iPhone with iOS 17 or later.</>,
-    testflight: "Try the iPhone beta",
+    iphone: <><b>Now on the App Store for iPhone.</b> iOS 17 or later, €2.99.</>,
+    appStore: "View it on the App Store",
     listen: {
       title: "Something familiar. Something unexpected.",
       body: [
@@ -98,7 +98,7 @@ const COPY: Record<Locale, Copy> = {
     },
     release: {
       title: "Get Discophile.",
-      body: "Download for Android, Mac, Windows and Linux, or use the iPhone IPA while App Store approval is pending. Bring your own server: it works with the music and audiobooks you already host.",
+      body: "Download for Android, Mac, Windows and Linux, or get the iPhone app on the App Store. Bring your own server: it works with the music and audiobooks you already host.",
       servers: "Supported servers",
       serverNames: ["Navidrome", "Subsonic and OpenSubsonic", "Jellyfin", "Audiobookshelf", "Internet radio"],
       devices: "All downloads and requirements",
@@ -115,8 +115,8 @@ const COPY: Record<Locale, Copy> = {
     lede: "La tua libreria merita il palco. Ascolta la musica di Navidrome, Subsonic e Jellyfin su iPhone, Android, Mac, Windows, Linux e nel browser, ritrova i tuoi audiolibri di Audiobookshelf e accendi le radio che ami. Tutto in Discophile, senza account obbligatorio e senza tracciamento. Connect sincronizza i tuoi dispositivi, se lo desideri.",
     download: { any: "Scarica Discophile", mac: "Scarica per Mac", windows: "Scarica per Windows", linux: "Scarica per Linux" },
     free: <><b>Download gratuiti per Android e desktop.</b> Scegli il tuo dispositivo e la guida di installazione.</>,
-    soon: <><b>In attesa dell&apos;approvazione dell&apos;App Store.</b> <a href="/it/download#iphone">Download IPA e guida al sideloading</a> per iPhone con iOS 17 o versioni successive.</>,
-    testflight: "Prova la beta per iPhone",
+    iphone: <><b>Ora su App Store per iPhone.</b> iOS 17 o versioni successive, 2,99 €.</>,
+    appStore: "Vedila su App Store",
     listen: {
       title: "Riscopri i tuoi pezzi. Trova la prossima ossessione.",
       body: [
@@ -179,7 +179,7 @@ const COPY: Record<Locale, Copy> = {
     },
     release: {
       title: "Il prossimo ascolto comincia qui.",
-      body: "Scarica Discophile per Android, Mac, Windows e Linux, oppure usa l’IPA per iPhone in attesa dell’approvazione dell’App Store. Porta il tuo server: funziona con la musica e gli audiolibri che ospiti già.",
+      body: "Scarica Discophile per Android, Mac, Windows e Linux, oppure prendi l’app per iPhone su App Store. Porta il tuo server: funziona con la musica e gli audiolibri che ospiti già.",
       servers: "Server supportati",
       serverNames: ["Navidrome", "Subsonic e OpenSubsonic", "Jellyfin", "Audiobookshelf", "Radio online"],
       devices: "Tutti i download e i requisiti",
@@ -226,8 +226,8 @@ export function HomePage({ locale }: { locale: Locale }) {
               <span>{c.free}</span>
             </p>
             <p className="fineprint soon">
-              <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="2" /><path d="M12 7v5l3 2" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
-              <span>{c.soon} <TestFlightButton className="link-button">{c.testflight}</TestFlightButton>.</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5" fill="none" stroke="currentColor" strokeWidth="2" /><path d="M11 18.5h2" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
+              <span>{c.iphone} <AppStoreLink locale={locale} source="Home hero" className="">{c.appStore}</AppStoreLink>.</span>
             </p>
           </div>
           <div className="turntable stage" aria-hidden="true">
@@ -338,7 +338,7 @@ export function HomePage({ locale }: { locale: Locale }) {
           </ul>
           <div className="actions">
             <DownloadButton labels={c.download} />
-            <TestFlightButton className="button">{c.testflight}</TestFlightButton>
+            <AppStoreButton />
           </div>
           <p className="fineprint"><a href={devices}>{c.release.devices}</a></p>
           <p className="fineprint">{c.release.question} <a href="mailto:andrea@debbaweb.it?subject=Discophile">andrea@debbaweb.it</a>.</p>

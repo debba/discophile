@@ -21,7 +21,7 @@ export default function CookiePolicy() {
     <>
       <main id="main" className="policy" tabIndex={-1}>
         <h1>Cookie policy</h1>
-        <p className="updated">Last updated: October 24, 2026</p>
+        <p className="updated">Last updated: November 5, 2026</p>
 
         <p className="policy-summary">The Discophile website counts visits with Matomo, hosted by the developer, without cookies. Measurement cookies are set only if you allow them. There is no advertising, no marketing and nothing is shared with third parties.</p>
 
@@ -42,8 +42,8 @@ export default function CookiePolicy() {
             ["discophile-cookie-consent", "www.discophile.app", "Stores your cookie choice", "Persistent (local storage)"],
             ["discophile-locale", "www.discophile.app", "Remembers the language you picked in the language switcher. Without it, the site follows your browser's language", "12 months"],
             ["discophile-theme", "www.discophile.app", "Remembers the appearance you picked, Light or Dark. Not stored for Automatic, which follows your device", "Persistent (local storage)"],
-            ["None (cookieless)", "analytics.debbaweb.it", "Anonymised page-view statistics without persistent identifiers, plus counts of the download window being opened, the platform downloaded, the intro video, TestFlight requests, newsletter sign-ups and GitHub Sponsors links", "Session only"],
-            ["None (cookieless)", "www.discophile.app", "Spam protection for the TestFlight request and newsletter forms: requests from your IP address are counted in server memory, never written to disk", "10 minutes"],
+            ["None (cookieless)", "analytics.debbaweb.it", "Anonymised page-view statistics without persistent identifiers, plus counts of the download window being opened, the platform downloaded, the intro video, App Store links, newsletter sign-ups and GitHub Sponsors links", "Session only"],
+            ["None (cookieless)", "www.discophile.app", "Spam protection for the newsletter form: requests from your IP address are counted in server memory, never written to disk", "10 minutes"],
             ["None (cookieless)", "Vercel", "Hosting: delivers the pages and protects the service, which involves processing your IP address in server logs", "Set by Vercel's log retention"],
           ]}
         />
@@ -65,13 +65,13 @@ export default function CookiePolicy() {
         <p>There are no marketing cookies. If a service that needs them is ever added, this policy will be updated first, and the site will ask for your consent before setting them.</p>
 
         <h2>Forms</h2>
-        <p>The TestFlight request form and the newsletter sign-up set no cookies. A TestFlight request is delivered to the developer by email. A newsletter sign-up is passed by this site&apos;s server to Emailchef, which then sends you a confirmation email; no Emailchef script or cookie is loaded on this site. Both are described in the <a href="/privacy#website">privacy policy</a>.</p>
+        <p>The newsletter sign-up sets no cookies. It is passed by this site&apos;s server to Emailchef, which then sends you a confirmation email; no Emailchef script or cookie is loaded on this site. It is described in the <a href="/privacy#newsletter">privacy policy</a>.</p>
 
         <h2>Downloads</h2>
         <p>The list of releases is read from GitHub by this site&apos;s server, so opening the download window doesn&apos;t contact GitHub from your browser. The files themselves are downloaded from GitHub when you choose one.</p>
 
         <h2>Links to other websites</h2>
-        <p>Links to GitHub (downloads, source code and GitHub Sponsors), the Arch User Repository, the developer&apos;s other projects and Apple services lead to websites with their own cookie policies. Nothing is loaded from them until you follow a link or start a download.</p>
+        <p>Links to GitHub (downloads, source code and GitHub Sponsors), the Arch User Repository, the developer&apos;s other projects and Apple services lead to websites with their own cookie policies. Nothing is loaded from them until you follow a link or start a download. On iPhone, Safari can show its own banner for the App Store app; Safari fetches it from Apple, and this site sets no cookie for it.</p>
 
         <h2>Managing your preferences</h2>
         <p>Your choice is stored only in your browser and is never sent to a server. You can change it at any time, or clear this site&apos;s data in your browser to be asked again.</p>

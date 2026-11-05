@@ -4,10 +4,13 @@ export const REPO_URL = "https://github.com/debba/discophile";
 export const RELEASES_URL = `${REPO_URL}/releases/latest`;
 export const WEB_GUIDE_URL = `${REPO_URL}/blob/main/docs/WEB.md`;
 export const AUR_URL = "https://aur.archlinux.org/packages/discophile-bin";
+/** The iPhone app is sold on the App Store; GitHub releases carry no iOS package. */
+export const APP_STORE_ID = "6825932680";
+export const APP_STORE_URL = `https://apps.apple.com/app/discophile/id${APP_STORE_ID}`;
 
 export type Platform = "mac" | "windows" | "linux" | "android" | "ios";
 export type DesktopPlatform = Exclude<Platform, "android" | "ios">;
-export type DownloadFormat = Platform | "deb" | "appimage";
+export type DownloadFormat = Exclude<Platform, "ios"> | "deb" | "appimage";
 
 export type Release = {
   version: string;
@@ -22,7 +25,6 @@ const FILENAMES: Record<DownloadFormat, string> = {
   deb: "discophile_VERSION_amd64.deb",
   appimage: "Discophile-VERSION-x86_64.AppImage",
   android: "Discophile-VERSION-android.apk",
-  ios: "Discophile-VERSION-ios-unsigned.ipa",
 };
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -62,6 +64,7 @@ export async function latestRelease(): Promise<Release | null> {
 
 /** A direct download for the platform, or the release page when the file is missing. */
 export function downloadUrl(release: Release | null, platform: Platform) {
+  if (platform === "ios") return APP_STORE_URL;
   return release?.files[platform]?.url ?? release?.page ?? RELEASES_URL;
 }
 

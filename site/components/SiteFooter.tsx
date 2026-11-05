@@ -1,6 +1,5 @@
 import { CookiePreferencesButton } from "./CookieConsent";
 import { localePath, ui, type Locale } from "@/lib/i18n";
-import { TestFlightButton } from "./TestFlight";
 
 const PRODUCTS = [
   { href: "https://gitdeck.dev", name: "Gitdeck", icon: "gitdeck" },
@@ -20,7 +19,6 @@ export function SiteFooter({ locale, current, note }: { locale: Locale; current?
         <a href={localePath(locale, "/privacy")} aria-current={current === "privacy" ? "page" : undefined}>{t.privacy}</a>
         <a href={localePath(locale, "/cookie-policy")} aria-current={current === "cookie-policy" ? "page" : undefined}>{t.cookies}</a>
         <CookiePreferencesButton locale={locale} />
-        <TestFlightButton className="link-button" />
         <a href="https://github.com/sponsors/debba">{t.sponsor}</a>
         <a href="https://github.com/debba/discophile">{t.github}</a>
       </nav>

@@ -1,11 +1,10 @@
 import { SiteFooter } from "@/components/SiteFooter";
-import { TestFlightButton } from "@/components/TestFlight";
 import { localePath, type Locale } from "@/lib/i18n";
-import { REPO_URL } from "@/lib/releases";
+import { APP_STORE_URL, REPO_URL } from "@/lib/releases";
 import { SITE_URL } from "@/lib/seo";
 
-/** A link under an answer: a page or address, or the TestFlight invitation dialog. */
-type FaqLink = { label: string; href: string } | { label: string; testflight: true };
+/** A link under an answer: a page or an address. */
+type FaqLink = { label: string; href: string };
 /** Answers are plain text, so the same words feed the page and the FAQPage data for search engines. */
 type Question = { id: string; q: string; a: string[]; links?: FaqLink[] };
 type Group = { id: string; title: string; questions: Question[] };
@@ -53,8 +52,8 @@ const COPY: Record<Locale, Copy> = {
           {
             id: "free",
             q: "Is it free?",
-            a: ["The desktop apps and web player are free and open source. Optional Connect has a Free plan and paid plans from €2.99/month or €24.99/year, activated by email without automatic payment. The iPhone app is coming soon to the App Store; you can try the beta now."],
-            links: [{ label: "Source code on GitHub", href: REPO_URL }],
+            a: ["The desktop apps and web player are free and open source, and the Android app is a free download. The iPhone app costs €2.99 on the App Store, with updates included; outside the euro area the App Store shows the price for your country. Optional Connect has a Free plan and paid plans from €2.99/month or €24.99/year, activated by email without automatic payment."],
+            links: [{ label: "Source code on GitHub", href: REPO_URL }, { label: "Discophile on the App Store", href: APP_STORE_URL }],
           },
         ],
       },
@@ -69,10 +68,10 @@ const COPY: Record<Locale, Copy> = {
             links: [{ label: "All downloads and requirements", href: "/download" }],
           },
           {
-            id: "iphone-beta",
-            q: "How can I try the iPhone app now?",
-            a: ["While App Store approval is pending, download the unsigned IPA when it appears in the latest release and sign it with Sideloadly or AltStore Classic. You need iOS 17 or later, a Mac or Windows computer and your own Apple Account. The download page explains installation, signature renewal and how to keep your existing app data. You can also request a TestFlight invitation."],
-            links: [{ label: "IPA and sideloading guide", href: "/download#iphone" }, { label: "Request a TestFlight invitation", testflight: true }],
+            id: "iphone",
+            q: "Where do I get the iPhone app?",
+            a: ["On the App Store, for iPhone with iOS 17 or later. It costs €2.99 and updates are included. If you used the TestFlight beta or a sideloaded IPA, install the App Store version to keep getting updates: the beta builds and the unsigned IPA are no longer offered."],
+            links: [{ label: "Discophile on the App Store", href: APP_STORE_URL }],
           },
           {
             id: "android",
@@ -171,8 +170,8 @@ const COPY: Record<Locale, Copy> = {
           {
             id: "free",
             q: "È gratis?",
-            a: ["Le app desktop e il player web sono gratuiti e open source. Connect, facoltativo, offre un piano Free e piani a pagamento da 2,99 €/mese o 24,99 €/anno, attivati via email senza pagamenti automatici. L’app iPhone arriva presto sull’App Store; puoi già provare la beta."],
-            links: [{ label: "Codice sorgente su GitHub", href: REPO_URL }],
+            a: ["Le app desktop e il player web sono gratuiti e open source, e l’app Android si scarica gratis. L’app per iPhone costa 2,99 € su App Store, aggiornamenti inclusi; fuori dall’area euro l’App Store mostra il prezzo del tuo paese. Connect, facoltativo, offre un piano Free e piani a pagamento da 2,99 €/mese o 24,99 €/anno, attivati via email senza pagamenti automatici."],
+            links: [{ label: "Codice sorgente su GitHub", href: REPO_URL }, { label: "Discophile su App Store", href: APP_STORE_URL }],
           },
         ],
       },
@@ -187,10 +186,10 @@ const COPY: Record<Locale, Copy> = {
             links: [{ label: "Tutti i download e i requisiti", href: "/download" }],
           },
           {
-            id: "iphone-beta",
-            q: "Come posso provare subito l'app per iPhone?",
-            a: ["In attesa dell'approvazione dell'App Store, scarica l'IPA non firmato quando compare nell'ultima release e firmalo con Sideloadly o AltStore Classic. Servono iOS 17 o versioni successive, un Mac o un PC Windows e il tuo Account Apple. La pagina Download spiega installazione, rinnovo della firma e come conservare i dati dell'app esistente. Puoi anche richiedere un invito a TestFlight."],
-            links: [{ label: "IPA e guida al sideloading", href: "/download#iphone" }, { label: "Richiedi un invito a TestFlight", testflight: true }],
+            id: "iphone",
+            q: "Dove trovo l'app per iPhone?",
+            a: ["Su App Store, per iPhone con iOS 17 o versioni successive. Costa 2,99 € e gli aggiornamenti sono inclusi. Se usavi la beta su TestFlight o un IPA installato con il sideloading, installa la versione di App Store per continuare a ricevere aggiornamenti: le build beta e l'IPA non firmato non sono più disponibili."],
+            links: [{ label: "Discophile su App Store", href: APP_STORE_URL }],
           },
           {
             id: "android",
@@ -299,11 +298,7 @@ export function FaqPage({ locale }: { locale: Locale }) {
                     {item.a.map((text) => <p key={text}>{text}</p>)}
                     {item.links && (
                       <p className="faq-links">
-                        {item.links.map((link) =>
-                          "testflight" in link
-                            ? <TestFlightButton key={link.label} className="link-button">{link.label}</TestFlightButton>
-                            : <a key={link.label} href={href(locale, link.href)}>{link.label}</a>,
-                        )}
+                        {item.links.map((link) => <a key={link.label} href={href(locale, link.href)}>{link.label}</a>)}
                       </p>
                     )}
                   </div>

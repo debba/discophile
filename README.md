@@ -177,7 +177,8 @@ See [Self-hosting the web player](docs/WEB.md) for Docker Compose, Helm values, 
 version cannot download for offline listening or sign in to ChatGPT, and keeps credentials in the browser's
 storage.
 
-**Also on iPhone.** Discophile started as an iPhone app; see [discophile.app](https://discophile.app).
+**Also on iPhone.** Discophile started as an iPhone app, available on the
+[App Store](https://apps.apple.com/app/discophile/id6825932680); see [discophile.app](https://discophile.app).
 
 ## Privacy
 

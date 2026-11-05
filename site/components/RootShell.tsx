@@ -4,9 +4,8 @@ import { CookieConsent } from "@/components/CookieConsent";
 import { DownloadProvider } from "@/components/Download";
 import { THEME_SCRIPT } from "@/components/ThemeSwitcher";
 import { SiteHeader } from "@/components/SiteHeader";
-import { TestFlightProvider } from "@/components/TestFlight";
 import { alternates, ui, type Locale } from "@/lib/i18n";
-import { latestRelease } from "@/lib/releases";
+import { APP_STORE_ID, latestRelease } from "@/lib/releases";
 import "@/app/globals.css";
 
 const display = Bricolage_Grotesque({ subsets: ["latin"], axes: ["opsz", "wdth"], variable: "--font-display", display: "swap" });
@@ -39,6 +38,8 @@ export function rootMetadata(locale: Locale): Metadata {
     title: c.title,
     description: c.description,
     manifest: "/site.webmanifest",
+    // Safari on iPhone shows its Smart App Banner, linking to the App Store or opening the installed app.
+    itunes: { appId: APP_STORE_ID },
     icons: {
       icon: [{ url: "/favicon.ico", sizes: "48x48" }, { url: "/assets/favicon.svg", type: "image/svg+xml" }],
       apple: "/assets/apple-touch-icon.png",
@@ -67,12 +68,10 @@ export async function RootShell({ locale, children }: { locale: Locale; children
       </head>
       <body>
         <a className="skip" href="#main">{ui[locale].skip}</a>
-        <TestFlightProvider locale={locale}>
-          <DownloadProvider locale={locale} release={release}>
-            <SiteHeader locale={locale} />
-            {children}
-          </DownloadProvider>
-        </TestFlightProvider>
+        <DownloadProvider locale={locale} release={release}>
+          <SiteHeader locale={locale} />
+          {children}
+        </DownloadProvider>
         <CookieConsent locale={locale} />
       </body>
     </html>

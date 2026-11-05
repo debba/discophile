@@ -1,3 +1,4 @@
+import { AppStoreLink } from "@/components/AppStore";
 import { ConnectOverview } from "@/components/ConnectOverview";
 import { CodeBlock } from "@/components/CodeBlock";
 import { DesktopShot, WebShot } from "@/components/DesktopShot";
@@ -7,7 +8,6 @@ import { DownloadIcon } from "@/components/DownloadIcon";
 import { MobileDownload } from "@/components/MobileDownload";
 import { Screen, Window } from "@/components/Shots";
 import { SiteFooter } from "@/components/SiteFooter";
-import { TestFlightButton } from "@/components/TestFlight";
 import { localePath, ui, type Locale } from "@/lib/i18n";
 import { AUR_URL, RELEASES_URL, REPO_URL, latestRelease, megabytes, type DesktopPlatform, type DownloadFormat } from "@/lib/releases";
 
@@ -20,7 +20,7 @@ type Copy = {
   jump: string;
   mobileShowcase: { eyebrow: string; title: string; body: string; androidAlt: string };
   groups: { phone: string; computer: string; web: string; nav: [string, string, string, string] };
-  iphone: { title: string; needs: string; body: string; facts: ReactNode[]; testflightTitle: string; testflightBody: string; testflightButton: string; ipaTitle: string; alt: string };
+  iphone: { title: string; needs: string; body: string; facts: ReactNode[]; storeTitle: string; storeBody: string; alt: string };
   android: { title: string; needs: string; body: string; facts: ReactNode[] };
   desktop: { title: string; body: string; facts: ReactNode[]; alt: string };
   downloads: Record<DesktopPlatform, Download> & { aur: ReactNode; button: Record<DesktopPlatform, string>; fallback: string; linuxHelp: Record<"deb" | "appimage" | "linux", string> };
@@ -45,10 +45,8 @@ const COPY: Record<Locale, Copy> = {
         <><b>Siri, the Lock Screen and AirPlay</b> control playback, and dictation turns your voice into a request.</>,
         <><b>Sport mode</b> keeps presets for running, walking, cycling and the gym, started from Shortcuts.</>,
       ],
-      testflightTitle: "Recommended: TestFlight",
-      testflightBody: "Request an invitation to install and update the beta using Apple's TestFlight app while App Store approval is pending.",
-      testflightButton: "Request a TestFlight invitation",
-      ipaTitle: "Alternative: sideload the IPA",
+      storeTitle: "On the App Store",
+      storeBody: "€2.99, with updates included. The App Store shows the price for your country.",
       alt: "Discophile on iPhone, playing Discophile by Mina Sol",
     },
     android: {
@@ -121,10 +119,8 @@ const COPY: Record<Locale, Copy> = {
         <><b>Siri, la schermata di blocco e AirPlay</b> controllano la riproduzione, e la dettatura trasforma la tua voce in una richiesta.</>,
         <><b>La modalità sport</b> salva impostazioni per corsa, camminata, bici e palestra, da avviare con Comandi Rapidi.</>,
       ],
-      testflightTitle: "Consigliato: TestFlight",
-      testflightBody: "Richiedi un invito per installare e aggiornare la beta con l'app TestFlight di Apple, in attesa dell'approvazione dell'App Store.",
-      testflightButton: "Richiedi un invito a TestFlight",
-      ipaTitle: "Alternativa: installa l'IPA",
+      storeTitle: "Su App Store",
+      storeBody: "2,99 €, aggiornamenti inclusi. Fuori dall'area euro l'App Store mostra il prezzo del tuo paese.",
       alt: "Discophile su iPhone mentre riproduce Discophile di Mina Sol",
     },
     android: {
@@ -254,12 +250,11 @@ export async function DownloadPage({ locale }: { locale: Locale }) {
             <h2 id="iphone-title" className="platform-heading"><DownloadIcon name="iphone" />{c.iphone.title}</h2>
             <p className="needs">{c.iphone.needs}</p>
             <p>{c.iphone.body}</p>
-            <section className="mobile-download testflight-download" aria-labelledby="testflight-option-title">
-              <h3 id="testflight-option-title"><DownloadIcon name="testflight" />{c.iphone.testflightTitle}</h3>
-              <p>{c.iphone.testflightBody}</p>
-              <TestFlightButton>{c.iphone.testflightButton}</TestFlightButton>
+            <section className="mobile-download app-store-download" aria-labelledby="app-store-title">
+              <h3 id="app-store-title">{c.iphone.storeTitle}</h3>
+              <p>{c.iphone.storeBody}</p>
+              <AppStoreLink locale={locale} source="Download page" />
             </section>
-            <MobileDownload locale={locale} platform="ios" release={release} title={c.iphone.ipaTitle} />
             <ul className="facts">{c.iphone.facts.map((fact, i) => <li key={i}>{fact}</li>)}</ul>
           </div>
         </section>

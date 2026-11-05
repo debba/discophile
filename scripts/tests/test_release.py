@@ -2,7 +2,6 @@ import importlib.util
 import plistlib
 import tempfile
 import unittest
-import zipfile
 from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parents[1]
@@ -16,7 +15,6 @@ def load(name, filename):
 
 
 versions = load("release_version", "release-version.py")
-ipa_check = load("verify_mobile_ipa", "verify-mobile-ipa.py")
 
 
 class VersionTests(unittest.TestCase):
@@ -85,44 +83,6 @@ class VersionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Expected one version field"):
             self.check(sync=True)
         self.assertIn('version = "0.1.8"', (self.desktop / "Cargo.toml").read_text())
-
-
-class IpaTests(unittest.TestCase):
-    def setUp(self):
-        self.temp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.temp.cleanup)
-        self.path = Path(self.temp.name) / "Discophile.ipa"
-
-    def make_ipa(self, version="1.0.1", build="7", bundle="it.debba.discophile", profile=False, executable=True):
-        info = {"CFBundleIdentifier": bundle, "CFBundleShortVersionString": version, "CFBundleVersion": build,
-                "CFBundlePackageType": "APPL", "CFBundleExecutable": "Discophile"}
-        with zipfile.ZipFile(self.path, "w") as ipa:
-            ipa.writestr("Payload/Discophile.app/Info.plist", plistlib.dumps(info))
-            if executable:
-                ipa.writestr("Payload/Discophile.app/Discophile", b"test executable")
-            if profile:
-                ipa.writestr("Payload/Discophile.app/embedded.mobileprovision", b"device-bound fixture")
-
-    def test_accepts_expected_unsigned_sideload_identity(self):
-        self.make_ipa()
-        ipa_check.verify(self.path, "1.0.1", 7)
-
-    def test_rejects_wrong_version_build_or_prefixed_bundle(self):
-        for kwargs in ({"version": "0.1.8"}, {"build": "6"}, {"bundle": "XTL-example.it.debba.discophile"}):
-            with self.subTest(kwargs=kwargs):
-                self.make_ipa(**kwargs)
-                with self.assertRaises(ValueError):
-                    ipa_check.verify(self.path, "1.0.1", 7)
-
-    def test_rejects_publishing_device_profiles(self):
-        self.make_ipa(profile=True)
-        with self.assertRaisesRegex(ValueError, "provisioning profile"):
-            ipa_check.verify(self.path, "1.0.1", 7)
-
-    def test_rejects_missing_executable(self):
-        self.make_ipa(executable=False)
-        with self.assertRaisesRegex(ValueError, "no app executable"):
-            ipa_check.verify(self.path, "1.0.1", 7)
 
 
 if __name__ == "__main__":

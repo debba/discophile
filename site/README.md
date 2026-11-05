@@ -22,23 +22,16 @@ one file per language. Every page lists the other language with `hreflang`, and 
 header links to the same page in the other language. Use the Italian wording of the
 app (`../Localization/strings.json`) for feature names.
 
-## TestFlight requests
+## iPhone app on the App Store
 
-The **Try in TestFlight** buttons open a modal form that posts to `/api/testflight`,
-which sends the request by SMTP with nodemailer. Copy `.env.example` to `.env.local`
-for local work, and set the same variables in the Vercel project:
+Discophile for iPhone is a paid app on the App Store (€2.99). Its ID and URL are `APP_STORE_ID` and `APP_STORE_URL`
+in `lib/releases.ts`. The root metadata sets `itunes.appId`, so Safari on iPhone shows its Smart App Banner at the top
+of every page, offering the App Store page or opening the installed app. Other iPhone browsers do not show it.
 
-| Variable | Purpose |
-|----------|---------|
-| `SMTP_HOST`, `SMTP_PORT` | SMTP server (port 587 by default) |
-| `SMTP_SECURE` | `true` for implicit TLS (port 465), otherwise STARTTLS |
-| `SMTP_USER`, `SMTP_PASS` | SMTP credentials, if the server needs them |
-| `SMTP_FROM` | Sender of the notification email |
-| `TESTFLIGHT_TO` | Where requests are delivered; replies go to the requester |
-
-Without `SMTP_HOST`, `SMTP_FROM` and `TESTFLIGHT_TO` the endpoint answers 503. Spam
-protection is a hidden honeypot field plus a per-IP limit of 5 requests every 10
-minutes, kept in memory per server instance.
+On an iPhone the main download button links straight to the App Store; elsewhere the dialog's iPhone tab, the
+Download page and the FAQ link to it and state the price. App Store links are counted in Matomo as `App Store` events.
+The unsigned IPA and the TestFlight request form, offered while approval was pending, have been removed, along with
+`/api/testflight` and its SMTP settings. Never link an IPA or a TestFlight invitation again.
 
 ## Analytics and cookies
 
@@ -85,7 +78,7 @@ controls. Footer and navigation controls have a minimum 44 px height. See
 
 
 Checked with axe-core (WCAG 2.2 AA and best practices) at 1280 and 390 px widths, on
-every page, with the TestFlight dialog open and showing errors, and with the cookie
+every page, with the former TestFlight dialog open and showing errors, and with the cookie
 banner visible. Keyboard checks cover the skip link, the menu (Escape closes it), the
 dialog (focus moves to the first field, then to the first invalid one, then back to
 the button that opened it) and the banner. Text links use `--link`, since
@@ -98,13 +91,13 @@ at 1200x630 to capture it.
 
 `lib/releases.ts` reads the latest published GitHub release. It accepts only nonempty assets with the exact release version and this repository's GitHub download URLs, ignoring drafts, prereleases and malformed metadata. Desktop-only releases remain usable without inventing mobile links. The Linux dialog offers Debian, AppImage and tarball assets named `discophile_VERSION_amd64.deb`, `Discophile-VERSION-x86_64.AppImage` and `Discophile-VERSION-linux-x86_64.tar.gz`.
 
-The Download page and shared download dialog also support `Discophile-VERSION-android.apk` and `Discophile-VERSION-ios-unsigned.ipa`. Both English and Italian include installation guides. iPhone/Android detection selects the matching tab from the home-page action; iPadOS reporting macOS is recognized by its touch support. The five-tab picker scrolls on narrow screens and supports arrow keys, Home and End. Missing mobile assets show explicit availability text instead of a file download action.
+The Download page and shared download dialog also support `Discophile-VERSION-android.apk`, with installation guides in English and Italian. Any IPA in a release is ignored: the iPhone tab and section link to the App Store. iPhone/Android detection selects the matching tab from the home-page action; iPadOS reporting macOS is recognized by its touch support. The five-tab picker scrolls on narrow screens and supports arrow keys, Home and End. Missing mobile assets show explicit availability text instead of a file download action.
 
-The public IPA is unsigned for sideloading while App Store approval is pending. The guide links to the official Sideloadly and AltStore Classic instructions, explains the computer/Apple Account requirement and typical free-account renewal period, and warns about keeping the signing identity/bundle identifier to preserve data. It does not collect Apple credentials or profiles. Android guidance explains installation-source permissions and signing-key conflicts without recommending uninstalling or disabling Play Protect. The same guides remain available after starting a mobile download. TestFlight invitation requests remain a secondary option, not a substitute for the IPA.
+Android guidance explains installation-source permissions and signing-key conflicts without recommending uninstalling or disabling Play Protect. The same guide remains available after starting the APK download.
 
 The coordinated mobile release workflow is documented in [Unified releases](../docs/MOBILE_RELEASES.md). Publish an approved release before rebuilding the production site so static pages immediately contain the new assets; otherwise the hourly revalidation picks them up. These website edits do not publish a release, upload artifacts or deploy the site.
 
-Validation for this change: 13 automated tests passed, along with `npm run typecheck` and `npm run build` (Next.js 16.4.2). Tests cover matching-version mobile assets, stale/invalid metadata and URLs, older desktop-only releases, failed fetches, device detection, translated mobile cards/guides and server-rendered download pages. No browser, keyboard/screen-reader or device installation review was performed for this website change; earlier accessibility audit results above do not cover the new UI.
+Tests cover matching-version Android assets, ignored IPAs, stale/invalid metadata and URLs, older desktop-only releases, failed fetches, device detection, the App Store links and price on the Download page, FAQ and structured data, the iPhone download button, and server-rendered download pages.
 
 ## Connect
 

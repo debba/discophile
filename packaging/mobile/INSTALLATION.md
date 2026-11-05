@@ -10,6 +10,4 @@ Development/debug APKs use a different signing identity. If Android rejects an u
 
 ## iPhone
 
-`Discophile-VERSION-ios-unsigned.ipa` is an unsigned, arm64 device IPA for iOS 17 or later. It cannot be installed by tapping the download. Use an iOS sideloading tool and your own Apple signing account to sign and provision it. Trust/Developer Mode requirements and renewal limits depend on that signing method. Siri and other restricted entitlements require a profile authorized for those capabilities. This iPhone-only package does not embed the optional Watch companion.
-
-The public IPA contains no private certificate or device-bound provisioning profile, and is not an App Store or TestFlight upload. Keep the same signing identity and bundle identifier when updating an existing installation; a sideloading tool that changes the bundle ID installs a separate app rather than retaining its data. Do not apply an identifier prefix twice to an already signed local development IPA.
+Discophile for iPhone is available on the App Store: https://apps.apple.com/app/discophile/id6825932680. Releases on GitHub contain no iPhone package.

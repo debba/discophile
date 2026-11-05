@@ -1,5 +1,5 @@
 import type { Locale } from "@/lib/i18n";
-import { REPO_URL, latestRelease } from "@/lib/releases";
+import { APP_STORE_URL, REPO_URL, latestRelease } from "@/lib/releases";
 import { SITE_URL } from "@/lib/seo";
 
 const DESCRIPTION: Record<Locale, string> = {
@@ -7,7 +7,7 @@ const DESCRIPTION: Record<Locale, string> = {
   it: "Un player musicale per le librerie Navidrome, Subsonic e Jellyfin, con gli audiolibri di Audiobookshelf, le radio online e un assistente musicale.",
 };
 
-/** Schema.org data for search engines: the app, its platforms and its free downloads. */
+/** Schema.org data for search engines: the app, its platforms, its free downloads and the paid iPhone app. */
 export async function StructuredData({ locale }: { locale: Locale }) {
   const release = await latestRelease();
   const data = {
@@ -36,7 +36,10 @@ export async function StructuredData({ locale }: { locale: Locale }) {
         license: "https://opensource.org/licenses/MIT",
         codeRepository: REPO_URL,
         inLanguage: ["en", "it"],
-        offers: { "@type": "Offer", price: "0", priceCurrency: "EUR" },
+        offers: [
+          { "@type": "Offer", price: "0", priceCurrency: "EUR", url: `${SITE_URL}${locale === "en" ? "" : "/it"}/download`, category: "Android, Mac, Windows, Linux, Web" },
+          { "@type": "Offer", price: "2.99", priceCurrency: "EUR", url: APP_STORE_URL, category: "iPhone" },
+        ],
         author: { "@type": "Person", name: "Andrea Debernardi", url: "https://debbaweb.it" },
       },
     ],

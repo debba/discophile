@@ -103,7 +103,7 @@ Use those values as references rather than forcing every product screen into the
 
 Paper and raised surfaces separate reading and interaction areas from the rose page. Border colors derive from `--line-rgb` or the appropriate text token, with restrained opacity.
 
-Existing examples include 20-pixel summary surfaces, a 24-pixel TestFlight dialog, 12-pixel input corners, 16-pixel code blocks, and pill-shaped buttons and badges. Choose a small set appropriate to the interface rather than adding a different radius to each element.
+Existing examples include 20-pixel summary surfaces, a 24-pixel download dialog, 12-pixel input corners, 16-pixel code blocks, and pill-shaped buttons and badges. Choose a small set appropriate to the interface rather than adding a different radius to each element.
 
 Shadows establish elevation for dialogs, menus, and product imagery. Routine data rows and account sections should rely primarily on spacing, surfaces, and subtle dividers. Record grooves and display gradients belong to the illustrative layer.
 
@@ -125,11 +125,13 @@ Compact controls may reduce visual padding while preserving a comfortable touch 
 
 ## Forms and dialogs
 
-[TestFlight](components/TestFlight.tsx) and its styles provide the existing reference for forms and modal interaction:
+The download dialog and its newsletter form ([Download](components/Download.tsx)), and the fields of the
+[self-hosting configurator](components/HostingConfigurator.tsx), provide the existing reference for forms and modal
+interaction:
 
 - Visible labels, with supporting hints when a choice needs explanation.
 - Inputs at least `48px` high, with `12px` corners, a `2px` border, and a raised surface.
-- Input text at `1.0625rem`; textareas can resize vertically.
+- Input text at `1.0625rem`.
 - Invalid fields marked with `aria-invalid`, an explicit message, and a stronger border.
 - Status messages placed near the form, with text explaining the outcome.
 - Focus moved appropriately when opening a dialog, finding an invalid field, or showing completion, and restored to the trigger when closing.
@@ -141,7 +143,7 @@ Carry these interaction rules into authentication and account forms. Social sign
 
 The shared download dialog offers Mac, Windows, Linux, Android and iPhone as a horizontally scrollable tablist on narrow screens. Keep all platform names visible or reachable by scrolling/focus, retain 44-pixel targets, and support arrow keys, Home and End. The active platform follows detected mobile/desktop devices without replacing the explicit platform choices.
 
-Mobile file actions depend on actual matching-version release assets; missing files need explanatory text, not fabricated download URLs. Use native `details`/`summary` panels for installation instructions on the page and in the dialog, with the same localized copy. The IPA must be described as unsigned and requiring sideload signing, separately from pending App Store approval or a TestFlight invitation. Signing identity, app-data retention and renewal warnings belong beside the download and remain available after it starts. Follow existing paper/surface tokens and allow file names, settings paths and tool links to wrap.
+The iPhone app is sold on the App Store: its tab, the iPhone section and the main download button on an iPhone link to the App Store page and state the price. Never offer an IPA or a TestFlight invitation. Android file actions depend on actual matching-version release assets; missing files need explanatory text, not fabricated download URLs. Use native `details`/`summary` panels for installation instructions on the page and in the dialog, with the same localized copy. Signing-key and app-data warnings belong beside the APK download and remain available after it starts. Follow existing paper/surface tokens and allow file names, settings paths and tool links to wrap.
 
 ## Data views
 
