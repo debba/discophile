@@ -7,7 +7,7 @@ const DESCRIPTION: Record<Locale, string> = {
   it: "Un player musicale per le librerie Navidrome, Subsonic e Jellyfin, con gli audiolibri di Audiobookshelf, le radio online e un assistente musicale.",
 };
 
-/** Schema.org data for search engines: the app, its platforms, its free downloads and the paid iPhone app. */
+/** Schema.org data for search engines: the app, its platforms, its free downloads, including the iPhone app. */
 export async function StructuredData({ locale }: { locale: Locale }) {
   const release = await latestRelease();
   const data = {
@@ -38,7 +38,7 @@ export async function StructuredData({ locale }: { locale: Locale }) {
         inLanguage: ["en", "it"],
         offers: [
           { "@type": "Offer", price: "0", priceCurrency: "EUR", url: `${SITE_URL}${locale === "en" ? "" : "/it"}/download`, category: "Android, Mac, Windows, Linux, Web" },
-          { "@type": "Offer", price: "2.99", priceCurrency: "EUR", url: APP_STORE_URL, category: "iPhone" },
+          { "@type": "Offer", price: "0", priceCurrency: "EUR", url: APP_STORE_URL, category: "iPhone" },
         ],
         author: { "@type": "Person", name: "Andrea Debernardi", url: "https://debbaweb.it" },
       },

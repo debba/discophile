@@ -24,12 +24,12 @@ app (`../Localization/strings.json`) for feature names.
 
 ## iPhone app on the App Store
 
-Discophile for iPhone is a paid app on the App Store (€2.99). Its ID and URL are `APP_STORE_ID` and `APP_STORE_URL`
+Discophile for iPhone is a free app on the App Store. Its ID and URL are `APP_STORE_ID` and `APP_STORE_URL`
 in `lib/releases.ts`. The root metadata sets `itunes.appId`, so Safari on iPhone shows its Smart App Banner at the top
 of every page, offering the App Store page or opening the installed app. Other iPhone browsers do not show it.
 
 On an iPhone the main download button links straight to the App Store; elsewhere the dialog's iPhone tab, the
-Download page and the FAQ link to it and state the price. App Store links are counted in Matomo as `App Store` events.
+Download page and the FAQ link to it and state that it is free. App Store links are counted in Matomo as `App Store` events.
 The unsigned IPA and the TestFlight request form, offered while approval was pending, have been removed, along with
 `/api/testflight` and its SMTP settings. Never link an IPA or a TestFlight invitation again.
 
@@ -97,7 +97,7 @@ Android guidance explains installation-source permissions and signing-key confli
 
 The coordinated mobile release workflow is documented in [Unified releases](../docs/MOBILE_RELEASES.md). Publish an approved release before rebuilding the production site so static pages immediately contain the new assets; otherwise the hourly revalidation picks them up. These website edits do not publish a release, upload artifacts or deploy the site.
 
-Tests cover matching-version Android assets, ignored IPAs, stale/invalid metadata and URLs, older desktop-only releases, failed fetches, device detection, the App Store links and price on the Download page, FAQ and structured data, the iPhone download button, and server-rendered download pages.
+Tests cover matching-version Android assets, ignored IPAs, stale/invalid metadata and URLs, older desktop-only releases, failed fetches, device detection, the App Store links and free availability on the Download page, FAQ and structured data, the iPhone download button, and server-rendered download pages.
 
 ## Connect
 

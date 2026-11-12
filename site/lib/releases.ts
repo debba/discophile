@@ -4,7 +4,7 @@ export const REPO_URL = "https://github.com/debba/discophile";
 export const RELEASES_URL = `${REPO_URL}/releases/latest`;
 export const WEB_GUIDE_URL = `${REPO_URL}/blob/main/docs/WEB.md`;
 export const AUR_URL = "https://aur.archlinux.org/packages/discophile-bin";
-/** The iPhone app is sold on the App Store; GitHub releases carry no iOS package. */
+/** The iPhone app is available for free on the App Store; GitHub releases carry no iOS package. */
 export const APP_STORE_ID = "6825932680";
 export const APP_STORE_URL = `https://apps.apple.com/app/discophile/id${APP_STORE_ID}`;
 

@@ -52,7 +52,7 @@ const COPY: Record<Locale, Copy> = {
           {
             id: "free",
             q: "Is it free?",
-            a: ["The desktop apps and web player are free and open source, and the Android app is a free download. The iPhone app costs €2.99 on the App Store, with updates included; outside the euro area the App Store shows the price for your country. Optional Connect has a Free plan and paid plans from €2.99/month or €24.99/year, activated by email without automatic payment."],
+            a: ["The desktop apps and web player are free and open source, and the Android app is a free download. The iPhone app is free on the App Store, with updates included. Optional Connect has a Free plan and paid plans from €2.99/month or €24.99/year, activated by email without automatic payment."],
             links: [{ label: "Source code on GitHub", href: REPO_URL }, { label: "Discophile on the App Store", href: APP_STORE_URL }],
           },
         ],
@@ -70,7 +70,7 @@ const COPY: Record<Locale, Copy> = {
           {
             id: "iphone",
             q: "Where do I get the iPhone app?",
-            a: ["On the App Store, for iPhone with iOS 17 or later. It costs €2.99 and updates are included. If you used the TestFlight beta or a sideloaded IPA, install the App Store version to keep getting updates: the beta builds and the unsigned IPA are no longer offered."],
+            a: ["On the App Store, for iPhone with iOS 17 or later. It is free and updates are included. If you used the TestFlight beta or a sideloaded IPA, install the App Store version to keep getting updates: the beta builds and the unsigned IPA are no longer offered."],
             links: [{ label: "Discophile on the App Store", href: APP_STORE_URL }],
           },
           {
@@ -170,7 +170,7 @@ const COPY: Record<Locale, Copy> = {
           {
             id: "free",
             q: "È gratis?",
-            a: ["Le app desktop e il player web sono gratuiti e open source, e l’app Android si scarica gratis. L’app per iPhone costa 2,99 € su App Store, aggiornamenti inclusi; fuori dall’area euro l’App Store mostra il prezzo del tuo paese. Connect, facoltativo, offre un piano Free e piani a pagamento da 2,99 €/mese o 24,99 €/anno, attivati via email senza pagamenti automatici."],
+            a: ["Le app desktop e il player web sono gratuiti e open source, e l’app Android si scarica gratis. L’app per iPhone è gratis su App Store, aggiornamenti inclusi. Connect, facoltativo, offre un piano Free e piani a pagamento da 2,99 €/mese o 24,99 €/anno, attivati via email senza pagamenti automatici."],
             links: [{ label: "Codice sorgente su GitHub", href: REPO_URL }, { label: "Discophile su App Store", href: APP_STORE_URL }],
           },
         ],
@@ -188,7 +188,7 @@ const COPY: Record<Locale, Copy> = {
           {
             id: "iphone",
             q: "Dove trovo l'app per iPhone?",
-            a: ["Su App Store, per iPhone con iOS 17 o versioni successive. Costa 2,99 € e gli aggiornamenti sono inclusi. Se usavi la beta su TestFlight o un IPA installato con il sideloading, installa la versione di App Store per continuare a ricevere aggiornamenti: le build beta e l'IPA non firmato non sono più disponibili."],
+            a: ["Su App Store, per iPhone con iOS 17 o versioni successive. È gratis e gli aggiornamenti sono inclusi. Se usavi la beta su TestFlight o un IPA installato con il sideloading, installa la versione di App Store per continuare a ricevere aggiornamenti: le build beta e l'IPA non firmato non sono più disponibili."],
             links: [{ label: "Discophile su App Store", href: APP_STORE_URL }],
           },
           {

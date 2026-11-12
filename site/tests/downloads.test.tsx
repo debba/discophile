@@ -110,14 +110,14 @@ test("download page links directly to each available Linux package", async () =>
   assert.match(html, /Scarica \.tar\.gz/);
 });
 
-test("iPhone section sends visitors to the App Store, with the price, and never to an IPA or TestFlight", async () => {
+test("iPhone section sends visitors to the App Store, for free, and never to an IPA or TestFlight", async () => {
   mock.method(globalThis, "fetch", async () => Response.json(payload(mobileAssets)));
   for (const locale of ["en", "it"] as const) {
     const html = renderToStaticMarkup(await DownloadPage({ locale }));
     const iphone = html.slice(html.indexOf('id="iphone"'), html.indexOf('id="android"'));
     assert.ok(iphone.includes(`class="button primary" href="${APP_STORE_URL}"`));
     assert.ok(iphone.includes(ui[locale].download.buttons.ios));
-    assert.ok(iphone.includes(locale === "it" ? "2,99 €" : "€2.99"));
+    assert.ok(iphone.includes(locale === "it" ? "Gratis, aggiornamenti inclusi." : "Free, with updates included."));
     assert.doesNotMatch(html, /\.ipa|TestFlight|sideload/i);
   }
 });
@@ -159,16 +159,16 @@ test("download page includes mobile files and installation guides in both langua
   }
 });
 
-test("FAQ and search data state the iPhone price and link the App Store", async () => {
+test("FAQ and search data state that the iPhone app is free and link the App Store", async () => {
   mock.method(globalThis, "fetch", async () => Response.json(payload(mobileAssets)));
   for (const locale of ["en", "it"] as const) {
     const faq = renderToStaticMarkup(FaqPage({ locale }));
     assert.ok(faq.includes(`href="${APP_STORE_URL}"`));
-    assert.ok(faq.includes(locale === "it" ? "2,99 €" : "€2.99"));
+    assert.ok(faq.includes(locale === "it" ? "L’app per iPhone è gratis su App Store" : "The iPhone app is free on the App Store"));
     assert.doesNotMatch(faq, /coming soon|arriva presto|try the beta|provare la beta|testflight: true/i);
   }
   const data = JSON.parse(renderToStaticMarkup(await StructuredData({ locale: "en" })).replace(/^<script[^>]*>|<\/script>$/g, ""));
   const offers = data["@graph"][1].offers;
-  assert.deepEqual(offers.map((offer: { price: string }) => offer.price), ["0", "2.99"]);
+  assert.deepEqual(offers.map((offer: { price: string }) => offer.price), ["0", "0"]);
   assert.equal(offers[1].url, APP_STORE_URL);
 });

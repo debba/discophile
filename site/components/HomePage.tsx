@@ -34,7 +34,7 @@ const COPY: Record<Locale, Copy> = {
     lede: "Discophile plays your Navidrome, Subsonic and Jellyfin libraries on iPhone, Android, Mac, Windows, Linux and in the browser. Audiobookshelf audiobooks and internet radio live in the same app. No account required, no tracking. Optional Connect keeps your devices in sync.",
     download: { any: "Get Discophile", mac: "Download for Mac", windows: "Download for Windows", linux: "Download for Linux" },
     free: <><b>Free downloads for Android and desktop.</b> Pick your device and installation guide.</>,
-    iphone: <><b>Now on the App Store for iPhone.</b> iOS 17 or later, €2.99.</>,
+    iphone: <><b>Now on the App Store for iPhone.</b> iOS 17 or later, free.</>,
     appStore: "View it on the App Store",
     listen: {
       title: "Something familiar. Something unexpected.",
@@ -115,7 +115,7 @@ const COPY: Record<Locale, Copy> = {
     lede: "La tua libreria merita il palco. Ascolta la musica di Navidrome, Subsonic e Jellyfin su iPhone, Android, Mac, Windows, Linux e nel browser, ritrova i tuoi audiolibri di Audiobookshelf e accendi le radio che ami. Tutto in Discophile, senza account obbligatorio e senza tracciamento. Connect sincronizza i tuoi dispositivi, se lo desideri.",
     download: { any: "Scarica Discophile", mac: "Scarica per Mac", windows: "Scarica per Windows", linux: "Scarica per Linux" },
     free: <><b>Download gratuiti per Android e desktop.</b> Scegli il tuo dispositivo e la guida di installazione.</>,
-    iphone: <><b>Ora su App Store per iPhone.</b> iOS 17 o versioni successive, 2,99 €.</>,
+    iphone: <><b>Ora su App Store per iPhone.</b> iOS 17 o versioni successive, gratis.</>,
     appStore: "Vedila su App Store",
     listen: {
       title: "Riscopri i tuoi pezzi. Trova la prossima ossessione.",

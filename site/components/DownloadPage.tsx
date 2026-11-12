@@ -46,7 +46,7 @@ const COPY: Record<Locale, Copy> = {
         <><b>Sport mode</b> keeps presets for running, walking, cycling and the gym, started from Shortcuts.</>,
       ],
       storeTitle: "On the App Store",
-      storeBody: "€2.99, with updates included. The App Store shows the price for your country.",
+      storeBody: "Free, with updates included.",
       alt: "Discophile on iPhone, playing Discophile by Mina Sol",
     },
     android: {
@@ -120,7 +120,7 @@ const COPY: Record<Locale, Copy> = {
         <><b>La modalità sport</b> salva impostazioni per corsa, camminata, bici e palestra, da avviare con Comandi Rapidi.</>,
       ],
       storeTitle: "Su App Store",
-      storeBody: "2,99 €, aggiornamenti inclusi. Fuori dall'area euro l'App Store mostra il prezzo del tuo paese.",
+      storeBody: "Gratis, aggiornamenti inclusi.",
       alt: "Discophile su iPhone mentre riproduce Discophile di Mina Sol",
     },
     android: {
