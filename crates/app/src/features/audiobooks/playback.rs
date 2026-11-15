@@ -43,6 +43,11 @@ pub struct Playback {
     /// A requested file offset the output has not reported yet, and when it was requested.
     settling: Option<(f64, i64)>,
     rate_before: f32,
+    stream_url: Option<url::Url>,
+    recovering: bool,
+    stream_failed: bool,
+    buffering_since: Option<i64>,
+    recovery_after: i64,
 }
 
 impl Playback {
@@ -104,6 +109,11 @@ pub fn begin(
         was_playing: false,
         settling: None,
         rate_before,
+        stream_url: None,
+        recovering: false,
+        stream_failed: false,
+        buffering_since: None,
+        recovery_after: 0,
     });
     let start = if position.is_finite() { position.clamp(0.0, duration) } else { 0.0 };
     load_track(app, start, autoplay);
@@ -119,6 +129,11 @@ pub fn load_track(app: &mut App, position: f64, autoplay: bool) {
     pb.loading = true;
     pb.autoplay = autoplay;
     pb.settling = None;
+    pb.stream_url = None;
+    pb.recovering = false;
+    pb.stream_failed = false;
+    pb.buffering_since = None;
+    pb.recovery_after = 0;
     let generation = pb.generation;
     let track = pb.session.audio_tracks[location.index].clone();
     let offline = pb.offline;
@@ -158,6 +173,10 @@ pub fn load_track(app: &mut App, position: f64, autoplay: bool) {
 
 fn start_output(app: &mut App, source: AudioSource, offset: f64, duration: f64) {
     let Some(pb) = app.audiobooks.playback.as_mut() else { return };
+    pb.stream_url = match &source {
+        AudioSource::Url(value) => url::Url::parse(value).ok(),
+        _ => None,
+    };
     let item = MediaItem {
         id: pb.item_id(),
         source,
@@ -265,12 +284,13 @@ pub fn toggle(app: &mut App) {
     let finished = pb.duration() > 0.0 && position >= pb.duration() - 0.5;
     let loaded = app.player.output.status().item_id.as_deref() == Some(pb.item_id().as_str());
     if playing {
-        player::output_pause(app);
+        pause(app);
     } else if finished {
         load_track(app, 0.0, true);
     } else if !loaded {
         load_track(app, position, true);
     } else {
+        pb.autoplay = true;
         player::output_play(app);
     }
 }
@@ -339,6 +359,11 @@ pub fn mark_finished(app: &mut App) {
     if let Some(pb) = app.audiobooks.playback.as_mut() {
         pb.position = duration;
         pb.sleep_stop = None;
+        pb.autoplay = false;
+        pb.generation += 1;
+        pb.recovering = false;
+        pb.stream_url = None;
+        pb.buffering_since = None;
     }
     app.player.output.stop();
     save(app, false);
@@ -396,6 +421,7 @@ pub fn on_output_event(app: &mut App, event: AudioEvent) {
                     pb.position = stop;
                     pb.sleep_stop = None;
                     pb.was_playing = false;
+                    pb.autoplay = false;
                     app.player.sleep = None;
                     app.player.output.pause();
                     app.player.status.playing = false;
@@ -406,19 +432,47 @@ pub fn on_output_event(app: &mut App, event: AudioEvent) {
                 TrackEndAction::Finish => {
                     pb.position = pb.duration();
                     pb.was_playing = false;
+                    pb.autoplay = false;
                     app.player.status.playing = false;
                     save(app, false);
                 }
             }
         }
         AudioEvent::Failed { item_id, message } if item_id == current => {
-            log::warn!("Audiobook playback failed: {message}");
-            pb.was_playing = false;
-            fail(app, t("This audiobook file could not be played. Check your connection and audio format, then try again."));
-            save(app, false);
+            let _ = message;
+            recover_stream(app, true);
         }
         _ => {}
     }
+}
+
+fn recover_stream(app: &mut App, failing: bool) {
+    let Some(pb) = app.audiobooks.playback.as_mut() else { return };
+    pb.stream_failed |= failing;
+    if pb.recovering { return; }
+    let fallback = t("This audiobook file could not be played. Check your connection and audio format, then try again.");
+    let Some((current, client)) = pb.stream_url.clone().zip(app.audiobooks.client.clone()).filter(|(_, client)| !pb.offline && !pb.loading && client.account().connection_id == pb.connection) else {
+        if failing { fail(app, fallback); save(app, false); }
+        return;
+    };
+    let item = pb.item_id();
+    let path = pb.session.audio_tracks[pb.track].content_url.clone();
+    pb.recovering = true;
+    pb.recovery_after = now_millis() + 20_000;
+    app.tasks.spawn(async move {
+        let renewed = client.renewed_media_url(&current, &path).await;
+        update(move |app| {
+            let Some(pb) = app.audiobooks.playback.as_mut().filter(|pb| pb.item_id() == item) else { return };
+            pb.recovering = false;
+            if matches!(renewed, Ok(Some(_))) {
+                let (position, autoplay) = (pb.position, pb.autoplay);
+                load_track(app, position, autoplay);
+            } else if pb.stream_failed {
+                fail(app, fallback);
+                save(app, false);
+            }
+        })
+    });
 }
 
 /// Every frame while an audiobook is the player's content.
@@ -465,7 +519,12 @@ pub fn tick(app: &mut App) {
     let paused = pb.was_playing && !playing && !pb.loading;
     pb.was_playing = playing && !reached_stop;
     let (position, duration, loading) = (pb.position, pb.duration(), pb.loading);
+    let stalled = if !reached_stop && live && output.buffering && pb.stream_url.is_some() && pb.autoplay {
+        let since = *pb.buffering_since.get_or_insert(now);
+        now - since >= 5_000 && now >= pb.recovery_after
+    } else { pb.buffering_since = None; false };
     if reached_stop {
+        pb.autoplay = false;
         if let Some(stop) = pb.sleep_stop.take() {
             pb.position = stop;
         }
@@ -481,7 +540,123 @@ pub fn tick(app: &mut App) {
     status.duration = Some(duration);
     status.playing = playing && !reached_stop;
     status.buffering = output.buffering || loading;
+    if stalled { recover_stream(app, false); }
     if loading {
         app.ctx().request_repaint_after(std::time::Duration::from_millis(250));
+    }
+}
+
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod token_recovery_tests {
+    use super::*;
+    use discophile_core::audiobookshelf::{AudiobookshelfAccount, AudiobookshelfTokens};
+    use std::sync::{Arc, atomic::{AtomicBool, Ordering}, mpsc::Receiver};
+    use std::io::{Read, Write};
+
+    struct Fixture {
+        origin: url::Url,
+        expired: Arc<AtomicBool>,
+        stop: Arc<AtomicBool>,
+        server: Option<std::thread::JoinHandle<()>>,
+    }
+    impl Fixture {
+        fn new() -> Self {
+            let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+            listener.set_nonblocking(true).unwrap();
+            let origin = url::Url::parse(&format!("http://{}", listener.local_addr().unwrap())).unwrap();
+            let expired = Arc::new(AtomicBool::new(false));
+            let flag = expired.clone();
+            let stop = Arc::new(AtomicBool::new(false));
+            let done = stop.clone();
+            let server = std::thread::spawn(move || {
+                while !done.load(Ordering::SeqCst) {
+                    let Ok((mut socket, _)) = listener.accept() else { std::thread::sleep(std::time::Duration::from_millis(2)); continue };
+                    socket.set_read_timeout(Some(std::time::Duration::from_secs(3))).unwrap();
+                    let mut request = Vec::new();
+                    loop {
+                        let mut bytes = [0; 4096];
+                        let n = socket.read(&mut bytes).unwrap_or(0);
+                        if n == 0 { break; }
+                        request.extend_from_slice(&bytes[..n]);
+                        if request.windows(4).any(|w| w == b"\r\n\r\n") { break; }
+                    }
+                    let request = String::from_utf8_lossy(&request);
+                    let (status, body) = if request.starts_with("POST /auth/refresh ") {
+                        (200, r#"{"user":{"id":"user","username":"fixture","accessToken":"fresh","refreshToken":"refresh-new"}}"#)
+                    } else if request.starts_with("GET /api/me ") && flag.load(Ordering::SeqCst) && request.to_ascii_lowercase().contains("authorization: bearer old") {
+                        (401, "{}")
+                    } else { (200, "{}") };
+                    let _ = write!(socket, "HTTP/1.1 {status} Status\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len());
+                }
+            });
+            Self { origin, expired, stop, server: Some(server) }
+        }
+    }
+    impl Drop for Fixture {
+        fn drop(&mut self) {
+            self.stop.store(true, Ordering::SeqCst);
+            self.server.take().unwrap().join().unwrap();
+        }
+    }
+    fn setup(f: &Fixture) -> (App, Receiver<crate::tasks::Update>) {
+        let mut app = App::connect_test_app();
+        let (tasks, updates) = crate::tasks::Tasks::new(egui::Context::default());
+        app.tasks = tasks;
+        let account = AudiobookshelfAccount::new(f.origin.clone(), "user", "fixture", None);
+        app.audiobooks.client = Some(AudiobookshelfClient::new(account.clone(), AudiobookshelfTokens {
+            access_token: "old".into(), refresh_token: Some("refresh-old".into()),
+        }, |_, _| Ok(())));
+        app.audiobooks.account = Some(account.clone());
+        let book = serde_json::from_str(r#"{"id":"book","libraryId":"library","mediaType":"book","media":{"metadata":{"title":"Synthetic book"},"duration":180}}"#).unwrap();
+        let session = serde_json::from_str(r#"{"id":"session","libraryItemId":"book","duration":180,"currentTime":0,"audioTracks":[{"startOffset":0,"duration":180,"contentUrl":"/api/items/book/file/1","mimeType":"audio/mpeg"}]}"#).unwrap();
+        begin(&mut app, book, session, account.id(), account.connection_id, false, 75.0, true);
+        pump(&mut app, &updates);
+        (app, updates)
+    }
+    fn pump(app: &mut App, updates: &Receiver<crate::tasks::Update>) {
+        while app.audiobooks.playback.as_ref().is_some_and(|pb| pb.loading || pb.recovering) {
+            updates.recv_timeout(std::time::Duration::from_secs(5)).expect("playback update")(app);
+        }
+    }
+    #[test]
+    fn expired_stream_recovers_at_its_position_and_respects_pause_during_refresh() {
+        let f = Fixture::new();
+        let (mut app, updates) = setup(&f);
+        let old = app.audiobooks.playback.as_ref().unwrap().item_id();
+        f.expired.store(true, Ordering::SeqCst);
+        on_output_event(&mut app, AudioEvent::Failed { item_id: old.clone(), message: "synthetic 401".into() });
+        pause(&mut app);
+        pump(&mut app, &updates);
+        let pb = app.audiobooks.playback.as_ref().unwrap();
+        assert_eq!(pb.position, 75.0);
+        assert_eq!(pb.stream_url.as_ref().unwrap().query(), Some("token=fresh"));
+        assert!(!app.player.output.status().playing);
+        assert!(app.player.error.is_none());
+        on_output_event(&mut app, AudioEvent::Failed { item_id: old, message: "late failure".into() });
+        assert!(!app.audiobooks.playback.as_ref().unwrap().recovering);
+        let current = app.audiobooks.playback.as_ref().unwrap().item_id();
+        on_output_event(&mut app, AudioEvent::Failed { item_id: current.clone(), message: "invalid format".into() });
+        pump(&mut app, &updates);
+        assert!(app.player.error.is_some());
+        assert_eq!(app.audiobooks.playback.as_ref().unwrap().item_id(), current);
+    }
+    #[test]
+    fn a_stalled_stream_renews_without_a_failure_event() {
+        let f = Fixture::new();
+        let (mut app, updates) = setup(&f);
+        f.expired.store(true, Ordering::SeqCst);
+        app.audiobooks.playback.as_mut().unwrap().buffering_since = Some(now_millis() - 6_000);
+        app.player.status = app.player.output.status();
+        app.player.status.playing = false;
+        app.player.status.buffering = true;
+        tick(&mut app);
+        assert!(app.audiobooks.playback.as_ref().unwrap().recovering);
+        pump(&mut app, &updates);
+        let pb = app.audiobooks.playback.as_ref().unwrap();
+        assert_eq!(pb.position, 75.0);
+        assert_eq!(pb.stream_url.as_ref().unwrap().query(), Some("token=fresh"));
+        assert!(app.player.output.status().playing);
+        assert!(app.player.error.is_none());
     }
 }

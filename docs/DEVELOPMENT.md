@@ -145,3 +145,10 @@ local server, choose `http://localhost:<port>` as the custom address in Settings
 [CONNECT.md](CONNECT.md) for the user guide and [ARCHITECTURE.md](ARCHITECTURE.md) for the structure.
 `connect/handoff.rs` defines playback handoff messages. The native integration in
 `crates/app/src/features/connect/services/` transports them through encrypted Connect envelopes.
+
+
+## Audiobookshelf stream token recovery, 2026-11-15
+
+Running audiobook streams retain their signed media URL separately from the client's current credentials. A failure or a stall lasting five seconds verifies authentication and reloads the current file at the saved position only if that URL changes. Repeated stall checks are limited to twenty-second intervals. Pending recovery is scoped to the playback item and connection; pausing during renewal stays paused, late failures from replaced items are ignored, and marking a book finished invalidates pending recovery. Downloads bypass this path.
+
+Validation: `cargo test --workspace -- --test-threads=1` passed 497 tests with one existing ignored test. New app tests cover failure recovery at the current position, pause during renewal, unchanged-token failures, late item failures and recovery from a stall without a failure event. Core tests cover token rotation and offline verification. Native and WASM app checks passed; all six release-tooling tests passed and the three repositories agree on 1.0.3/build 10. One existing Connect keyboard UI test failed in the parallel run and passed independently and in the serial suite; its tests mutate the process-wide localization setting. The native audio backend's existing progressive-stream tests also passed. No physical Android playback or desktop listening soak is claimed.
