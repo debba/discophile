@@ -950,6 +950,12 @@ impl AudiobookshelfClient {
         Ok(self.media_urls(&[content_path]).await?.remove(0))
     }
 
+    /// Returns a replacement only after the token in a running stream URL has changed.
+    pub async fn renewed_media_url(&self, current: &Url, content_path: &str) -> MusicResult<Option<Url>> {
+        let fresh = self.media_url(content_path).await?;
+        Ok((fresh != *current).then_some(fresh))
+    }
+
     /// Playable URLs for several tracks with a single token check.
     pub async fn media_urls(&self, content_paths: &[&str]) -> MusicResult<Vec<Url>> {
         self.verify().await?;
@@ -1459,7 +1465,7 @@ mod tests {
         let (url, seen) = server::serve(move |request| {
             if request.path() == "/books/auth/refresh" {
                 return if request.header("x-refresh-token") == Some("refresh-fixture") {
-                    (200, ROTATED.into())
+                    (200, r#"{"user":{"id":"fixture-user","username":"fixture","accessToken":"rotated-access","refreshToken":"rotated-refresh"}}"#.into())
                 } else {
                     (400, String::new())
                 };
@@ -1498,7 +1504,7 @@ mod tests {
     async fn alias_changes_use_latest_rotated_tokens_without_another_login() {
         let (url, _) = server::serve(|request| {
             if request.path() == "/books/auth/refresh" {
-                return (200, ROTATED.into());
+                return (200, r#"{"user":{"id":"fixture-user","username":"fixture","accessToken":"rotated-access","refreshToken":"rotated-refresh"}}"#.into());
             }
             if request.header("Authorization") == Some("Bearer access-fixture") {
                 return (401, String::new());
@@ -1528,7 +1534,7 @@ mod tests {
             if request.path() == "/books/auth/refresh" {
                 started_tx.lock().unwrap().send(()).unwrap();
                 gate_rx.lock().unwrap().recv_timeout(std::time::Duration::from_secs(5)).unwrap();
-                return (200, ROTATED.into());
+                return (200, r#"{"user":{"id":"fixture-user","username":"fixture","accessToken":"rotated-access","refreshToken":"rotated-refresh"}}"#.into());
             }
             if request.header("Authorization") == Some("Bearer access-fixture") {
                 return (401, String::new());
@@ -1685,4 +1691,33 @@ mod tests {
         assert!(plan.record.queued());
         assert!(!serde_json::to_string(&plan.record).unwrap().contains("access-fixture"));
     }
+    #[tokio::test]
+    async fn running_stream_url_changes_only_after_token_rotation() {
+        use std::sync::atomic::{AtomicBool, Ordering};
+        let expired = Arc::new(AtomicBool::new(false));
+        let flag = expired.clone();
+        let (url, _) = server::serve(move |request| match request.path() {
+            "/books/auth/refresh" => (200, r#"{"user":{"id":"fixture-user","username":"fixture","accessToken":"rotated-access","refreshToken":"rotated-refresh"}}"#.into()),
+            _ if flag.load(Ordering::SeqCst) && bearer(request) == Some("Bearer access-fixture") => (401, String::new()),
+            _ => (200, "{}".into()),
+        }).await;
+        let client = client(&url, &Saved::default());
+        let path = "/api/items/book/file/1";
+        let original = client.media_url(path).await.unwrap();
+        assert_eq!(client.renewed_media_url(&original, path).await.unwrap(), None);
+        expired.store(true, Ordering::SeqCst);
+        let fresh = client.renewed_media_url(&original, path).await.unwrap().unwrap();
+        assert_eq!(fresh, media_url(path, &url, "rotated-access").unwrap());
+        assert_eq!(client.renewed_media_url(&fresh, path).await.unwrap(), None);
+    }
+
+    #[tokio::test]
+    async fn offline_stream_renewal_reports_failure_without_a_replacement() {
+        let (url, _) = server::serve(|_| (503, String::new())).await;
+        let client = client(&url, &Saved::default());
+        let path = "/api/items/book/file/1";
+        let original = media_url(path, &url, "access-fixture").unwrap();
+        assert_eq!(client.renewed_media_url(&original, path).await, Err(MusicError::ServerUnavailable));
+    }
+
 }
