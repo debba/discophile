@@ -1,4 +1,4 @@
-//! Search: a large field bound to the sidebar's search text, filter chips that only hide sections,
+//! Search: a single canonical query field, filter chips that only hide sections,
 //! library and podcast matches, and an on-demand Apple Podcasts directory search.
 
 use discophile_core::l10n;
@@ -27,11 +27,10 @@ pub fn show(app: &mut App, ui: &mut Ui) {
     });
 }
 
-/// The page's own field. It shares `nav.search_text` with the sidebar; it takes the shortcut's
-/// focus id only while the sidebar (and its field) is collapsed, so the two never clash.
+pub(crate) fn field_id() -> egui::Id { egui::Id::unique("search-field") }
+
 fn search_box(app: &mut App, ui: &mut Ui) {
-    let collapsed = app.settings.sidebar_collapsed;
-    let id = if collapsed { egui::Id::unique("search-field") } else { egui::Id::unique("search-page-field") };
+    let id = field_id();
     let palette = Palette::of_ui(ui);
     let mut text = app.nav.search_text.clone();
     let mut clear = false;
@@ -60,7 +59,7 @@ fn search_box(app: &mut App, ui: &mut Ui) {
             .inner
         })
         .inner;
-    if app.nav.changed && collapsed {
+    if std::mem::take(&mut app.nav.search_focus_pending) || clear {
         response.request_focus();
     }
     if clear {
@@ -195,6 +194,50 @@ fn directory(app: &mut App, ui: &mut Ui) {
         ui.add_space(6.0);
         if widgets::error_banner(ui, &error, true) {
             search::search_directory(app);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+        fn frame(ctx: &egui::Context, input: egui::RawInput, draw: impl FnMut(&mut egui::Ui)) -> egui::FullOutput {
+            let mut output = ctx.run_ui(input, draw);
+            output.textures_delta.clear();
+            output
+        }
+
+    use super::*;
+    use crate::nav::Route;
+
+    #[test]
+    fn search_entry_focus_is_one_shot_and_query_survives_navigation_and_sidebar_resize() {
+        let mut app = App::connect_test_app();
+        let ctx = app.ctx().clone();
+        crate::theme::install_fonts(&ctx);
+        app.nav.search_text = "Miles".into();
+        app.library.search.scope = SearchScope::Albums;
+        for collapsed in [false, true, false] {
+            app.settings.sidebar_collapsed = collapsed;
+            app.nav.open_search();
+            let _ = frame(&ctx, Default::default(), |ui| search_box(&mut app, ui));
+            assert_eq!(ctx.memory(|m| m.focused()), Some(field_id()));
+            assert!(!app.nav.search_focus_pending);
+            assert_eq!(app.nav.search_text, "Miles");
+            let other = egui::Id::unique("another-control");
+            let _ = frame(&ctx, Default::default(), |ui| {
+                search_box(&mut app, ui);
+                ui.add(egui::TextEdit::singleline(&mut String::new()).id(other)).request_focus();
+            });
+            let _ = frame(&ctx, Default::default(), |ui| {
+                search_box(&mut app, ui);
+                ui.add(egui::TextEdit::singleline(&mut String::new()).id(other));
+            });
+            assert_eq!(ctx.memory(|m| m.focused()), Some(other), "search must not steal focus every frame");
+            app.nav.push(Route::Albums);
+            app.nav.back();
+            assert_eq!(app.nav.current, Route::Search);
+            assert_eq!(app.nav.search_text, "Miles");
+            assert_eq!(app.library.search.scope, SearchScope::Albums);
         }
     }
 }

@@ -62,8 +62,9 @@ pub struct Nav {
     pub side_panel: SidePanel,
     /// Full-window Now Playing view.
     pub now_playing: bool,
-    /// Text in the sidebar search field; Search reads it.
+    /// Canonical query owned by the Search page.
     pub search_text: String,
+    pub search_focus_pending: bool,
     /// Set when the route changed, so pages can reset scroll or start loading.
     pub changed: bool,
 }
@@ -77,12 +78,18 @@ impl Default for Nav {
             side_panel: SidePanel::None,
             now_playing: false,
             search_text: String::new(),
+            search_focus_pending: false,
             changed: true,
         }
     }
 }
 
 impl Nav {
+    pub fn open_search(&mut self) {
+        self.select(Route::Search);
+        self.search_focus_pending = true;
+    }
+
     /// Opens a page, keeping history for Back.
     pub fn push(&mut self, route: Route) {
         if route == self.current {

@@ -270,10 +270,13 @@ pub fn known_book(app: &App, id: &str) -> Option<Audiobook> {
     if let Some(pb) = state.playback.as_ref().filter(|p| p.book.id == id) {
         return Some(pb.book.clone());
     }
-    if let Some(record) = state.downloads.records.iter().find(|r| r.book.id == id) {
+    if let Some(record) = state.downloads.records.iter().find(|r| r.book.id == id && state.account.as_ref().is_some_and(|a| a.id() == r.account)) {
         return Some(record.book.clone());
     }
-    state.browse.books.iter().find(|b| b.id == id).cloned()
+    state.browse.books.iter().find(|b| b.id == id).cloned().or_else(|| {
+        let account = state.account.as_ref()?.id();
+        state.sync.books.iter().find(|b| b.account == account && b.book.id == id).map(|b| b.book.clone())
+    })
 }
 
 /// Loads a book's details unless they are loaded for this connection.

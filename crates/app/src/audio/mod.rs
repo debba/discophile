@@ -78,6 +78,8 @@ pub struct OutputStatus {
     pub duration: Option<f64>,
     pub playing: bool,
     pub buffering: bool,
+    /// The backend has prepared audio at the requested offset (not an optimistic command status).
+    pub ready: bool,
     pub details: Option<AudioDetails>,
 }
 
@@ -122,7 +124,7 @@ pub struct NullOutput {
 
 impl AudioOutput for NullOutput {
     fn load(&mut self, item: MediaItem, start_at: f64, autoplay: bool) {
-        self.status = OutputStatus { item_id: Some(item.id), position: start_at, duration: item.duration_hint, playing: autoplay, ..Default::default() };
+        self.status = OutputStatus { item_id: Some(item.id), position: start_at, duration: item.duration_hint, playing: autoplay, ready: true, ..Default::default() };
     }
     fn set_next(&mut self, _item: Option<MediaItem>) {}
     fn play(&mut self) {

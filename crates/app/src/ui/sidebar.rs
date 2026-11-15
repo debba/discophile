@@ -38,25 +38,11 @@ pub fn show(app: &mut App, ui: &mut Ui) {
     }
     ui.add_space(22.0);
 
-    if app.session.has_library() && !collapsed {
-        let mut text = app.nav.search_text.clone();
-        let response = search_box(ui, &mut text);
-        if response.changed() || (response.has_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter))) {
-            app.nav.search_text = text;
-            if app.nav.current != Route::Search {
-                app.nav.select(Route::Search);
-            }
-        }
-        ui.add_space(8.0);
-    }
-
     let selected = app.nav.section();
     let mut main = Vec::new();
     if app.session.has_library() {
         main.push(Entry { route: Route::ListenNow, icon: icons::PLAY_CIRCLE, label: t("Listen Now") });
-        if collapsed {
-            main.push(Entry { route: Route::Search, icon: icons::MAGNIFYING_GLASS, label: t("Search") });
-        }
+        main.push(Entry { route: Route::Search, icon: icons::MAGNIFYING_GLASS, label: t("Search") });
     }
     if audiobooks::has_account(app) {
         main.push(Entry { route: Route::Audiobooks, icon: icons::BOOKS, label: t("Audiobooks") });
@@ -136,11 +122,6 @@ pub fn show(app: &mut App, ui: &mut Ui) {
     });
 }
 
-fn search_box(ui: &mut Ui, text: &mut String) -> egui::Response {
-    let width = ui.available_width();
-    widgets::search_field_with_id(ui, Some(egui::Id::unique("search-field")), text, &t("Artists, albums, songs"), width)
-}
-
 fn nav_item(app: &mut App, ui: &mut Ui, entry: &Entry, selected: &Route, collapsed: bool, center_x: f32) {
     let palette = Palette::of_ui(ui);
     let is_selected = &entry.route == selected && !app.nav.now_playing;
@@ -164,7 +145,7 @@ fn nav_item(app: &mut App, ui: &mut Ui, entry: &Entry, selected: &Route, collaps
     let response = if collapsed { response.on_hover_text(&entry.label) } else { response };
     response.widget_info(|| egui::WidgetInfo::selected(egui::Role::Tab, true, is_selected, &entry.label));
     if response.clicked() {
-        app.nav.select(entry.route.clone());
+        if entry.route == Route::Search { app.nav.open_search(); } else { app.nav.select(entry.route.clone()); }
     }
 }
 
@@ -334,6 +315,55 @@ mod tests {
 
     fn key(key: egui::Key) -> egui::Event {
         egui::Event::Key { key, physical_key: None, pressed: true, repeat: false, modifiers: egui::Modifiers::NONE }
+    }
+
+    #[test]
+    fn sidebar_search_navigates_to_the_single_content_input() {
+        fn frame(ctx: &egui::Context, input: egui::RawInput, draw: impl FnMut(&mut egui::Ui)) -> egui::FullOutput {
+            let mut output = ctx.run_ui(input, draw);
+            output.textures_delta.clear();
+            output
+        }
+
+        for collapsed in [false, true] {
+            let mut app = fixture();
+            app.session.client = Some(discophile_core::client::MusicClient::new(app.session.accounts[0].credentials.clone()));
+            app.settings.sidebar_collapsed = collapsed;
+            app.settings.downloaded_only = true;
+            let ctx = app.ctx().clone();
+            ctx.enable_accesskit();
+            theme::install_fonts(&ctx);
+            let draw = |app: &mut App, root: &mut Ui| {
+                egui::Panel::left("sidebar-test").exact_size(if collapsed { 72.0 } else { 244.0 }).show(root, |ui| show(app, ui));
+                egui::CentralPanel::default().show(root, |ui| {
+                    if app.nav.current == Route::Search { crate::ui::search::show(app, ui); }
+                });
+            };
+            let input = || egui::RawInput { screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, vec2(1280.0, 820.0))), ..Default::default() };
+            let mut target = None;
+            for _ in 0..3 {
+                let output = frame(&ctx, input(), |ui| draw(&mut app, ui));
+                let tree = output.platform_output.accesskit_update.unwrap();
+                if let Some((_, node)) = tree.nodes.iter().find(|(_, node)| node.role() == egui::Role::Tab && node.label() == Some(t("Search").as_str())) {
+                    let rect = node.bounds().unwrap();
+                    target = Some(egui::pos2((rect.x0 + rect.x1) as f32 / 2.0, (rect.y0 + rect.y1) as f32 / 2.0));
+                }
+                assert!(!tree.nodes.iter().any(|(_, n)| n.role() == egui::Role::TextInput), "sidebar must not edit the query");
+            }
+            let pos = target.expect("search navigation button");
+            for pressed in [true, false] {
+                let mut input = input();
+                input.events = vec![egui::Event::PointerMoved(pos), egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() }];
+                let _ = frame(&ctx, input, |ui| draw(&mut app, ui));
+            }
+            assert_eq!(app.nav.current, Route::Search);
+            assert_eq!(ctx.memory(|m| m.focused()), Some(crate::ui::search::field_id()));
+            // A full accessibility tree after navigating exposes exactly one editable query.
+            ctx.enable_accesskit();
+            let output = frame(&ctx, input(), |ui| draw(&mut app, ui));
+            let tree = output.platform_output.accesskit_update.unwrap();
+            assert_eq!(tree.nodes.iter().filter(|(_, n)| n.role() == egui::Role::TextInput).count(), 1);
+        }
     }
 
     #[test]

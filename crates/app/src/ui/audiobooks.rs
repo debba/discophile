@@ -5,7 +5,7 @@ mod player;
 
 use discophile_core::audiobook_reader::{AudiobookReaderPreferences, AudiobookTimeline};
 use discophile_core::audiobookshelf::Audiobook;
-use discophile_core::l10n::{count, t};
+use discophile_core::l10n::{count, t, tf};
 use discophile_core::offline_audiobook::OfflineAudiobook;
 use egui::{Align, Color32, CornerRadius, Layout, Rect, Response, Sense, Ui, vec2};
 
@@ -102,8 +102,7 @@ fn small_badge(ui: &Ui, rect: Rect, icon: &str) {
 
 /// A grid tile: cover, title, author and a status line. Clicking opens the book.
 fn book_tile(ui: &mut Ui, app: &mut App, book: &Audiobook, width: f32, record: Option<&OfflineAudiobook>) {
-    let account = app.audiobooks.account.as_ref().map(|a| a.id()).unwrap_or_default();
-    let saved = app.audiobooks.sync.saved(&account, &book.id);
+    let saved = audiobooks::progress(app, book);
     let current = audiobooks::is_current(app, &book.id);
     let art = cover(ui, app, &book.id, width, 12.0);
     if let Some(progress) = saved.filter(|p| !p.is_finished) {
@@ -127,14 +126,12 @@ fn book_tile(ui: &mut Ui, app: &mut App, book: &Audiobook, width: f32, record: O
         Some(r) if r.ready() => Some(t("Downloaded")),
         Some(r) if r.queued() => Some(t("Downloading…")),
         Some(_) => Some(t("Download incomplete")),
-        None => match saved {
-            Some(p) if p.is_finished => Some(t("Finished")),
-            _ => book.media.duration.map(AudiobookTimeline::clock),
-        },
+        None => None,
     };
     if let Some(status) = status {
         ui.label(theme::secondary(ui, status, Font::Footnote));
     }
+    ui.label(theme::secondary(ui, progress_label(app, book), Font::Footnote));
     if let Some(record) = record.filter(|r| r.queued()) {
         let fraction = downloads_fraction(app, record);
         ui.add(egui::ProgressBar::new(fraction as f32).desired_width(width).desired_height(4.0)).on_hover_text(t("Download progress"));
@@ -144,6 +141,45 @@ fn book_tile(ui: &mut Ui, app: &mut App, book: &Audiobook, width: f32, record: O
     if response.on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
         app.nav.push(Route::Audiobook(book.id.clone()));
     }
+}
+
+fn progress_label(app: &App, book: &Audiobook) -> String {
+    match audiobooks::progress(app, book) {
+        Some(p) if p.is_finished => t("Finished"),
+        Some(p) if p.current_time > 0.0 && p.duration > 0.0 => tf("%1$@%% · %2$@ remaining", &[
+            &format!("{:.0}", p.progress() * 100.0), &AudiobookTimeline::clock((p.duration - p.current_time).max(0.0))]),
+        Some(p) if p.current_time == 0.0 => t("Not started"),
+        _ => book.media.duration.filter(|d| *d > 0.0).map(AudiobookTimeline::clock).unwrap_or_else(|| t("Progress unavailable")),
+    }
+}
+
+fn resume_card(app: &mut App, ui: &mut Ui) {
+    let Some(book) = audiobooks::resume_book(app) else { return };
+    widgets::section_heading(ui, &t("Continue listening"), None);
+    widgets::card(ui, |ui| {
+        ui.horizontal(|ui| {
+            if cover(ui, app, &book.id, 80.0, 10.0).clicked() { app.nav.push(Route::Audiobook(book.id.clone())); }
+            ui.vertical(|ui| {
+                ui.label(theme::text(book.title(), Font::Headline));
+                ui.label(theme::secondary(ui, book.author(), Font::Subheadline));
+                ui.label(theme::secondary(ui, progress_label(app, &book), Font::Callout));
+            });
+        });
+        ui.horizontal_wrapped(|ui| {
+            let current = audiobooks::is_current(app, &book.id);
+            let waiting = app.audiobooks.starting.as_ref().is_some_and(|(id, _)| *id == book.id)
+                || (current && app.audiobooks.playback.as_ref().is_some_and(|pb| pb.loading));
+            let active = waiting || (current && app.player.status.playing);
+            if widgets::pill_button(ui, if active { icons::PAUSE } else { icons::PLAY }, if active { t("Pause") } else { t("Continue listening") }, true).clicked() {
+                if waiting || active { audiobooks::pause(app); }
+                else if current { audiobooks::toggle(app); }
+                else { audiobooks::start_book(app, &book.id, None); }
+            }
+            if widgets::pill_button(ui, icons::BOOK, t("Book details"), false).clicked() { app.nav.push(Route::Audiobook(book.id.clone())); }
+            if waiting { ui.spinner(); ui.label(theme::secondary(ui, t("Loading audiobook…"), Font::Footnote)); }
+        });
+    });
+    ui.add_space(12.0);
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -209,6 +245,7 @@ pub fn show(app: &mut App, ui: &mut Ui) {
         ui.add_space(8.0);
         toolbar(app, ui);
         ui.add_space(6.0);
+        resume_card(app, ui);
         if let Some(error) = app.audiobooks.browse.error.clone() {
             if widgets::error_banner(ui, &error, true) {
                 app.audiobooks.browse.error = None;
@@ -237,6 +274,7 @@ pub fn show(app: &mut App, ui: &mut Ui) {
             .records
             .iter()
             .filter(|r| r.account == account_id && (!downloaded_only || r.ready()))
+            .filter(|r| app.audiobooks.browse.selected.is_empty() || r.book.library_id == app.audiobooks.browse.selected)
             .filter(|r| query.is_empty() || format!("{} {}", r.book.title(), r.book.author()).to_lowercase().contains(&query))
             .cloned()
             .collect();
@@ -416,7 +454,7 @@ fn header(app: &mut App, ui: &mut Ui, book: &Audiobook, current: bool) {
             if !facts.is_empty() {
                 ui.label(theme::secondary(ui, facts.join("  ·  "), Font::Subheadline));
             }
-            let progress = app.audiobooks.detail.as_ref().filter(|d| d.id == book.id).and_then(|d| d.progress);
+            let progress = audiobooks::progress(app, book);
             if let Some(progress) = progress.filter(|p| p.current_time > 0.0) {
                 let label = if progress.is_finished { t("Finished") } else { t("Saved position") };
                 ui.label(theme::secondary(
@@ -446,8 +484,14 @@ fn header(app: &mut App, ui: &mut Ui, book: &Audiobook, current: bool) {
 fn primary_action(app: &mut App, ui: &mut Ui, book: &Audiobook, current: bool, has_progress: bool) {
     let starting = app.audiobooks.starting.as_ref().is_some_and(|(id, _)| *id == book.id);
     let loading = app.audiobooks.detail.as_ref().is_some_and(|d| d.id == book.id && d.loading);
+    if starting {
+        if widgets::pill_button(ui, icons::PAUSE, t("Pause"), true).clicked() { audiobooks::pause(app); }
+        ui.spinner();
+        ui.label(theme::secondary(ui, t("Loading audiobook…"), Font::Footnote));
+        return;
+    }
     if current {
-        let playing = app.player.status.playing;
+        let playing = app.player.status.playing || app.audiobooks.playback.as_ref().is_some_and(|pb| pb.loading);
         let (icon, label) = if playing { (icons::PAUSE, t("Pause")) } else { (icons::PLAY, t("Play")) };
         if widgets::pill_button(ui, icon, label, true).clicked() {
             audiobooks::toggle(app);
@@ -455,7 +499,7 @@ fn primary_action(app: &mut App, ui: &mut Ui, book: &Audiobook, current: bool, h
         return;
     }
     let label = if has_progress { t("Continue listening") } else { t("Start") };
-    let enabled = !starting && !loading && app.audiobooks.starting.is_none();
+    let enabled = !loading;
     if ui.add_enabled_ui(enabled, |ui| widgets::pill_button(ui, icons::PLAY, label, true)).inner.clicked() {
         audiobooks::start_book(app, &book.id, None);
     }
@@ -528,7 +572,6 @@ fn chapters(app: &mut App, ui: &mut Ui, book: &Audiobook, current: bool) {
     let subtitle = (timeline.chapters.len() > 1).then(|| count("%lld chapters", timeline.chapters.len() as i64));
     widgets::section_heading(ui, &t("Chapters"), subtitle.as_deref());
     let palette = Palette::of_ui(ui);
-    let disabled = app.audiobooks.starting.is_some();
     for chapter in &timeline.chapters {
         let is_active = active == Some(chapter.id);
         let (rect, response) = ui.allocate_exact_size(vec2(ui.available_width(), 44.0), Sense::click());
@@ -558,8 +601,8 @@ fn chapters(app: &mut App, ui: &mut Ui, book: &Audiobook, current: bool) {
             });
         });
         let label = format!("{}, {}", chapter.display_title(), AudiobookTimeline::clock(chapter.start));
-        response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, !disabled, &label));
-        if response.on_hover_cursor(egui::CursorIcon::PointingHand).clicked() && !disabled {
+        response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, &label));
+        if response.on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
             if current {
                 audiobooks::seek(app, chapter.start);
             } else {

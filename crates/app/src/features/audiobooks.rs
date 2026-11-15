@@ -188,9 +188,7 @@ pub fn start_book(app: &mut App, id: &str, position: Option<f64>) {
 
 fn start_book_with_autoplay(app: &mut App, id: &str, position: Option<f64>, autoplay: bool) {
     let Some(account) = app.audiobooks.account.clone() else { return };
-    if app.audiobooks.starting.is_some() {
-        return;
-    }
+    cancel_pending_start(app);
     let account_id = account.id();
     if let Some(record) = downloads::ready_record(app, id) {
         let saved = app.audiobooks.sync.saved(&account_id, id);
@@ -199,6 +197,7 @@ fn start_book_with_autoplay(app: &mut App, id: &str, position: Option<f64>, auto
         return;
     }
     let Some(book) = library::known_book(app, id) else { return };
+    crate::player::stop(app);
     app.audiobooks.start_generation += 1;
     let generation = app.audiobooks.start_generation;
     app.audiobooks.starting = Some((id.to_string(), generation));
@@ -253,4 +252,77 @@ pub fn cancel_pending_start(app: &mut App) {
 
 pub fn is_current(app: &App, id: &str) -> bool {
     playing_book(app).as_deref() == Some(id)
+}
+
+/// Live progress takes precedence over the persisted account-scoped snapshot.
+pub fn progress(app: &App, book: &discophile_core::audiobookshelf::Audiobook) -> Option<discophile_core::audiobookshelf::AudiobookProgress> {
+    let account = app.audiobooks.account.as_ref()?.id();
+    if let Some(pb) = app.audiobooks.playback.as_ref().filter(|pb| pb.account == account && pb.book.id == book.id) {
+        return Some(discophile_core::audiobookshelf::AudiobookProgress::new(pb.position, pb.duration()));
+    }
+    app.audiobooks.sync.saved(&account, &book.id)
+}
+
+/// Current book first, otherwise the most recently played unfinished book visible in this library.
+pub fn resume_book(app: &App) -> Option<discophile_core::audiobookshelf::Audiobook> {
+    let state = &app.audiobooks;
+    let account = state.account.as_ref()?.id();
+    let eligible = |book: &discophile_core::audiobookshelf::Audiobook| {
+        (state.browse.selected.is_empty() || book.library_id == state.browse.selected)
+            && (!state.browse.downloaded_only || downloads::ready_record(app, &book.id).is_some())
+            && (state.browse.search_text().is_empty() || format!("{} {}", book.title(), book.author()).to_lowercase().contains(&state.browse.search_text().to_lowercase()))
+            && progress(app, book).is_some_and(|p| !p.is_finished)
+    };
+    if let Some(pb) = state.playback.as_ref().filter(|pb| pb.account == account && eligible(&pb.book)) {
+        return Some(pb.book.clone());
+    }
+    state.sync.books.iter().filter(|b| b.account == account).map(|b| &b.book)
+        .chain(state.downloads.records.iter().filter(|r| r.account == account).map(|r| &r.book))
+        .chain(state.browse.books.iter())
+        .filter(|book| eligible(book))
+        .max_by(|a, b| {
+            let time = |book| progress(app, book).and_then(|p| p.last_update).unwrap_or(0.0);
+            time(a).total_cmp(&time(b))
+        }).cloned()
+}
+
+#[cfg(test)]
+mod resume_tests {
+    use super::*;
+    use discophile_core::audiobookshelf::{Audiobook, AudiobookProgress, AudiobookshelfAccount};
+
+    #[test]
+    fn streamed_resume_survives_serialization_and_respects_account_library_and_finished_filters() {
+        let mut app = App::connect_test_app();
+        let account = AudiobookshelfAccount::new(url::Url::parse("https://example.invalid").unwrap(), "one", "one", None);
+        let id = account.id();
+        app.audiobooks.account = Some(account);
+        let book: Audiobook = serde_json::from_str(r#"{"id":"book","libraryId":"library","mediaType":"book","media":{"metadata":{"title":"Streamed title"},"duration":100}}"#).unwrap();
+        app.audiobooks.sync.books = vec![sync::RememberedBook { account: id.clone(), book: book.clone() }];
+        app.audiobooks.sync.archive.record(&id, "book", AudiobookProgress::at(30.0, 100.0, 1.0));
+        let books = serde_json::to_vec(&app.audiobooks.sync.books).unwrap();
+        app.audiobooks.sync.books = serde_json::from_slice(&books).unwrap();
+        app.audiobooks.sync.archive = discophile_core::offline_audiobook::AudiobookProgressArchive::decode(&app.audiobooks.sync.archive.encode().unwrap()).unwrap();
+        assert_eq!(resume_book(&app).unwrap().id, "book");
+        assert!(library::known_book(&app, "book").is_some());
+        let mut second = book.clone();
+        second.id = "second".into();
+        app.audiobooks.sync.books.push(sync::RememberedBook { account: id.clone(), book: second });
+        app.audiobooks.sync.archive.record(&id, "second", AudiobookProgress::at(40.0, 100.0, 3.0));
+        assert_eq!(resume_book(&app).unwrap().id, "second");
+        app.audiobooks.sync.archive.record(&id, "second", AudiobookProgress::at(100.0, 100.0, 4.0));
+        assert_eq!(resume_book(&app).unwrap().id, "book");
+        app.audiobooks.browse.selected = "other-library".into();
+        assert!(resume_book(&app).is_none());
+        app.audiobooks.browse.selected = "library".into();
+        app.audiobooks.browse.downloaded_only = true;
+        assert!(resume_book(&app).is_none());
+        app.audiobooks.browse.downloaded_only = false;
+        app.audiobooks.sync.archive.record(&id, "book", AudiobookProgress::at(100.0, 100.0, 2.0));
+        assert!(resume_book(&app).is_none());
+        app.audiobooks.account = Some(AudiobookshelfAccount::new(url::Url::parse("https://example.invalid").unwrap(), "two", "two", None));
+        assert!(resume_book(&app).is_none());
+        assert!(progress(&app, &book).is_none());
+        assert!(library::known_book(&app, "book").is_none());
+    }
 }

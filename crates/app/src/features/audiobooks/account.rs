@@ -186,6 +186,7 @@ pub fn connect(app: &mut App) {
 
 /// Installs a verified login as the saved connection.
 fn replace(app: &mut App, login: AudiobookshelfLogin) -> MusicResult<()> {
+    super::cancel_pending_start(app);
     if app.player.mode == crate::player::Mode::Audiobook {
         crate::player::stop(app);
     }
@@ -228,6 +229,7 @@ pub fn rename(app: &mut App, name: &str) -> MusicResult<()> {
 
 /// Removes the connection, its tokens and its downloads; revokes the session in the background.
 pub fn disconnect(app: &mut App) {
+    super::cancel_pending_start(app);
     if app.player.mode == crate::player::Mode::Audiobook {
         crate::player::stop(app);
     }

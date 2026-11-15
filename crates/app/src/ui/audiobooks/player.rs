@@ -37,7 +37,7 @@ pub fn section(app: &mut App, ui: &mut Ui) {
     let book = pb.book.id.clone();
     let preferences = app.audiobooks.reader.preferences.clone();
     let rate = app.player.rate as f64;
-    let playing = app.player.status.playing;
+    let playing = app.player.status.playing || pb.loading;
     let buffering = app.player.status.buffering;
     let chapter = timeline.chapter(position).cloned();
     let palette = Palette::of_ui(ui);

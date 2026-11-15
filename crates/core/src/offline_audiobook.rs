@@ -360,7 +360,7 @@ impl AudiobookProgressArchive {
     /// A server position seen while browsing or downloading; an unsent newer local one wins.
     pub fn remember(&mut self, account: &str, item: &str, remote: AudiobookProgress) {
         let key = Self::key(account, item);
-        if let Some(latest) = AudiobookProgress::resuming(Some(remote), self.pending.get(&key).copied()) {
+        if let Some(latest) = AudiobookProgress::resuming(Some(remote), self.saved.get(&key).copied()) {
             self.saved.insert(key, latest);
         }
     }
@@ -385,6 +385,7 @@ impl AudiobookProgressArchive {
         let key = Self::key(account, item);
         if self.pending.get(&key) == Some(sent) {
             self.pending.remove(&key);
+            let latest = AudiobookProgress::resuming(Some(latest), self.saved.get(&key).copied()).unwrap();
             self.saved.insert(key, latest);
         }
     }
@@ -393,14 +394,18 @@ impl AudiobookProgressArchive {
     /// cleared unless a newer position was recorded meanwhile.
     pub fn prepared(&mut self, account: &str, item: &str, sent: Option<&AudiobookProgress>, latest: Option<AudiobookProgress>) {
         let key = Self::key(account, item);
+        if self.pending.get(&key).is_some_and(|pending| Some(pending) != sent) { return; }
         if let Some(sent) = sent
             && self.pending.get(&key) == Some(sent)
         {
             self.pending.remove(&key);
         }
         match latest {
-            Some(latest) => self.saved.insert(key, latest),
-            None => self.saved.remove(&key),
+            Some(latest) => {
+                let value = AudiobookProgress::resuming(Some(latest), self.saved.get(&key).copied()).unwrap();
+                self.saved.insert(key, value)
+            },
+            None => None,
         };
     }
 }
@@ -554,10 +559,30 @@ mod tests {
         archive.reconciled("acc", "book", &later, later);
         assert!(archive.pending("acc", "book").is_none());
         archive.prepared("acc", "book", None, None);
-        assert!(archive.saved("acc", "book").is_none());
+        assert_eq!(archive.saved("acc", "book"), Some(&later));
         archive.prepared("other", "book", Some(&AudiobookProgress::at(5.0, 180.0, 1000.0)), Some(newer));
         assert!(archive.pending.is_empty());
         assert_eq!(archive.saved("other", "book"), Some(&newer));
+    }
+
+    #[test]
+    fn late_remote_reads_and_preparation_preserve_newer_local_progress() {
+        let mut archive = AudiobookProgressArchive::default();
+        let first = AudiobookProgress::at(30.0, 100.0, 1000.0);
+        let newer = AudiobookProgress::at(40.0, 100.0, 2000.0);
+        archive.record("a", "book", first);
+        archive.sent("a", "book", &first);
+        archive.remember("a", "book", AudiobookProgress::at(0.0, 100.0, 500.0));
+        assert_eq!(archive.saved("a", "book"), Some(&first));
+        archive.record("a", "book", newer);
+        archive.prepared("a", "book", Some(&first), Some(first));
+        assert_eq!(archive.saved("a", "book"), Some(&newer));
+        assert_eq!(archive.pending("a", "book"), Some(&newer));
+        archive.prepared("a", "book", None, None);
+        assert_eq!(archive.saved("a", "book"), Some(&newer));
+        assert!(archive.saved("b", "book").is_none());
+        let restored = AudiobookProgressArchive::decode(&archive.encode().unwrap()).unwrap();
+        assert_eq!(restored, archive);
     }
 
     #[test]

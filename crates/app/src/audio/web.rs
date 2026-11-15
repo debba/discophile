@@ -350,11 +350,13 @@ impl State {
         self.apply_volume(deck);
         let Ok(promise) = deck.element.play() else { return };
         let weak = self.me.clone();
+        let item_id = deck.item.id.clone();
         wasm_bindgen_futures::spawn_local(async move {
             if let Err(error) = wasm_bindgen_futures::JsFuture::from(promise).await {
                 let name = js_sys::Reflect::get(&error, &"name".into()).ok().and_then(|n| n.as_string()).unwrap_or_default();
                 if let Some(state) = weak.upgrade()
                     && let Ok(mut state) = state.try_borrow_mut()
+                    && state.current.as_ref().is_some_and(|d| d.item.id == item_id)
                     && name == "NotAllowedError"
                 {
                     // Autoplay policy: wait for the person to press play.
@@ -672,7 +674,8 @@ impl AudioOutput for WebOutput {
             position: if state.ended { duration.unwrap_or_else(|| element.current_time()) } else { element.current_time() },
             duration,
             playing,
-            buffering: playing && (element.ready_state() < READY || element.paused()),
+            buffering: playing && (element.ready_state() < READY || element.paused() || element.seeking()),
+            ready: element.ready_state() >= READY && !element.seeking(),
             details: Some(AudioDetails {
                 codec: deck.item.server_format.as_ref().map(|f| f.to_uppercase()),
                 output_device: Some("Browser".into()),

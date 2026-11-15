@@ -130,6 +130,7 @@ impl AudioOutput for NativeOutput {
             duration: item.duration_hint,
             playing: autoplay,
             buffering: autoplay,
+            ready: false,
             details: None,
         };
         self.send(Command::Load(item, start_at, autoplay), status);
@@ -162,6 +163,8 @@ impl AudioOutput for NativeOutput {
     fn seek(&mut self, seconds: f64) {
         let mut status = self.status();
         status.position = seconds.max(0.0);
+        status.ready = false;
+        status.buffering = status.playing;
         self.send(Command::Seek(seconds), status);
     }
 
@@ -638,7 +641,7 @@ impl Engine {
                 if let Some(duration) = duration {
                     position = position.min(duration);
                 }
-                OutputStatus { item_id: Some(audible.item.id.clone()), position, duration, playing, buffering: playing && starved, details }
+                OutputStatus { item_id: Some(audible.item.id.clone()), position, duration, playing, buffering: playing && starved, ready: live && !starved, details }
             }
         };
         let mut published = self.shared.published.lock().unwrap_or_else(|e| e.into_inner());

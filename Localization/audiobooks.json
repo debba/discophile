@@ -18,5 +18,9 @@
   "Use your Audiobookshelf server address and local username and password. Tokens are stored separately in this computer's keychain. Download books for offline listening from their detail page. OpenID sign-in is not available yet.": "Usa l’indirizzo del server Audiobookshelf e nome utente e password locali. I token vengono salvati separatamente nel portachiavi di questo computer. Scarica i libri dalla loro pagina per ascoltarli offline. L’accesso OpenID non è ancora disponibile.",
   "Your audiobook bookmarks could not be read on this computer.": "Impossibile leggere i segnalibri degli audiolibri su questo computer.",
   "Your audiobook position is saved on this computer. Server sync will retry when you reconnect.": "La posizione dell’audiolibro è salvata su questo computer. La sincronizzazione con il server verrà ritentata al ritorno della connessione.",
-  "Your saved audiobook positions could not be read on this computer.": "Impossibile leggere le posizioni salvate degli audiolibri su questo computer."
+  "Your saved audiobook positions could not be read on this computer.": "Impossibile leggere le posizioni salvate degli audiolibri su questo computer.",
+  "%1$@%% · %2$@ remaining": "%1$@%% · %2$@ rimanenti",
+  "Not started": "Non iniziato",
+  "Book details": "Dettagli del libro",
+  "Progress unavailable": "Avanzamento non disponibile"
 }

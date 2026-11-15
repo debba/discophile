@@ -8,6 +8,7 @@ use discophile_core::l10n::t;
 use discophile_core::offline_audiobook::AudiobookProgressArchive;
 use discophile_core::{MusicResult, now_millis};
 use uuid::Uuid;
+use serde::{Deserialize, Serialize};
 
 use crate::app::App;
 use crate::platform::storage;
@@ -43,9 +44,16 @@ enum Job {
     Prepare(Box<StartRequest>),
 }
 
+#[derive(Clone, Serialize, Deserialize)]
+pub struct RememberedBook {
+    pub account: String,
+    pub book: Audiobook,
+}
+
 #[derive(Default)]
 pub struct Sync {
     pub archive: AudiobookProgressArchive,
+    pub books: Vec<RememberedBook>,
     /// Shown under the player and on the Audiobooks page while positions wait for the server.
     pub error: Option<String>,
     backoff: SyncBackoff,
@@ -56,7 +64,7 @@ pub struct Sync {
 
 impl Sync {
     pub fn load() -> Self {
-        let mut sync = Self::default();
+        let mut sync = Self { books: storage::load("audiobooks/recent-books").unwrap_or_default(), ..Self::default() };
         if let Some(text) = storage::read(ARCHIVE_KEY) {
             match AudiobookProgressArchive::decode(text.as_bytes()) {
                 Ok(archive) => sync.archive = archive,
@@ -64,6 +72,18 @@ impl Sync {
             }
         }
         sync
+    }
+
+    pub fn remember_book(&mut self, account: &str, book: Audiobook) {
+        self.books.retain(|b| b.account != account || b.book.id != book.id);
+        self.books.insert(0, RememberedBook { account: account.to_string(), book });
+        self.books.truncate(100);
+        storage::save("audiobooks/recent-books", &self.books);
+    }
+
+    pub fn cache_position(&mut self, account: &str, item: &str, progress: AudiobookProgress) {
+        self.archive.record(account, item, progress);
+        self.persist();
     }
 
     fn persist(&mut self) {
@@ -96,8 +116,7 @@ pub fn record(
     offline: bool,
 ) {
     let sync = &mut app.audiobooks.sync;
-    sync.archive.record(account, item, progress);
-    sync.persist();
+    sync.cache_position(account, item, progress);
     sync.queue.push_back(Job::Record {
         account: account.to_string(),
         connection,
@@ -234,6 +253,7 @@ fn pump(app: &mut App) {
                 });
             }
             Job::Prepare(request) => {
+                if request.connection != current.connection_id || app.audiobooks.starting.as_ref().is_none_or(|(_, g)| *g != request.generation) { continue; }
                 let item = request.book.id.clone();
                 let pending = app.audiobooks.sync.archive.pending(&request.account, &item).copied();
                 app.audiobooks.sync.busy = true;

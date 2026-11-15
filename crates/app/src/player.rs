@@ -254,6 +254,7 @@ pub fn pause(app: &mut App) {
     #[cfg(not(target_arch = "wasm32"))]
     if features::connect::services::route_command(app, discophile_core::connect::RemoteCommand::Pause) { return; }
     app.player.control_generation += 1;
+    features::audiobooks::cancel_pending_start(app);
     if app.player.mode == Mode::Audiobook {
         features::audiobooks::pause(app);
         return;
@@ -271,6 +272,7 @@ pub fn output_pause(app: &mut App) {
 }
 
 pub fn toggle(app: &mut App) {
+    if app.audiobooks.starting.is_some() { features::audiobooks::pause(app); return; }
     #[cfg(not(target_arch = "wasm32"))]
     if let Some(remote) = features::connect::services::remote_playback(app) {
         let command = if remote.state.playing { discophile_core::connect::RemoteCommand::Pause } else { discophile_core::connect::RemoteCommand::Play };
@@ -287,6 +289,7 @@ pub fn toggle(app: &mut App) {
 }
 
 pub fn stop(app: &mut App) {
+    features::audiobooks::cancel_pending_start(app);
     #[cfg(not(target_arch = "wasm32"))]
     features::connect::services::take_local_control(app);
     app.player.control_generation += 1;

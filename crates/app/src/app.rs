@@ -283,8 +283,7 @@ impl App {
             self.nav.forward();
         }
         if find && self.session.has_library() {
-            self.nav.select(Route::Search);
-            ctx.memory_mut(|m| m.request_focus(egui::Id::unique("search-field")));
+            self.nav.open_search();
         }
         if settings {
             self.nav.push(Route::Settings(SettingsPage::General));
@@ -412,8 +411,7 @@ impl App {
                 MenuCommand::Settings => self.nav.push(Route::Settings(SettingsPage::General)),
                 MenuCommand::Search | MenuCommand::Go(Route::Search) => {
                     self.nav.now_playing = false;
-                    self.nav.select(Route::Search);
-                    self.ctx().memory_mut(|m| m.request_focus(egui::Id::unique("search-field")));
+                    self.nav.open_search();
                 }
                 MenuCommand::Go(route) => {
                     self.nav.now_playing = false;
@@ -645,5 +643,41 @@ impl eframe::App for App {
     #[cfg(target_arch = "wasm32")]
     fn as_any_mut(&mut self) -> Option<&mut dyn std::any::Any> {
         Some(&mut *self)
+    }
+}
+
+#[cfg(test)]
+mod search_shortcut_tests {
+        fn frame(ctx: &egui::Context, input: egui::RawInput, draw: impl FnMut(&mut egui::Ui)) -> egui::FullOutput {
+            let mut output = ctx.run_ui(input, draw);
+            output.textures_delta.clear();
+            output
+        }
+
+    use super::*;
+
+    #[test]
+    fn keyboard_find_opens_and_focuses_the_content_field_in_both_layouts() {
+        let mut app = App::connect_test_app();
+        app.session.client = Some(discophile_core::client::MusicClient::new(
+            discophile_core::Credentials::simple("https://example.invalid", "fixture", "fixture", false, discophile_core::MusicProvider::Subsonic).unwrap()));
+        app.settings.downloaded_only = true;
+        let ctx = app.ctx().clone();
+        crate::theme::install_fonts(&ctx);
+        for collapsed in [false, true] {
+            app.settings.sidebar_collapsed = collapsed;
+            app.nav.select(Route::Albums);
+            let modifiers = egui::Modifiers { ctrl: true, command: true, ..Default::default() };
+            let input = egui::RawInput { events: vec![egui::Event::ModifiersChanged(modifiers), egui::Event::Key {
+                key: egui::Key::F, physical_key: None, pressed: true, repeat: false, modifiers,
+            }], ..Default::default() };
+            let _ = frame(&ctx, input, |ui| {
+                app.shortcuts(&ctx);
+                ui::search::show(&mut app, ui);
+            });
+            assert_eq!(app.nav.current, Route::Search);
+            assert_eq!(ctx.memory(|m| m.focused()), Some(ui::search::field_id()));
+            let _ = frame(&ctx, Default::default(), |_| {});
+        }
     }
 }

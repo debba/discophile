@@ -152,3 +152,84 @@ local server, choose `http://localhost:<port>` as the custom address in Settings
 Running audiobook streams retain their signed media URL separately from the client's current credentials. A failure or a stall lasting five seconds verifies authentication and reloads the current file at the saved position only if that URL changes. Repeated stall checks are limited to twenty-second intervals. Pending recovery is scoped to the playback item and connection; pausing during renewal stays paused, late failures from replaced items are ignored, and marking a book finished invalidates pending recovery. Downloads bypass this path.
 
 Validation: `cargo test --workspace -- --test-threads=1` passed 497 tests with one existing ignored test. New app tests cover failure recovery at the current position, pause during renewal, unchanged-token failures, late item failures and recovery from a stall without a failure event. Core tests cover token rotation and offline verification. Native and WASM app checks passed; all six release-tooling tests passed and the three repositories agree on 1.0.3/build 10. One existing Connect keyboard UI test failed in the parallel run and passed independently and in the serial suite; its tests mutate the process-wide localization setting. The native audio backend's existing progressive-stream tests also passed. No physical Android playback or desktop listening soak is claimed.
+
+## Desktop audiobook resume, readiness and search validation, 2026-11-15
+
+Implemented on ubuntu-110 in `/home/debba/Projects/discophile`, from clean `main` at
+`f039f1122fb532f0abc35a442b12972a5771bef5`. No commit, push, PR, release or iOS publishing change was made.
+
+The Audiobooks page offers the current unfinished book, otherwise the most recently played unfinished
+book, with separate Continue listening and Book details actions. Selection respects the audiobook library,
+query and downloaded-only filter. A bounded cache of 100 recently played book metadata records includes
+streamed titles and is namespaced by account; positions remain in the existing saved/pending archive.
+Existing downloads and browsed books also supply metadata for older progress records. Tiles show live
+playback progress or cached progress, percentage and remaining time, finished state, or not-started state
+when known. Unknown progress shows duration instead. Older server reads and asynchronous preparation do
+not replace newer local positions or discard pending updates; an absent server record retains cached progress.
+
+Audio output now distinguishes acknowledged readiness from optimistic load/seek commands. Audiobook loading
+continues through URL resolution, file preparation and initial seeking until the matching item is ready and
+playing. Intermediate paused notifications and stale zero positions cannot clear that intent. Pausing clears
+loading/autoplay; stopping, replacing a book, changing accounts and newer requests invalidate obsolete work.
+Once the backend acknowledges readiness, an advanced position is accepted even if the UI missed the first
+playing frame. Native readiness comes from prepared audio and buffer state; web readiness includes the media
+ready state and seek completion. Existing centered 60/64-point audiobook transport targets are retained.
+Cover progress is painted; the text status supplies the accessible summary without another progress widget.
+
+The music sidebar has Search navigation in both layouts. The content page owns the only editable query,
+with one stable focus ID. Sidebar clicks, keyboard Find and menu search request focus once; query, results,
+scope, downloaded filter, debounce and clear behavior use the existing search state.
+
+Validation commands (all Rust commands used `CARGO_BUILD_JOBS=4`):
+
+```sh
+cargo test -p discophile-core --lib
+cargo test --workspace --lib -- --test-threads=1
+cargo build -p discophile --bin Discophile
+cargo check -p discophile-core --target wasm32-unknown-unknown
+cargo check -p discophile --target wasm32-unknown-unknown
+python3 scripts/verify-localization.py
+git diff --check
+```
+
+Results: 385 core and 119 app tests passed (504 total), including native progressive-stream/decoder tests.
+Native executable build and both WASM checks passed; localization verification found zero untranslated keys;
+whitespace verification passed. New regressions cover delayed readiness (a simulated eight-second-old pending
+seek at 30), paused/loaded intermediate status, pause cancellation, a superseding seek to 40, delayed UI frames,
+stop and replaced-book URL callbacks, canceled/superseded session preparation, account/library/download/finished
+resume filtering, persisted metadata/progress round trips, newer local progress, one-shot focus, keyboard Find,
+sidebar pointer navigation and exactly one accessible editable search field in both layouts. The initial test
+run exposed unhandled texture deltas in the headless test harness and a redundant startup upload affecting
+handoff ordering; both were corrected, and the complete serial suite passed, including the existing paused
+unbrowsed-audiobook handoff test.
+
+This host lacked ALSA development metadata and the X11 keyboard runtime. Official Ubuntu packages were
+obtained using `apt download libasound2-dev libxkbcommon-x11-0 libxcb-xkb1` and unpacked with `dpkg-deb -x`
+under `/tmp/discophile-native-deps/root`, without root or system package changes. The local `alsa.pc` prefix
+was adjusted to that root and development-library symlinks resolve to the installed ALSA runtime. Native
+builds/tests used `PKG_CONFIG_PATH=/tmp/discophile-native-deps/root/usr/lib/x86_64-linux-gnu/pkgconfig`.
+The Xvfb launch used `LD_LIBRARY_PATH=/tmp/discophile-native-deps/root/usr/lib/x86_64-linux-gnu`
+and `LIBGL_ALWAYS_SOFTWARE=1`.
+The WASM standard-library target was installed with `rustup target add wasm32-unknown-unknown`.
+Tests used `DISCOPHILE_DATA_DIR=/tmp/discophile-desktop-validation/test-data`, a separate test cache and
+`DISCOPHILE_SECRETS=file`; user profiles and credentials were not used.
+
+The actual native executable was inspected under Xvfb with software rendering and an isolated synthetic
+profile. Screenshots in `/tmp/discophile-desktop-validation` show the restored streamed-book card at
+30% / 21:00 remaining, expanded and collapsed search, query/filter retention after navigation, and clear
+followed by typing into the same field. Pointer Search navigation and Ctrl+F focus were exercised in both
+layouts. The synthetic audiobook connection intentionally had no real credentials. No physical listening,
+real-server playback soak, browser runtime playback, or manual screen-reader review is claimed. The eight
+seconds in the readiness regression are simulated status time, not an eight-second real audio HTTP test.
+Temporary app, D-Bus and Xvfb processes were stopped after inspection.
+
+Changed files:
+
+- `Localization/audiobooks.json`
+- `crates/core/src/offline_audiobook.rs`
+- `crates/app/src/app.rs`, `nav.rs`, `player.rs`
+- `crates/app/src/audio/mod.rs`, `native.rs`, `web.rs`
+- `crates/app/src/features/audiobooks.rs`
+- `crates/app/src/features/audiobooks/account.rs`, `library.rs`, `playback.rs`, `sync.rs`
+- `crates/app/src/ui/audiobooks.rs`, `ui/audiobooks/player.rs`, `ui/search.rs`, `ui/sidebar.rs`
+- `docs/DEVELOPMENT.md`
