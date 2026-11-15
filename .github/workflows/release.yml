@@ -25,6 +25,11 @@ on:
     tags: ["v*"]
   workflow_dispatch:
     inputs:
+      source_ref:
+        description: Desktop source ref to rebuild (blank uses the workflow commit; manual builds never publish)
+        default: ''
+        required: false
+        type: string
       mobile_ref:
         description: Matching branch or tag in both mobile repositories (manual builds never publish)
         default: main
@@ -45,8 +50,14 @@ jobs:
       version: ${{ steps.version.outputs.version || steps.local_version.outputs.version }}
       build: ${{ steps.version.outputs.build }}
       android_sha: ${{ steps.sources.outputs.android_sha }}
+      desktop_sha: ${{ steps.desktop_source.outputs.sha }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_ref || github.sha }}
+      - id: desktop_source
+        name: Freeze desktop source commit
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - name: Require mobile repository access and stable Android signing
         if: vars.DISCOPHILE_LOCAL_MOBILE != 'true'
         env:
@@ -138,6 +149,8 @@ jobs:
       APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.desktop_sha }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-apple-darwin,x86_64-apple-darwin
@@ -148,6 +161,11 @@ jobs:
           cargo build --release --locked -p discophile --target x86_64-apple-darwin
           lipo -create -output target/Discophile \
             target/aarch64-apple-darwin/release/Discophile target/x86_64-apple-darwin/release/Discophile
+      - name: Free intermediate build space before packaging
+        run: |
+          test -s target/Discophile
+          rm -rf target/aarch64-apple-darwin target/x86_64-apple-darwin
+          df -h .
       - name: Import the signing certificate
         if: env.MACOS_CERTIFICATE_P12 != ''
         run: |
@@ -251,6 +269,8 @@ jobs:
       VERSION: ${{ needs.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.desktop_sha }}
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Build
@@ -274,6 +294,8 @@ jobs:
       VERSION: ${{ needs.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.desktop_sha }}
       - name: Install system libraries
         run: sudo apt-get update && sudo apt-get install -y pkg-config libasound2-dev libdbus-1-dev dpkg-dev desktop-file-utils libxkbcommon-x11-0 libxcursor1 libxi6 libxrandr2 libxinerama1 libegl1 libgl1-mesa-dri xvfb
       - uses: dtolnay/rust-toolchain@stable
@@ -316,6 +338,8 @@ jobs:
       VERSION: ${{ needs.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.desktop_sha }}
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
@@ -354,6 +378,8 @@ jobs:
       VERSION: ${{ needs.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.desktop_sha }}
       - uses: azure/setup-helm@v4
       - name: Package
         run: |
@@ -378,6 +404,8 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.desktop_sha }}
       - uses: actions/download-artifact@v4
         with:
           path: dist
@@ -410,6 +438,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         if: env.AUR_SSH_PRIVATE_KEY != ''
+        with:
+          ref: ${{ needs.version.outputs.desktop_sha }}
       - uses: actions/download-artifact@v4
         if: env.AUR_SSH_PRIVATE_KEY != ''
         with:
