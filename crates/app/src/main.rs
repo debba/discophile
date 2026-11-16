@@ -3,6 +3,11 @@
 #[cfg(not(target_arch = "wasm32"))]
 fn main() -> eframe::Result {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info,wgpu=warn,naga=warn")).init();
+    let Some(instance) = discophile::platform::single_instance::SingleInstance::acquire()
+        .map_err(|error| eframe::Error::AppCreation(Box::new(error)))?
+    else {
+        return Ok(());
+    };
     // The Dock expects the rounded-square macOS grid. eframe hands these pixels to NSBitmapImageRep,
     // which reads them as premultiplied, as resvg renders them.
     #[cfg(target_os = "macos")]
@@ -31,7 +36,11 @@ fn main() -> eframe::Result {
         }
         options
     };
-    eframe::run_native("Discophile", options, Box::new(|cc| Ok(Box::new(discophile::App::new(cc)))))
+    eframe::run_native("Discophile", options, Box::new(|cc| {
+        let app = discophile::App::new(cc);
+        instance.attach(app.tasks.clone());
+        Ok(Box::new(app))
+    }))
 }
 
 #[cfg(target_arch = "wasm32")]

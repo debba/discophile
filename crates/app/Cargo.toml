@@ -38,7 +38,7 @@ image = { version = "0.25", default-features = false, features = ["jpeg", "png",
 resvg = { version = "0.48", default-features = false }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync", "fs", "io-util"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync", "fs", "io-util", "net"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
 symphonia = { version = "0.5", features = ["all"] }
 cpal = "0.16"

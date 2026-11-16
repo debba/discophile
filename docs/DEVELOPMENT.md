@@ -52,6 +52,10 @@ Validation: all 382 core tests passed; native app, WASM core and WASM app checks
 
 ## Platform notes
 
+- **Single instance**: launching the desktop app again restores and focuses the existing window,
+  including when it is minimized or hidden in the tray. An OS file lock in the application data
+  directory prevents duplicate processes and is released automatically after an exit or crash.
+  Separate `DISCOPHILE_DATA_DIR` profiles can run independently.
 - **Linux**: playback prefers PipeWire, then PulseAudio, so it follows the output selected in the desktop sound
   settings; plain ALSA is the fallback. X11/XWayland is preferred when available because the window backend cannot
   hide native Wayland windows; native Wayland keeps the tray controls and minimizes on close.
