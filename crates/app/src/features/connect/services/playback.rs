@@ -1128,6 +1128,9 @@ mod tests {
             name: "Test".into(),
             select_new_connections: false,
             known_connections: Default::default(),
+            sync_base: None,
+            removed: Default::default(),
+            replacement: None,
         });
         state.vault = Some(VaultInfo {
             id: keys.vault_id,
@@ -1547,7 +1550,9 @@ mod tests {
         use discophile_core::connect::ServerInfo;
         use std::io::{Read, Write};
         let keys = VaultKeys::new().unwrap();
-        let vault = json!({"id": keys.vault_id, "epoch": keys.epoch, "revision": 1, "rotationRequired": false, "connectionCount": 0, "envelope": null});
+        let configuration = super::super::Configuration { version: 1, ..Default::default() };
+        let envelope = keys.seal("test-instance", Uuid::new_v4(), "configuration", 1, &configuration).unwrap();
+        let vault = json!({"id": keys.vault_id, "epoch": keys.epoch, "revision": 1, "rotationRequired": false, "connectionCount": 0, "envelope": envelope});
         let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
         let origin = InstanceOrigin::parse(&format!("http://{}", listener.local_addr().unwrap())).unwrap();
         let server = std::thread::spawn(move || {
@@ -1594,7 +1599,9 @@ mod tests {
         });
         ready_services(&mut app);
         app.connect.services.paired = false;
-        app.connect.services.identity.as_mut().unwrap().device_secret = "s".repeat(43);
+        let identity = app.connect.services.identity.as_mut().unwrap();
+        identity.device_secret = "s".repeat(43);
+        identity.sync_base = Some(Default::default());
         let (tasks, updates) = crate::tasks::Tasks::new(egui::Context::default()); app.tasks = tasks;
         super::super::pair(&mut app, false);
         for _ in 0..3 {

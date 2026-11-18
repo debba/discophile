@@ -94,13 +94,25 @@ pub(crate) fn save_password(account: &AudiobookshelfAccount, password: &str) {
     if !password.is_empty() { secrets::set(&format!("audiobookshelf-password:{}", account.id()), password); }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+pub fn remember_shared(app: &mut App, mut account: AudiobookshelfAccount) {
+    if app.audiobooks.account.is_none() {
+        // A recovered profile has no verified session on this device yet.
+        account.connection_id = uuid::Uuid::nil();
+        storage::save(ACCOUNT_KEY, &account);
+        app.audiobooks.account = Some(account);
+        super::downloads::load(app);
+    }
+}
+
 /// Reauthenticate on each computer so refresh-token rotation remains device-specific.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn restore_shared(app: &mut App, account: AudiobookshelfAccount, password: String) {
     if app.audiobooks.form.busy || app.audiobooks.account.as_ref().is_some_and(|a| a.id() != account.id()) { return; }
+    save_password(&account, &password);
+    remember_shared(app, account.clone());
     app.audiobooks.form.generation += 1;
     let generation = app.audiobooks.form.generation;
-    let connect_generation = app.connect.generation;
     app.audiobooks.form.busy = true;
     app.tasks.spawn(async move {
         let result = AudiobookshelfClient::connect(account.server.as_str(), &account.username, &password,
@@ -108,15 +120,14 @@ pub fn restore_shared(app: &mut App, account: AudiobookshelfAccount, password: S
         update(move |app: &mut App| {
             if app.audiobooks.form.generation != generation { return; }
             app.audiobooks.form.busy = false;
-            if app.connect.generation != connect_generation { return; }
             match result {
                 Ok(login) if login.account.id() == account.id() => {
                     if replace(app, login).is_ok() {
-                        save_password(&account, &password);
                         app.connect.services.notice = Some(t("Audiobookshelf connected on this computer."));
                     }
                 }
-                _ => app.connect.services.error = Some(t("Audiobookshelf could not sign in automatically. Sign in again to update the shared connection.")),
+                Err(error) => app.audiobooks.error = Some(audiobook_error(error)),
+                _ => app.audiobooks.error = Some(t("Audiobookshelf returned a different account. Sign in again to update this computer’s connection.")),
             }
         })
     });
@@ -124,13 +135,32 @@ pub fn restore_shared(app: &mut App, account: AudiobookshelfAccount, password: S
 
 /// Reads the saved connection at launch.
 pub fn load(app: &mut App) {
+    let Some(account) = storage::load::<AudiobookshelfAccount>(ACCOUNT_KEY) else {
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Some(account) = storage::load::<AudiobookshelfAccount>("connect/audiobookshelf-template")
+            && discophile_core::validate_server(account.server.as_str(), account.server.scheme() == "http").is_ok()
+            && let Some(password) = shared_password(&account)
+        {
+            restore_shared(app, account, password);
+        }
+        return;
+    };
     let state = &mut app.audiobooks;
-    let Some(account) = storage::load::<AudiobookshelfAccount>(ACCOUNT_KEY) else { return };
-    match secrets::get(TOKENS_SECRET).and_then(|text| serde_json::from_str::<AudiobookshelfTokens>(&text).ok()) {
+    let tokens = if account.connection_id.is_nil() { None } else {
+        secrets::get(TOKENS_SECRET).and_then(|text| serde_json::from_str::<AudiobookshelfTokens>(&text).ok())
+    };
+    match tokens {
         Some(tokens) => state.client = Some(make_client(account.clone(), tokens)),
         None => state.error = Some(audiobook_error(MusicError::Authentication)),
     }
     state.account = Some(account);
+    #[cfg(not(target_arch = "wasm32"))]
+    if state.client.is_none()
+        && let Some(account) = state.account.clone()
+        && let Some(password) = shared_password(&account)
+    {
+        restore_shared(app, account, password);
+    }
 }
 
 /// Signs in, checks library access and replaces the saved connection.
@@ -314,7 +344,11 @@ mod tests {
         let shared = AudiobookshelfAccount::new(server_url, "fixture-user", "fixture", Some("Shared books"));
         let mut app = App::connect_test_app();
         let (tasks, updates) = crate::tasks::Tasks::new(egui::Context::default()); app.tasks = tasks;
-        restore_shared(&mut app, shared.clone(), "fixture-password".into());
+        storage::save("connect/audiobookshelf-template", &shared);
+        save_password(&shared, "fixture-password");
+        load(&mut app);
+        assert!(app.audiobooks.account.as_ref().is_some_and(|account| account.connection_id.is_nil()));
+        assert!(app.audiobooks.client.is_none());
         updates.recv_timeout(std::time::Duration::from_secs(5)).unwrap()(&mut app);
         let local = app.audiobooks.account.as_ref().expect("automatic sign-in succeeded");
         assert_eq!(local.id(), shared.id());
@@ -327,5 +361,6 @@ mod tests {
         secrets::delete(TOKENS_SECRET);
         secrets::delete(&format!("audiobookshelf-password:{}", shared.id()));
         storage::remove(ACCOUNT_KEY);
+        storage::remove("connect/audiobookshelf-template");
     }
 }

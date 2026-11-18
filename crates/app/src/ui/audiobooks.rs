@@ -284,7 +284,8 @@ pub fn show(app: &mut App, ui: &mut Ui) {
             widgets::tile_grid(ui, &saved, TILE_WIDTH, |ui, record, width| book_tile(ui, app, &record.book, width, Some(record)));
         }
         let browse = &app.audiobooks.browse;
-        let loading = browse.loading;
+        let signing_in = app.audiobooks.client.is_none() && app.audiobooks.form.busy;
+        let loading = browse.loading || (signing_in && !browse.downloaded_only);
         let books: Vec<Audiobook> = if downloaded_only {
             Vec::new()
         } else {

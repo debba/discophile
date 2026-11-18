@@ -35,7 +35,7 @@ mod native {
     }
 
     fn open() -> Store {
-        let keychain = match std::env::var("DISCOPHILE_SECRETS").as_deref() {
+        let keychain = !cfg!(test) && match std::env::var("DISCOPHILE_SECRETS").as_deref() {
             Ok("file") => false,
             Ok("keychain") => true,
             _ => !cfg!(debug_assertions),
@@ -67,6 +67,9 @@ mod native {
     }
 
     fn persist(store: &mut Store) {
+        if cfg!(test) {
+            return;
+        }
         if store.keychain {
             let text = serde_json::to_string(&store.map).unwrap_or_default();
             match keyring::Entry::new(SERVICE, BUNDLE).and_then(|e| e.set_password(&text)) {

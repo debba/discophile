@@ -163,9 +163,6 @@ mod tests {
 
     #[tokio::test]
     async fn transfers_stream_to_the_final_file_and_reject_error_pages() {
-        let dir = std::env::temp_dir().join(format!("discophile-downloads-{}", uuid::Uuid::new_v4()));
-        // SAFETY: only this test reads or writes the data directory variable.
-        unsafe { std::env::set_var("DISCOPHILE_DATA_DIR", &dir) };
         let record = OfflineRecord::new("account", &Song::new("1", "One"), "mp3", false);
 
         let progress = Arc::new(Progress::default());
@@ -186,6 +183,5 @@ mod tests {
         cancelled.cancel();
         let url = serve("audio/mpeg", vec![1u8; 10]).await;
         assert!(matches!(run(url, other.clone(), cancelled).await, Outcome::Cancelled));
-        let _ = std::fs::remove_dir_all(dir);
     }
 }

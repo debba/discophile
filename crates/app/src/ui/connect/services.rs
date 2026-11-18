@@ -332,71 +332,33 @@ pub fn settings(app: &mut App, ui: &mut Ui) {
         ui.add_enabled_ui(!busy, |ui| {
             if app.connect.services.paired && ui.button(t("Save computer name")).clicked() { service::rename(app); }
             if !app.connect.services.paired {
-                if service::account_sync(app) {
-                    ui.add(egui::Label::new(t("Sign in to the same Connect account on your computers. Your selected connections and preferences synchronize without exchanging a code.")).wrap());
-                    if ui.button(t("Connect this computer")).clicked() { service::refresh(app); }
-                    egui::CollapsingHeader::new(t("Recover an older configuration")).show(ui, |ui| {
-                        ui.add(egui::TextEdit::singleline(&mut app.connect.services.recovery_input).password(true).hint_text("dc1_…").desired_width(f32::INFINITY));
-                        if ui.button(t("Import recovery code")).clicked() { service::pair(app, false); }
-                    });
-                    if app.connect.services.error.is_some() && app.connect.services.identity.is_some()
-                        && ui.button(t("Forget this registration and pair again")).clicked()
-                    {
-                        service::forget_registration(app);
-                    }
-                    return;
-                }
-                let existing = app.connect.services.vault.is_some();
-                if existing {
-                    ui.add(egui::Label::new(t("Enter the recovery code from a trusted computer. Pairing copies the shared connections to this computer; local connections and downloads are kept.")).wrap());
-                    ui.add(egui::TextEdit::singleline(&mut app.connect.services.recovery_input).password(true).hint_text("dc1_…").desired_width(f32::INFINITY));
-                    ui.checkbox(&mut app.connect.services.preferences, t("Also synchronize language and appearance"));
-                    if ui.button(t("Pair this computer")).clicked() { service::pair(app, false); }
-                } else if app.connect.services.identity.is_none() {
-                    ui.add(egui::Label::new(t("Create a private recovery code before synchronizing. Connect cannot recover your encrypted data if all trusted computers and the code are lost.")).wrap());
-                    if ui.button(t("Create recovery code")).clicked() { service::prepare(app); }
-                }
-                if !existing && app.connect.services.identity.is_some() {
-                    recovery(app, ui);
-                    ui.checkbox(&mut app.connect.services.confirm_recovery_saved, t("I saved my recovery code somewhere safe"));
-                    if ui.add_enabled(app.connect.services.confirm_recovery_saved, egui::Button::new(t("Create encrypted vault and pair"))).clicked() { service::pair(app, true); }
-                }
-                if ui.button(t("Refresh Connect services")).clicked() { service::refresh(app); }
-                if app.connect.services.identity.is_some() && ui.button(t("Forget this registration and pair again")).clicked() { service::forget_registration(app); }
+                synchronization_review(app, ui);
                 return;
             }
             let identity_epoch = app.connect.services.identity.as_ref().map(|i| i.keys.epoch).unwrap_or_default();
             let vault = app.connect.services.vault.clone();
-            if vault.as_ref().is_some_and(|v| v.rotation_required) && ui.button(t("Rotate encryption key")).clicked() { service::publish(app, true); }
+            if vault.as_ref().is_some_and(|v| v.rotation_required) && ui.button(t("Rotate encryption key")).clicked() { service::rotate_key(app); }
             if vault.as_ref().is_some_and(|v| v.epoch > identity_epoch) {
                 ui.add(egui::TextEdit::singleline(&mut app.connect.services.recovery_input).password(true).hint_text("dc1_…").desired_width(f32::INFINITY));
                 if ui.button(t("Import updated recovery code")).clicked() { service::import_recovery(app); }
             }
-            let old = (app.connect.services.automatic, app.connect.services.preferences, app.connect.services.selected.clone());
-            ui.checkbox(&mut app.connect.services.automatic, t("Automatically synchronize selected connections"));
-            if !old.0 && app.connect.services.automatic { service::resume_automatic(app); }
-            ui.checkbox(&mut app.connect.services.preferences, t("Also synchronize language and appearance"));
-            ui.add_space(8.0);
-            ui.label(theme::text(t("Connections to share"), Font::Headline));
-            let limit = service::connection_limit(app);
-            for choice in service::configuration::choices(app) {
-                let id = choice.id(); let mut selected = app.connect.services.selected.contains(&id);
-                if ui.add_enabled(selected || app.connect.services.selected.len() < limit, egui::Checkbox::new(&mut selected, choice.label())).changed() {
-                    if selected { app.connect.services.selected.insert(id); } else { app.connect.services.selected.remove(&id); }
-                }
+            if !app.connect.services.automatic && ui.button(t("Resume automatic synchronization")).clicked() {
+                service::resume_automatic(app);
             }
-            if old != (app.connect.services.automatic, app.connect.services.preferences, app.connect.services.selected.clone()) { service::save(app); }
-            ui.add(egui::Label::new(theme::secondary(ui, t("Only language and appearance are shared. Volume, audio effects, downloads, local paths and AI credentials stay on this computer. Selected Audiobookshelf connections sign in automatically when a saved password is available."), Font::Callout)).wrap());
+            if ui.checkbox(&mut app.connect.services.preferences, t("Also synchronize language and appearance")).changed() {
+                service::save(app);
+                service::synchronize_now(app);
+            }
             if app.connect.services.conflict.is_some() {
-                ui.add(egui::Label::new(t("Both this computer and another device changed the configuration. Choose which shared configuration to keep; local connections and downloads will be preserved.")).wrap());
-                if ui.button(t("Use cloud configuration")).clicked() { service::use_cloud(app); }
-                if ui.button(t("Publish this computer's configuration")).clicked() { service::publish(app, false); }
-            } else {
+                ui.add(egui::Label::new(t("The same data changed here and on another device. Choose which version to keep for the conflicting changes.")).wrap());
                 ui.horizontal_wrapped(|ui| {
-                    if ui.button(t("Synchronize now")).clicked() { service::publish(app, false); }
-                    if ui.button(t("Refresh Connect services")).clicked() { service::refresh(app); }
+                    if ui.button(t("Use cloud changes")).clicked() { service::use_cloud(app); }
+                    if ui.button(t("Use this computer’s changes")).clicked() { service::use_local(app); }
                 });
+            } else if app.connect.services.pending_cloud.is_some() {
+                ui.label(t("Changes from Connect are ready to synchronize."));
             }
+            if ui.button(t("Synchronize now")).clicked() { service::synchronize_now(app); }
             egui::CollapsingHeader::new(t("Advanced recovery")).show(ui, |ui| recovery(app, ui));
             ui.horizontal_wrapped(|ui| {
                 if ui.button(t("Export encrypted configuration")).clicked() { service::configuration::export_encrypted(app); }
@@ -414,6 +376,7 @@ pub fn settings(app: &mut App, ui: &mut Ui) {
     if !app.connect.services.paired {
         return;
     }
+    shared_data(app, ui, busy);
     device_settings::show(app, ui, busy);
     backups(app, ui, busy);
     group(ui, |ui| {
@@ -429,6 +392,167 @@ pub fn settings(app: &mut App, ui: &mut Ui) {
             .clicked()
         {
             service::delete(app);
+        }
+    });
+}
+
+fn synchronization_review(app: &mut App, ui: &mut Ui) {
+    if !app.connect.services.reviewing {
+        ui.add(egui::Label::new(t("Your libraries and downloads work independently of Connect. Review what to share when you are ready.")).wrap());
+        if ui.button(t("Review synchronization")).clicked() {
+            service::start_review(app);
+        }
+        return;
+    }
+    if !app.connect.services.review_ready {
+        if ui.button(t("Refresh Connect services")).clicked() {
+            service::refresh(app);
+        }
+        if app.connect.services.vault.is_some() {
+            egui::CollapsingHeader::new(t("Recover an older configuration")).show(ui, |ui| {
+                ui.add(egui::TextEdit::singleline(&mut app.connect.services.recovery_input).password(true).hint_text("dc1_…").desired_width(f32::INFINITY));
+                if ui.button(t("Import recovery code")).clicked() && !service::prepare_review(app) {
+                    app.connect.services.error = Some(t("The recovery code is invalid. Copy it from a trusted computer."));
+                }
+            });
+        }
+        return;
+    }
+    ui.add(egui::Label::new(t("Choose existing connections to share. New connections will be shared with every device on this account, within your plan limit.")).wrap());
+    let cloud_ids: std::collections::BTreeSet<_> = app.connect.services.cloud.iter()
+        .flat_map(|config| config.connections.iter().map(|entry| entry.id())).collect();
+    if let Some(cloud) = app.connect.services.cloud.as_ref() {
+        ui.label(theme::text(t("Already in Connect"), Font::Headline));
+        for entry in &cloud.connections {
+            ui.label(entry.label());
+        }
+    }
+    ui.label(theme::text(t("Connections on this computer"), Font::Headline));
+    let limit = service::connection_limit(app);
+    for entry in service::configuration::choices(app) {
+        let id = entry.id();
+        let mut selected = app.connect.services.selected.contains(&id);
+        let count = cloud_ids.union(&app.connect.services.selected).count();
+        let in_cloud = cloud_ids.contains(&id);
+        let label = if in_cloud {
+            tf("Use this computer’s details for %@", &[&entry.label()])
+        } else {
+            entry.label()
+        };
+        if ui.add_enabled(selected || in_cloud || count < limit, egui::Checkbox::new(&mut selected, label)).changed() {
+            if selected { app.connect.services.selected.insert(id); } else { app.connect.services.selected.remove(&id); }
+        }
+    }
+    ui.checkbox(&mut app.connect.services.preferences, t("Also synchronize language and appearance"));
+    let needs_code = app.connect.services.vault.is_none() && !service::account_sync(app);
+    if needs_code {
+        if app.connect.services.identity.is_none() {
+            if ui.button(t("Create recovery code")).clicked() {
+                service::prepare(app);
+            }
+        } else {
+            recovery(app, ui);
+            ui.checkbox(&mut app.connect.services.confirm_recovery_saved, t("I saved my recovery code somewhere safe"));
+        }
+    }
+    ui.horizontal_wrapped(|ui| {
+        if ui.add_enabled(!needs_code || app.connect.services.confirm_recovery_saved, egui::Button::new(t("Merge and enable Connect"))).clicked() {
+            service::confirm_review(app);
+        }
+        if ui.button(t("Keep using this computer only")).clicked() {
+            let state = &mut app.connect.services;
+            state.reviewing = false;
+            state.review_ready = false;
+            state.selected.clear();
+            state.preferences = false;
+            state.recovery_input.clear();
+        }
+    });
+}
+
+fn shared_data(app: &mut App, ui: &mut Ui, busy: bool) {
+    widgets::section_heading(ui, &t("Data in Connect"), None);
+    let cloud = app.connect.services.cloud.clone();
+    group(ui, |ui| {
+        let Some(cloud) = &cloud else {
+            ui.label(t("Loading shared data…"));
+            return;
+        };
+        let ids: std::collections::BTreeSet<_> = cloud.connections.iter().map(|entry| entry.id()).collect();
+        if ids.is_empty() && cloud.preferences.is_none() {
+            ui.label(t("No shared data in Connect."));
+        }
+        for entry in &cloud.connections {
+            let id = entry.id();
+            shared_data_row(app, ui, busy, &id, &entry.label());
+        }
+        if let Some(preferences) = &cloud.preferences {
+            let language = preferences.language.map_or_else(|| t("System"), |language| language.native_name().into());
+            let appearance = t(match preferences.appearance {
+                theme::Appearance::System => "System",
+                theme::Appearance::Light => "Light",
+                theme::Appearance::Dark => "Dark",
+            });
+            shared_data_row(app, ui, busy, service::configuration::PREFERENCES_ID, &tf("Language: %@ · Appearance: %@", &[&language, &appearance]));
+        }
+        let local: Vec<_> = service::configuration::choices(app).into_iter().filter(|entry| !ids.contains(&entry.id())).collect();
+        if !local.is_empty() {
+            ui.add_space(8.0);
+            ui.label(theme::text(t("Only on this computer"), Font::Headline));
+        }
+        let limit = service::connection_limit(app);
+        for entry in local {
+            let id = entry.id();
+            let related = cloud.connections.iter().find(|saved| entry.same_audiobookshelf_login(saved));
+            ui.horizontal_wrapped(|ui| {
+                ui.label(entry.label());
+                if app.connect.services.selected.contains(&id) {
+                    ui.label(t("Waiting to synchronize"));
+                } else if let Some(related) = related {
+                    if app.connect.services.replace_target.as_deref() == Some(&id) {
+                        ui.label(t("Replace the shared Audiobookshelf connection with the account verified on this computer?"));
+                        if ui.add_enabled(!busy, egui::Button::new(t("Confirm replacement"))).clicked() {
+                            service::replace_shared_connection(app, related.id(), id.clone());
+                        }
+                        if ui.button(t("Cancel")).clicked() {
+                            app.connect.services.replace_target = None;
+                        }
+                    } else if ui.add_enabled(!busy, egui::Button::new(t("Replace on Connect"))).clicked() {
+                        app.connect.services.replace_target = Some(id.clone());
+                    }
+                } else if ui.add_enabled(!busy && ids.union(&app.connect.services.selected).count() < limit, egui::Button::new(t("Add to Connect"))).clicked() {
+                    app.connect.services.selected.insert(id);
+                    service::save(app);
+                    service::synchronize_now(app);
+                }
+            });
+        }
+        if !app.connect.services.backups.is_empty() {
+            ui.add(egui::Label::new(theme::secondary(ui, t("Removing a connection leaves existing backups intact. Delete all Connect cloud data to remove those backups too."), Font::Footnote)).wrap());
+        }
+    });
+}
+
+fn shared_data_row(app: &mut App, ui: &mut Ui, busy: bool, id: &str, label: &str) {
+    ui.horizontal_wrapped(|ui| {
+        ui.label(label);
+        let state = &mut app.connect.services;
+        if state.identity.as_ref().is_some_and(|i| i.removed.contains(id) || i.replacement.as_ref().is_some_and(|(previous, _)| previous == id)) {
+            ui.label(t("Waiting to synchronize"));
+        } else if state.remove_target.as_deref() == Some(id) {
+            ui.label(t("Local copies and downloads are kept."));
+            if ui.add_enabled(!busy, egui::Button::new(t("Confirm removal"))).clicked() {
+                if id == service::configuration::PREFERENCES_ID {
+                    service::remove_shared_preferences(app);
+                } else {
+                    service::remove_shared_connection(app, id.into());
+                }
+            }
+            if ui.button(t("Cancel")).clicked() {
+                app.connect.services.remove_target = None;
+            }
+        } else if ui.add_enabled(!busy, egui::Button::new(t("Remove from Connect"))).clicked() {
+            state.remove_target = Some(id.into());
         }
     });
 }

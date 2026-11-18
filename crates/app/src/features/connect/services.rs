@@ -3,7 +3,7 @@ pub mod configuration;
 mod playback;
 
 use crate::{app::App, platform::secrets, tasks::update};
-use configuration::Configuration;
+use configuration::{Configuration, ConflictChoice, Manifest, SyncBase};
 use discophile_core::connect::services::{Backup, Catalog, PairedDevice, Poll, VaultInfo};
 use discophile_core::connect::vault::{Envelope, VaultKeys, Watermark};
 use discophile_core::connect::{ConnectClient, ConnectCredential, ConnectError, ServerInfo};
@@ -44,6 +44,12 @@ pub struct Identity {
     pub select_new_connections: bool,
     #[serde(default)]
     pub known_connections: BTreeSet<String>,
+    #[serde(default)]
+    pub sync_base: Option<SyncBase>,
+    #[serde(default)]
+    pub removed: BTreeSet<String>,
+    #[serde(default)]
+    pub replacement: Option<(String, String)>,
 }
 
 #[derive(Default)]
@@ -66,6 +72,13 @@ pub struct ServicesState {
     pub restore_target: Option<(Uuid, Configuration)>,
     pub conflict: Option<Configuration>,
     pub pending_cloud: Option<Configuration>,
+    pub cloud: Option<Configuration>,
+    pub reviewing: bool,
+    pub review_ready: bool,
+    pub remove_target: Option<String>,
+    pub replace_target: Option<String>,
+    sync_requested: bool,
+    conflict_choice: Option<(u64, ConflictChoice)>,
     pub busy: bool,
     background: bool,
     pending: VecDeque<(Value, Completion)>,
@@ -130,7 +143,13 @@ pub fn recover_account(app: &mut App) {
         app.connect.services.vault = serde_json::from_value(value["vault"].clone()).ok();
         if let Some(code) = value["recoveryCode"].as_str() {
             app.connect.services.recovery_input = code.to_string();
-            pair(app, false);
+            if app.connect.services.reviewing {
+                if !prepare_review(app) {
+                    app.connect.services.error = Some(t("The encrypted configuration could not be authenticated. Check your recovery code."));
+                }
+            } else {
+                pair(app, false);
+            }
         } else {
             app.connect.services.error = Some(t("Open a previously connected computer once to enable synchronization through your account."));
         }
@@ -237,9 +256,14 @@ fn run(app: &mut App, mut operation: Value, done: impl FnOnce(&mut App, Value) +
                     } else if let Ok(id) = serde_json::from_value::<Uuid>(retry_operation["id"].clone()) {
                         app.connect.services.send_retries.remove(&id);
                     }
+                    if action == "write" && matches!(&error, ConnectError::Service(code) if code == "revision_conflict") {
+                        app.connect.services.sync_requested = true;
+                        app.connect.services.last_poll = 0;
+                        return;
+                    }
                     app.connect.services.error = Some(super::error_message(&error));
                     app.connect.services.paused_after_error = !transient
-                        && matches!(action.as_str(), "write" | "rotate" | "poll" | "join");
+                        && matches!(action.as_str(), "rotate" | "poll" | "join");
                     if error == ConnectError::Unauthorized {
                         super::refresh_account(app);
                     }
@@ -276,33 +300,89 @@ pub fn inspect(app: &mut App) {
                         .and_then(|v| serde_json::from_value::<VaultInfo>(v.clone()).ok());
                     app.connect.services.vault = vault;
                     app.connect.services.error = None;
-                    if account_sync(app) && app.connect.services.vault.is_none() {
-                        if app.connect.services.identity.is_none() {
-                            let limit = connection_limit(app);
-                            app.connect.services.selected = configuration::choices(app).into_iter().take(limit).map(|c| c.id()).collect();
-                            app.connect.services.preferences = true;
-                        }
-                        // Without a vault nothing on the account is sealed with stored keys, and keys
-                        // of a deleted vault can never create a new one: start from a fresh identity.
-                        prepare(app);
-                        pair(app, true);
+                    if app.connect.services.reviewing {
+                        review(app);
                     } else if app.connect.services.vault.is_some()
                         && app.connect.services.identity.is_some()
+                        && synchronization_started(app)
                     {
                         let pending_rotation = app.connect.services.vault.as_ref().zip(app.connect.services.identity.as_ref())
                             .is_some_and(|(v, i)| v.rotation_required && v.id == i.keys.vault_id && i.keys.epoch == v.epoch + 1);
-                        if pending_rotation { publish(app, true); return; }
+                        if pending_rotation { rotate_key(app); return; }
                         let needs_key = app.connect.services.vault.as_ref().zip(app.connect.services.identity.as_ref())
                             .is_some_and(|(v, i)| v.id != i.keys.vault_id || v.epoch != i.keys.epoch);
                         if account_sync(app) && needs_key { recover_account(app); } else { pair(app, false); }
-                    } else if account_sync(app) {
-                        recover_account(app);
+                    } else if app.connect.services.vault.is_none() {
+                        app.connect.services.paired = false;
+                        app.connect.services.cloud = None;
                     }
                 }
                 Err(error) => app.connect.services.error = Some(super::error_message(&error)),
             }
         })
     });
+}
+
+fn synchronization_started(app: &App) -> bool {
+    app.connect.services.identity.as_ref().is_some_and(|i| i.sync_base.is_some() || !i.baseline.is_empty())
+}
+
+pub fn start_review(app: &mut App) {
+    let state = &mut app.connect.services;
+    state.reviewing = true;
+    state.review_ready = false;
+    state.selected.clear();
+    state.preferences = false;
+    inspect(app);
+}
+
+fn review(app: &mut App) {
+    if app.connect.services.vault.is_none() {
+        if synchronization_started(app) {
+            app.connect.services.identity = None;
+        }
+        app.connect.services.cloud = None;
+        app.connect.services.review_ready = true;
+        return;
+    }
+    if prepare_review(app) {
+        return;
+    }
+    if account_sync(app) {
+        recover_account(app);
+    }
+}
+
+pub fn prepare_review(app: &mut App) -> bool {
+    let state = &mut app.connect.services;
+    let Some(vault) = state.vault.as_ref() else { return false };
+    let Some(instance) = app.connect.credential.as_ref().map(|c| c.instance_id.as_str()) else { return false };
+    let keys = if state.recovery_input.trim().is_empty() {
+        state.identity.as_ref().map(|identity| identity.keys.clone())
+    } else {
+        VaultKeys::recover(&state.recovery_input).ok()
+    };
+    if let Some(config) = keys.and_then(|keys| open_configuration(&keys, vault, instance)) {
+        state.cloud = Some(config);
+        state.review_ready = true;
+        true
+    } else {
+        false
+    }
+}
+
+pub fn confirm_review(app: &mut App) {
+    if !app.connect.services.review_ready { return; }
+    let create = app.connect.services.vault.is_none();
+    if create && (account_sync(app) || app.connect.services.identity.is_none()) {
+        prepare(app);
+    }
+    pair(app, create);
+}
+
+fn open_configuration(keys: &VaultKeys, vault: &VaultInfo, instance: &str) -> Option<Configuration> {
+    let config = keys.open::<Configuration>(vault.envelope.as_ref()?, instance, "configuration").ok()?;
+    config.validate().then_some(config)
 }
 
 /// The account refused this computer's device registration, usually because another device
@@ -344,6 +424,9 @@ pub fn prepare(app: &mut App) {
         name: app.connect.services.name.clone(),
         select_new_connections: account_sync(app),
         known_connections: configuration::choices(app).iter().map(|c| c.id()).collect(),
+        sync_base: None,
+        removed: Default::default(),
+        replacement: None,
     });
     app.connect.services.recovery_visible = !account_sync(app);
     save(app);
@@ -389,6 +472,9 @@ pub fn pair(app: &mut App, create: bool) {
             name: app.connect.services.name.clone(),
             select_new_connections: account_sync(app),
             known_connections: Default::default(),
+            sync_base: None,
+            removed: Default::default(),
+            replacement: None,
         }
     };
     if identity.device_secret.len() != 43 {
@@ -396,8 +482,9 @@ pub fn pair(app: &mut App, create: bool) {
         return;
     }
     let vault = app.connect.services.vault.clone();
-    let old_revision = identity.watermark.revision;
-    let old_baseline = identity.baseline.clone();
+    let activating = !synchronization_started(app);
+    let review_base = Manifest::of(app.connect.services.cloud.as_ref().unwrap_or(&Configuration::default()));
+    let requested = configuration::snapshot(app);
     if !app.connect.services.recovery_input.trim().is_empty() {
         match VaultKeys::recover(&app.connect.services.recovery_input) {
             Ok(keys) => identity.keys = keys,
@@ -409,7 +496,6 @@ pub fn pair(app: &mut App, create: bool) {
             }
         }
     }
-    let mut imported = None;
     let mut initial = None;
     if let Some(vault) = &vault {
         if identity.keys.epoch != vault.epoch || identity.keys.vault_id != vault.id {
@@ -417,27 +503,22 @@ pub fn pair(app: &mut App, create: bool) {
                 Some(t("Use the latest recovery code from a trusted computer."));
             return;
         }
-        if let Some(envelope) = &vault.envelope {
-            let opened = identity
-                .keys
-                .open::<Configuration>(envelope, &instance, "configuration");
-            match opened {
-                Ok(config) if config.validate() && identity.watermark.observe(envelope).is_ok() => {
-                    imported = Some(config)
-                }
-                _ => {
-                    app.connect.services.error = Some(t(
-                        "The encrypted configuration could not be authenticated. Check your recovery code.",
-                    ));
-                    return;
-                }
-            }
+        if let Some(envelope) = &vault.envelope
+            && (open_configuration(&identity.keys, vault, &instance).is_none() || identity.watermark.observe(envelope).is_err())
+        {
+            app.connect.services.error = Some(t(
+                "The encrypted configuration could not be authenticated. Check your recovery code.",
+            ));
+            return;
         }
     } else {
         if !create || (!account_sync(app) && !app.connect.services.confirm_recovery_saved) {
             return;
         }
-        let configuration = configuration::snapshot(app);
+        let configuration = &requested;
+        if !configuration.validate() || configuration.connections.len() > connection_limit(app) {
+            return;
+        }
         initial = identity
             .keys
             .seal(
@@ -445,12 +526,16 @@ pub fn pair(app: &mut App, create: bool) {
                 identity.device_id,
                 "configuration",
                 1,
-                &configuration,
+                configuration,
             )
             .ok();
         if initial.is_none() {
             return;
         }
+    }
+    if activating {
+        identity.known_connections = configuration::choices(app).iter().map(|c| c.id()).collect();
+        identity.select_new_connections = true;
     }
     let mut operation = json!({"action":"join", "deviceId":identity.device_id, "deviceSecret":identity.device_secret,
         "name":app.connect.services.name.trim(), "vaultId":identity.keys.vault_id, "epoch":identity.keys.epoch,
@@ -469,39 +554,15 @@ pub fn pair(app: &mut App, create: bool) {
         app.connect.services.paired = true;
         app.connect.services.paused_after_error = false;
         app.connect.services.recovery_input.clear();
-        let local = configuration::snapshot(app);
-        let local_changed = !old_baseline.is_empty() && configuration::hash(&local) != old_baseline;
-        let remote_changed = app
-            .connect
-            .services
-            .vault
-            .as_ref()
-            .is_some_and(|v| v.revision > old_revision);
-        let mut keep_baseline = false;
-        if let Some(config) = imported {
-            if !old_baseline.is_empty() && !app.connect.services.automatic {
-                app.connect.services.pending_cloud = Some(config);
-                keep_baseline = true;
-            } else if local_changed && remote_changed && local != config {
-                app.connect.services.conflict = Some(config);
-                keep_baseline = true;
-            } else if !local_changed {
-                configuration::import(app, &config);
-            } else {
-                keep_baseline = true;
-            }
-        }
-        if !keep_baseline {
-            let baseline = configuration::hash(&configuration::snapshot(app));
-            if let Some(identity) = app.connect.services.identity.as_mut() {
-                identity.baseline = baseline;
-            }
-        }
-        if old_baseline.is_empty() {
+        app.connect.services.reviewing = false;
+        app.connect.services.review_ready = false;
+        if activating {
             app.connect.services.automatic = true;
-            let known = configuration::choices(app).iter().map(|c| c.id()).collect();
-            if let Some(identity) = app.connect.services.identity.as_mut() { identity.known_connections = known; }
+            if let Some(identity) = app.connect.services.identity.as_mut() {
+                identity.sync_base = Some(SyncBase { local: Manifest::default(), cloud: review_base });
+            }
         }
+        synchronize(app, true, ConflictChoice::Review);
         save(app);
         refresh(app);
     });
@@ -555,21 +616,139 @@ pub fn refresh(app: &mut App) {
     }
 }
 
-pub fn publish(app: &mut App, rotate: bool) {
-    let Some(vault) = app.connect.services.vault.clone() else {
+pub fn synchronize_now(app: &mut App) {
+    app.connect.services.sync_requested = true;
+    refresh(app);
+}
+
+pub fn remove_shared_connection(app: &mut App, id: String) {
+    if app.connect.services.cloud.as_ref().is_none_or(|cloud| !cloud.connections.iter().any(|entry| entry.id() == id)) {
+        return;
+    }
+    if let Some(identity) = app.connect.services.identity.as_mut() {
+        identity.removed.insert(id);
+    }
+    app.connect.services.remove_target = None;
+    save(app);
+    synchronize_now(app);
+}
+
+pub fn replace_shared_connection(app: &mut App, cloud_id: String, local_id: String) {
+    let state = &mut app.connect.services;
+    let Some(identity) = state.identity.as_mut() else { return };
+    identity.replacement = Some((cloud_id, local_id.clone()));
+    state.selected.insert(local_id);
+    state.replace_target = None;
+    save(app);
+    synchronize_now(app);
+}
+
+pub fn remove_shared_preferences(app: &mut App) {
+    if let Some(identity) = app.connect.services.identity.as_mut() {
+        identity.removed.insert(configuration::PREFERENCES_ID.into());
+        app.connect.services.preferences = false;
+    }
+    app.connect.services.remove_target = None;
+    save(app);
+    synchronize_now(app);
+}
+
+fn accept_configuration(app: &mut App, config: &Configuration) {
+    configuration::import(app, config);
+    let local = configuration::snapshot(app);
+    let known = app.connect.services.identity.as_ref().filter(|i| i.sync_base.is_none())
+        .map(|_| configuration::choices(app).iter().map(|entry| entry.id()).collect::<BTreeSet<_>>());
+    let state = &mut app.connect.services;
+    if let Some(identity) = state.identity.as_mut() {
+        identity.select_new_connections = true;
+        if let Some(known) = known { identity.known_connections.extend(known); }
+        identity.baseline = configuration::hash(&local);
+        identity.sync_base = Some(SyncBase { local: Manifest::of(&local), cloud: Manifest::of(config) });
+        identity.known_connections.extend(config.connections.iter().map(|entry| entry.id()));
+        identity.removed.clear();
+        identity.replacement = None;
+    }
+    state.conflict = None;
+    state.pending_cloud = None;
+    state.conflict_choice = None;
+}
+
+fn synchronize(app: &mut App, force_import: bool, choice: ConflictChoice) {
+    let state = &app.connect.services;
+    let Some(vault) = state.vault.as_ref() else { return };
+    let Some(identity) = state.identity.as_ref() else { return };
+    let Some(instance) = app.connect.credential.as_ref().map(|c| c.instance_id.as_str()) else { return };
+    let Some(config) = open_configuration(&identity.keys, vault, instance) else {
+        app.connect.services.error = Some(t("The encrypted configuration could not be authenticated. Check your recovery code."));
         return;
     };
-    let local_config = configuration::snapshot(app);
-    let mut config = local_config.clone();
-    // Opting this computer out of preferences does not erase the other computers' shared preferences.
-    if !app.connect.services.preferences {
-        if let (Some(envelope), Some(identity), Some(credential)) = (vault.envelope.as_ref(), app.connect.services.identity.as_ref(), app.connect.credential.as_ref()) {
-            if let Ok(remote) = identity.keys.open::<Configuration>(envelope, &credential.instance_id, "configuration") {
-                config.preferences = remote.preferences;
+    let Some(envelope) = vault.envelope.as_ref() else { return };
+    let mut watermark = identity.watermark.clone();
+    if watermark.observe(envelope).is_err() {
+        app.connect.services.error = Some(t("Connect returned an older or conflicting encrypted configuration."));
+        return;
+    }
+    let local = configuration::snapshot(app);
+    let manifest = Manifest::of(&config);
+    let legacy_base = || {
+        if identity.baseline == configuration::hash(&local) {
+            SyncBase { local: Manifest::of(&local), cloud: manifest.clone() }
+        } else {
+            // Legacy installations saved a single local digest. Review different copies of the same source.
+            SyncBase::default()
+        }
+    };
+    let base = identity.sync_base.clone().unwrap_or_else(legacy_base);
+    let first_import = identity.sync_base.is_none();
+    let mut removed = identity.removed.clone();
+    if let Some((previous, replacement)) = &identity.replacement
+        && local.connections.iter().any(|entry| entry.id() == *replacement)
+    {
+        removed.insert(previous.clone());
+    }
+    let pending_removals = !removed.is_empty();
+    let cloud_changed = manifest != base.cloud;
+    let merged = configuration::merge(&local, &config, &base, &removed, state.preferences, choice);
+    let state = &mut app.connect.services;
+    state.identity.as_mut().unwrap().watermark = watermark;
+    state.cloud = Some(config.clone());
+    if !state.automatic && !state.sync_requested {
+        if cloud_changed {
+            state.pending_cloud = Some(config);
+        }
+        return;
+    }
+    state.sync_requested = false;
+    match merged {
+        Err(()) => state.conflict = Some(config),
+        Ok(next) if !configuration::equivalent(&config, &next) => {
+            write_configuration(app, next, false);
+        }
+        Ok(_) => {
+            if force_import || first_import || cloud_changed || pending_removals || state.conflict.is_some() {
+                accept_configuration(app, &config);
             }
         }
     }
-    if config.connections.len() > connection_limit(app) {
+}
+
+pub fn rotate_key(app: &mut App) {
+    if app.connect.services.busy {
+        return;
+    }
+    let Some(vault) = app.connect.services.vault.as_ref() else { return };
+    let Some(identity) = app.connect.services.identity.as_ref() else { return };
+    let Some(instance) = app.connect.credential.as_ref().map(|c| c.instance_id.as_str()) else { return };
+    if let Some(config) = open_configuration(&identity.keys, vault, instance) {
+        write_configuration(app, config, true);
+    }
+}
+
+fn write_configuration(app: &mut App, config: Configuration, rotate: bool) {
+    let Some(vault) = app.connect.services.vault.clone() else {
+        return;
+    };
+    if !config.validate() || (!rotate && config.connections.len() > connection_limit(app)) {
         app.connect.services.error = Some(t(
             "Choose fewer connections for this plan, or request Connect.",
         ));
@@ -607,6 +786,9 @@ pub fn publish(app: &mut App, rotate: bool) {
         return;
     };
     let next = envelope.clone();
+    let local_at_send = configuration::snapshot(app);
+    let removed_at_send = identity.removed.clone();
+    let replacement_at_send = identity.replacement.clone();
     let mut operation = json!({"action":if rotate {"rotate"} else {"write"}, "expectedRevision":vault.revision, "connectionCount":config.connections.len(), "envelope":envelope});
     if account_sync(app) {
         operation["recoveryCode"] = json!(identity.keys.recovery_code());
@@ -623,10 +805,23 @@ pub fn publish(app: &mut App, rotate: bool) {
             }
             if let Some(identity) = app.connect.services.identity.as_mut() {
                 let _ = identity.watermark.observe(&next);
-                identity.baseline = configuration::hash(&local_config);
             }
-            app.connect.services.conflict = None;
-            app.connect.services.pending_cloud = None;
+            app.connect.services.cloud = Some(config.clone());
+            if !rotate && configuration::snapshot(app) == local_at_send
+                && app.connect.services.identity.as_ref().is_some_and(|i| i.removed == removed_at_send && i.replacement == replacement_at_send)
+            {
+                accept_configuration(app, &config);
+            } else if !rotate {
+                // Local changes arrived while the write was in flight. Preserve them for the next poll.
+                if let Some(identity) = app.connect.services.identity.as_mut() {
+                    identity.sync_base = Some(SyncBase { local: Manifest::of(&local_at_send), cloud: Manifest::of(&config) });
+                    identity.removed.retain(|id| !removed_at_send.contains(id));
+                    if identity.replacement == replacement_at_send && config.connections.iter().any(|entry| replacement_at_send.as_ref().is_some_and(|(_, id)| entry.id() == *id)) {
+                        identity.replacement = None;
+                    }
+                }
+                app.connect.services.sync_requested = true;
+            }
             app.connect.services.paused_after_error = false;
             if rotate {
                 app.connect.services.paired = true;
@@ -638,7 +833,6 @@ pub fn publish(app: &mut App, rotate: bool) {
                 }));
             }
             save(app);
-            backup(app);
         },
     );
 }
@@ -689,15 +883,19 @@ pub fn apply_restore(app: &mut App) {
     let Some((_, config)) = app.connect.services.restore_target.take() else {
         return;
     };
+    let selected = app.connect.services.selected.clone();
     if configuration::import(app, &config) {
-        let baseline = configuration::hash(&configuration::snapshot(app));
+        app.connect.services.selected = selected;
+        let local = configuration::snapshot(app);
         if let Some(identity) = app.connect.services.identity.as_mut() {
-            identity.baseline = baseline;
+            identity.baseline = configuration::hash(&local);
+            identity.known_connections.extend(config.connections.iter().map(|entry| entry.id()));
+            if let Some(base) = identity.sync_base.as_mut() {
+                base.local = Manifest::of(&local);
+            }
         }
         save(app);
-        app.connect.services.notice = Some(t(
-            "Configuration restored locally. Publish it to update the other devices.",
-        ));
+        app.connect.services.notice = Some(t("Configuration restored on this computer."));
     }
 }
 pub fn revoke(app: &mut App, target: Uuid) {
@@ -719,7 +917,7 @@ pub fn revoke(app: &mut App, target: Uuid) {
                 app.connect.services.identity = None;
             } else if let Some(vault) = app.connect.services.vault.as_mut() {
                 vault.rotation_required = true;
-                publish(app, true);
+                rotate_key(app);
             }
         },
     );
@@ -736,23 +934,24 @@ pub fn delete(app: &mut App) {
     });
 }
 pub fn use_cloud(app: &mut App) {
-    let Some(config) = app.connect.services.conflict.take() else {
-        return;
-    };
-    configuration::import(app, &config);
-    let baseline = configuration::hash(&configuration::snapshot(app));
-    if let Some(identity) = app.connect.services.identity.as_mut() {
-        identity.baseline = baseline;
+    resolve_conflict(app, ConflictChoice::Cloud);
+}
+
+pub fn use_local(app: &mut App) {
+    resolve_conflict(app, ConflictChoice::Local);
+}
+
+fn resolve_conflict(app: &mut App, choice: ConflictChoice) {
+    if let Some(vault) = app.connect.services.vault.as_ref() {
+        app.connect.services.conflict_choice = Some((vault.revision, choice));
+        synchronize_now(app);
     }
-    save(app);
 }
 
 pub fn resume_automatic(app: &mut App) {
-    let Some(remote) = app.connect.services.pending_cloud.take() else { return };
-    let local = configuration::snapshot(app);
-    let changed = app.connect.services.identity.as_ref().is_some_and(|i| !i.baseline.is_empty() && i.baseline != configuration::hash(&local));
-    app.connect.services.conflict = Some(remote);
-    if !changed { use_cloud(app); }
+    app.connect.services.automatic = true;
+    save(app);
+    synchronize_now(app);
 }
 
 pub fn rename(app: &mut App) {
@@ -788,14 +987,6 @@ fn poll(app: &mut App) {
         let Some(identity) = app.connect.services.identity.as_ref() else {
             return;
         };
-        let Some(instance) = app
-            .connect
-            .credential
-            .as_ref()
-            .map(|c| c.instance_id.clone())
-        else {
-            return;
-        };
         if poll.vault.id != identity.keys.vault_id || poll.vault.epoch < identity.watermark.epoch {
             app.connect.services.error = Some(t(
                 "The encrypted configuration could not be authenticated. Check your recovery code.",
@@ -807,7 +998,7 @@ fn poll(app: &mut App) {
         app.connect.services.backups = poll.backups;
         if poll.vault.rotation_required {
             if account_sync(app) && poll.vault.epoch == identity.keys.epoch {
-                publish(app, true);
+                rotate_key(app);
                 return;
             }
             app.connect.services.error = Some(t(
@@ -824,61 +1015,11 @@ fn poll(app: &mut App) {
                 Some(t("Use the latest recovery code from a trusted computer."));
             return;
         }
-        if let Some(envelope) = poll.vault.envelope.as_ref() {
-            let config = identity
-                .keys
-                .open::<Configuration>(envelope, &instance, "configuration");
-            let old_revision = identity.watermark.revision;
-            let baseline = identity.baseline.clone();
-            let local = configuration::snapshot(app);
-            if let Ok(remote) = config
-                && remote.validate()
-            {
-                let identity = app.connect.services.identity.as_mut().unwrap();
-                if identity.watermark.observe(envelope).is_err() {
-                    app.connect.services.error = Some(t(
-                        "Connect returned an older or conflicting encrypted configuration.",
-                    ));
-                    return;
-                }
-                if envelope.revision > old_revision && !app.connect.services.automatic {
-                    app.connect.services.pending_cloud = Some(remote);
-                } else if envelope.revision > old_revision && app.connect.services.automatic {
-                    if !baseline.is_empty()
-                        && configuration::hash(&local) != baseline
-                        && local != remote
-                    {
-                        app.connect.services.conflict = Some(remote);
-                    } else {
-                        configuration::import(app, &remote);
-                        let baseline = configuration::hash(&configuration::snapshot(app));
-                        app.connect.services.identity.as_mut().unwrap().baseline = baseline;
-                    }
-                }
-            } else {
-                app.connect.services.error = Some(t(
-                    "The encrypted configuration could not be authenticated. Check your recovery code.",
-                ));
-                return;
-            }
-        }
+        let choice = app.connect.services.conflict_choice.filter(|(revision, _)| *revision == poll.vault.revision)
+            .map(|(_, choice)| choice).unwrap_or_default();
+        synchronize(app, false, choice);
         save(app);
         playback::receive_poll(app, &poll.messages);
-        if app.connect.services.automatic
-            && app.connect.services.conflict.is_none()
-            && !app.connect.services.busy
-        {
-            let current = configuration::hash(&configuration::snapshot(app));
-            if app
-                .connect
-                .services
-                .identity
-                .as_ref()
-                .is_some_and(|i| !i.baseline.is_empty() && i.baseline != current)
-            {
-                publish(app, false);
-            }
-        }
     });
 }
 
@@ -947,7 +1088,10 @@ pub fn tick(app: &mut App) {
                 let id = choice.id();
                 let new = identity.known_connections.insert(id.clone());
                 changed |= new;
-                if new && identity.select_new_connections && state.selected.len() < limit {
+                let needs_review = state.cloud.as_ref().is_some_and(|cloud| {
+                    cloud.connections.iter().any(|entry| choice.same_audiobookshelf_login(entry))
+                });
+                if new && !needs_review && identity.select_new_connections && state.selected.len() < limit {
                     state.selected.insert(id);
                 }
             }

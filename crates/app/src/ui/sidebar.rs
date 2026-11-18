@@ -1,7 +1,7 @@
 //! The desktop sidebar (the iOS tab bar's sections, plus the library sections) and the content toolbar.
 
 use discophile_core::l10n::{t, tf};
-use egui::{Align, CornerRadius, Layout, Sense, Ui, vec2};
+use egui::{Align, CornerRadius, Layout, Sense, Ui, UiBuilder, vec2};
 
 use crate::app::App;
 use crate::features::{assistant, audiobooks};
@@ -38,6 +38,15 @@ pub fn show(app: &mut App, ui: &mut Ui) {
     }
     ui.add_space(22.0);
 
+    // Lay out the sticky footer first so the navigation uses exactly the space above it.
+    let footer_top = {
+        let align = if collapsed { Align::Center } else { Align::Min };
+        let mut footer = ui.new_child(UiBuilder::new().id_salt("footer").layout(Layout::bottom_up(align)));
+        show_footer(app, &mut footer, collapsed);
+        footer.min_rect().top()
+    };
+    let nav_height = (footer_top - ui.cursor().top()).max(0.0);
+
     let selected = app.nav.section();
     let mut main = Vec::new();
     if app.session.has_library() {
@@ -49,7 +58,7 @@ pub fn show(app: &mut App, ui: &mut Ui) {
     }
     main.push(Entry { route: Route::Radio, icon: icons::RADIO, label: t("Radio") });
 
-    egui::ScrollArea::vertical().auto_shrink([false, false]).max_height((ui.available_height() - if collapsed { 200.0 } else { 160.0 }).max(40.0)).show(ui, |ui| {
+    egui::ScrollArea::vertical().auto_shrink([false, false]).min_scrolled_height(0.0).max_height(nav_height).show(ui, |ui| {
         for entry in &main {
             nav_item(app, ui, entry, &selected, collapsed, center_x);
         }
@@ -77,49 +86,49 @@ pub fn show(app: &mut App, ui: &mut Ui) {
             }
         }
     });
+}
 
+fn show_footer(app: &mut App, ui: &mut Ui, collapsed: bool) {
     // Collapsed, every control sits on the same centre line as the nav icons.
-    ui.with_layout(Layout::bottom_up(if collapsed { Align::Center } else { Align::Min }), |ui| {
-        if collapsed {
-            if widgets::icon_button(ui, icons::GITHUB_LOGO, &t("Discophile on GitHub"), 18.0).clicked() {
-                ui.ctx().open_url(egui::OpenUrl::new_tab(crate::platform::GITHUB));
-            }
-        } else {
-            let github = ui.add(egui::Button::new(theme::secondary(ui, format!("{}  GitHub  {}", icons::GITHUB_LOGO, icons::ARROW_SQUARE_OUT), Font::Callout)).frame(false)).on_hover_text(t("Discophile on GitHub"));
-            github.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, t("Discophile on GitHub")));
-            if github.clicked() { ui.ctx().open_url(egui::OpenUrl::new_tab(crate::platform::GITHUB)); }
+    if collapsed {
+        if widgets::icon_button(ui, icons::GITHUB_LOGO, &t("Discophile on GitHub"), 18.0).clicked() {
+            ui.ctx().open_url(egui::OpenUrl::new_tab(crate::platform::GITHUB));
         }
-        ui.add_space(8.0);
-        ui.separator();
-        ui.add_space(8.0);
-        if collapsed {
-            if ui.ctx().content_rect().width() >= 900.0 && widgets::icon_button(ui, icons::SIDEBAR_SIMPLE, &t("Show sidebar"), 16.0).clicked() {
-                app.settings.sidebar_collapsed = false;
+    } else {
+        let github = ui.add(egui::Button::new(theme::secondary(ui, format!("{}  GitHub  {}", icons::GITHUB_LOGO, icons::ARROW_SQUARE_OUT), Font::Callout)).frame(false)).on_hover_text(t("Discophile on GitHub"));
+        github.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, t("Discophile on GitHub")));
+        if github.clicked() { ui.ctx().open_url(egui::OpenUrl::new_tab(crate::platform::GITHUB)); }
+    }
+    ui.add_space(8.0);
+    ui.separator();
+    ui.add_space(8.0);
+    if collapsed {
+        if ui.ctx().content_rect().width() >= 900.0 && widgets::icon_button(ui, icons::SIDEBAR_SIMPLE, &t("Show sidebar"), 16.0).clicked() {
+            app.settings.sidebar_collapsed = false;
+            app.settings.save();
+        }
+        if widgets::icon_button(ui, icons::GEAR_SIX, &t("Settings"), 17.0).clicked() {
+            app.nav.push(Route::Settings(SettingsPage::General));
+        }
+    } else {
+        ui.horizontal(|ui| {
+            if widgets::icon_button(ui, icons::CARET_LEFT, &t("Hide sidebar"), 16.0).clicked() {
+                app.settings.sidebar_collapsed = true;
                 app.settings.save();
             }
-            if widgets::icon_button(ui, icons::GEAR_SIX, &t("Settings"), 17.0).clicked() {
-                app.nav.push(Route::Settings(SettingsPage::General));
-            }
-        } else {
-            ui.horizontal(|ui| {
-                if widgets::icon_button(ui, icons::CARET_LEFT, &t("Hide sidebar"), 16.0).clicked() {
-                    app.settings.sidebar_collapsed = true;
-                    app.settings.save();
+            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                if ui.add(egui::Button::new(theme::secondary(ui, format!("{}  {}", icons::GEAR_SIX, t("Settings")), Font::Callout)).frame(false)).clicked() {
+                    app.nav.push(Route::Settings(SettingsPage::General));
                 }
-                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    if ui.add(egui::Button::new(theme::secondary(ui, format!("{}  {}", icons::GEAR_SIX, t("Settings")), Font::Callout)).frame(false)).clicked() {
-                        app.nav.push(Route::Settings(SettingsPage::General));
-                    }
-                });
             });
-        }
-        if app.session.has_library() {
-            downloaded_only_toggle(app, ui, collapsed);
-        }
-        ui.add_space(10.0);
-        ui.separator();
-        ui.add_space(10.0);
-    });
+        });
+    }
+    if app.session.has_library() {
+        downloaded_only_toggle(app, ui, collapsed);
+    }
+    ui.add_space(10.0);
+    ui.separator();
+    ui.add_space(10.0);
 }
 
 fn nav_item(app: &mut App, ui: &mut Ui, entry: &Entry, selected: &Route, collapsed: bool, center_x: f32) {
@@ -315,6 +324,40 @@ mod tests {
 
     fn key(key: egui::Key) -> egui::Event {
         egui::Event::Key { key, physical_key: None, pressed: true, repeat: false, modifiers: egui::Modifiers::NONE }
+    }
+
+    #[test]
+    fn sidebar_scroll_viewport_ends_above_the_footer_divider() {
+        for collapsed in [false, true] {
+            let mut app = fixture();
+            app.session.client = Some(discophile_core::client::MusicClient::new(app.session.accounts[0].credentials.clone()));
+            app.settings.sidebar_collapsed = collapsed;
+            let ctx = app.ctx().clone();
+            theme::install_fonts(&ctx);
+            theme::apply(&ctx, true);
+            let input = egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, vec2(900.0, 600.0))),
+                ..Default::default()
+            };
+            let mut output = ctx.run_ui(input, |root| {
+                egui::Panel::bottom("player-bar").exact_size(96.0).show(root, |_| {});
+                egui::Panel::left("sidebar-test")
+                    .exact_size(if collapsed { 72.0 } else { 244.0 })
+                    .frame(egui::Frame::new().inner_margin(egui::Margin::symmetric(14, 20)))
+                    .show(root, |ui| show(&mut app, ui));
+            });
+            output.textures_delta.clear();
+            let nav_clip = output.shapes.iter().find_map(|shape| match &shape.shape {
+                egui::Shape::Text(text) if text.galley.text() == icons::MAGNIFYING_GLASS => Some(shape.clip_rect),
+                _ => None,
+            }).expect("navigation clip rectangle");
+            let divider_y = output.shapes.iter().filter_map(|shape| match &shape.shape {
+                egui::Shape::LineSegment { points, .. } if points[0].y == points[1].y => Some(points[0].y),
+                _ => None,
+            }).min_by(f32::total_cmp).expect("footer divider");
+
+            assert!(nav_clip.bottom() < divider_y, "navigation ends at {} and footer divider is at {divider_y}", nav_clip.bottom());
+        }
     }
 
     #[test]

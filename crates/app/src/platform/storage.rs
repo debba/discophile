@@ -34,6 +34,7 @@ mod native {
     use std::path::PathBuf;
     use std::sync::OnceLock;
 
+    #[cfg(not(test))]
     pub fn dirs() -> Option<&'static directories::ProjectDirs> {
         static DIRS: OnceLock<Option<directories::ProjectDirs>> = OnceLock::new();
         DIRS.get_or_init(|| directories::ProjectDirs::from("app", "Discophile", "Discophile")).as_ref()
@@ -41,6 +42,9 @@ mod native {
 
     /// Persistent application data (settings, history, downloads catalog).
     pub fn data_dir() -> PathBuf {
+        #[cfg(test)]
+        return test_dir().join("data");
+        #[cfg(not(test))]
         std::env::var_os("DISCOPHILE_DATA_DIR")
             .map(PathBuf::from)
             .or_else(|| dirs().map(|d| d.data_dir().to_path_buf()))
@@ -49,6 +53,9 @@ mod native {
 
     /// Disposable caches (artwork, AutoEq index).
     pub fn cache_dir() -> PathBuf {
+        #[cfg(test)]
+        return test_dir().join("cache");
+        #[cfg(not(test))]
         std::env::var_os("DISCOPHILE_CACHE_DIR")
             .map(PathBuf::from)
             .or_else(|| dirs().map(|d| d.cache_dir().to_path_buf()))
@@ -57,6 +64,12 @@ mod native {
 
     pub fn path(key: &str) -> PathBuf {
         data_dir().join("state").join(format!("{}.json", super::sanitize(key)))
+    }
+
+    #[cfg(test)]
+    fn test_dir() -> &'static std::path::Path {
+        static DIR: OnceLock<tempfile::TempDir> = OnceLock::new();
+        DIR.get_or_init(|| tempfile::tempdir().expect("create isolated Discophile test storage")).path()
     }
 }
 
